@@ -2,38 +2,43 @@ import type React from 'react';
 import { useState } from 'react';
 import {
   ALL_STATUSES,
+  ROLE_LABEL,
   TASK_STATUS_META,
   isBoardDraggable,
+  ownerOf,
   type ContentType,
   type TaskStatus,
 } from '@gd/core';
 import { tokens } from '@gd/ui';
-import { useBoardTransition, useTasks } from '../../api/tasks.js';
+import { MessageSquare, MoreHorizontal, Paperclip } from 'lucide-react';
+import { useBoardTransition } from '../../api/tasks.js';
 import { ApiRequestError } from '../../lib/api.js';
-import type { TaskListItem } from '../../lib/types.js';
+import type { ClientRow, EmployeeRow, TaskListItem } from '../../lib/types.js';
+import { daysInStatus, deadlineFor } from '../../lib/tasksView.js';
+import { StatusBadge } from '../../components/StatusBadge.js';
 
-/**
- * Табла (Handoff §3, D-8): колони по статус, drag-and-drop само за преоди без input-guards.
- * Преоди што бараат внес (доделен/коментар) се одбиваат со toast — отвори го панелот.
- */
-export function Board({ onOpen }: { onOpen: (id: string) => void }) {
-  const { data: tasks } = useTasks({});
+interface BoardProps {
+  tasks: TaskListItem[];
+  clientById: Map<string, ClientRow>;
+  empById: Map<string, EmployeeRow>;
+  groupBy: 'client' | 'status';
+  onOpen: (id: string) => void;
+}
+
+/** Табла (Handoff §2.3, D-8): групирање по статус или по клиент; DnD со guard-одбивање. */
+export function Board({ tasks, clientById, empById, groupBy, onOpen }: BoardProps) {
   const move = useBoardTransition();
   const [drag, setDrag] = useState<{ id: string; from: string; type: ContentType } | null>(null);
   const [over, setOver] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  const rows = tasks ?? [];
-  const columns = ALL_STATUSES.filter((s) => rows.some((t) => t.status === s));
-
   const drop = (to: TaskStatus) => {
     setOver(null);
-    if (!drag) return;
     const d = drag;
     setDrag(null);
-    if (d.from === to) return;
+    if (!d || d.from === to) return;
     if (!isBoardDraggable(d.from as TaskStatus, to, d.type)) {
-      setToast('Овој преод бара внес — отвори го панелот.');
+      setToast(`Преодот „${label(d.from)}" → „${label(to)}" бара внес — отвори го панелот.`);
       return;
     }
     move.mutate(
@@ -42,41 +47,64 @@ export function Board({ onOpen }: { onOpen: (id: string) => void }) {
     );
   };
 
+  // Групирање по статус (D-8: default кога е избран еден клиент) или по клиент.
+  const columns: Array<{ key: string; title: string; color: string; cards: TaskListItem[] }> =
+    groupBy === 'status'
+      ? ALL_STATUSES.filter((s) => tasks.some((t) => t.status === s)).map((s) => ({
+          key: s,
+          title: TASK_STATUS_META[s].label,
+          color: tokens.statusColor[s as keyof typeof tokens.statusColor] ?? '#6B7280',
+          cards: tasks.filter((t) => t.status === s),
+        }))
+      : [...new Set(tasks.map((t) => t.clientId))].map((cid) => ({
+          key: cid,
+          title: clientById.get(cid)?.name ?? 'Клиент',
+          color: clientById.get(cid)?.color ?? '#6B7280',
+          cards: tasks.filter((t) => t.clientId === cid),
+        }));
+
   return (
-    <div style={{ display: 'flex', gap: 16, overflowX: 'auto', height: '100%', padding: '4px 0' }}>
-      {columns.map((status) => {
-        const cards = rows.filter((t) => t.status === status);
-        const color = tokens.statusColor[status as keyof typeof tokens.statusColor] ?? '#6B7280';
-        return (
-          <div
-            key={status}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setOver(status);
-            }}
-            onDrop={() => drop(status)}
-            style={column(over === status)}
-          >
-            <div style={colHeader}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: color }} />
-              {TASK_STATUS_META[status].label}
-              <span style={{ color: 'var(--gd-ink-muted)', fontWeight: 400 }}>
-                · {cards.length}
-              </span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto' }}>
-              {cards.map((t) => (
-                <Card
-                  key={t.id}
-                  task={t}
-                  onOpen={onOpen}
-                  onDragStart={() => setDrag({ id: t.id, from: t.status, type: t.contentType })}
-                />
-              ))}
-            </div>
+    <div style={boardWrap}>
+      {columns.map((col) => (
+        <div
+          key={col.key}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setOver(col.key);
+          }}
+          onDrop={() => groupBy === 'status' && drop(col.key as TaskStatus)}
+          style={column(
+            over === col.key && groupBy === 'status',
+            dropColor(drag, col.key, groupBy),
+          )}
+        >
+          <div style={colHeader}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: col.color }} />
+            {col.title}
+            <span style={{ color: 'var(--gd-ink-muted)', fontWeight: 400 }}>
+              · {col.cards.length}
+            </span>
+            <MoreHorizontal
+              size={14}
+              style={{ marginLeft: 'auto', color: 'var(--gd-ink-muted)' }}
+            />
           </div>
-        );
-      })}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto' }}>
+            {col.cards.map((t) => (
+              <Card
+                key={t.id}
+                task={t}
+                stripe={clientById.get(t.clientId)?.color ?? '#ccc'}
+                empById={empById}
+                dragging={drag?.id === t.id}
+                onOpen={onOpen}
+                onDragStart={() => setDrag({ id: t.id, from: t.status, type: t.contentType })}
+                onDragEnd={() => setDrag(null)}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
       {columns.length === 0 && <p style={{ color: 'var(--gd-ink-muted)' }}>Нема таскови.</p>}
       {toast && (
         <div style={toastStyle} onClick={() => setToast(null)}>
@@ -89,49 +117,110 @@ export function Board({ onOpen }: { onOpen: (id: string) => void }) {
 
 function Card({
   task,
+  stripe,
+  empById,
+  dragging,
   onOpen,
   onDragStart,
+  onDragEnd,
 }: {
   task: TaskListItem;
+  stripe: string;
+  empById: Map<string, EmployeeRow>;
+  dragging: boolean;
   onOpen: (id: string) => void;
   onDragStart: () => void;
+  onDragEnd: () => void;
 }) {
+  const dl = deadlineFor(task);
+  const stuck = daysInStatus(task);
+  const owner = ownerOf(task.status as TaskStatus, task.contentType as ContentType);
+  const assignee = task.assigneeId ? empById.get(task.assigneeId)?.name : null;
+  const urgent = task.priority === 'iten';
   return (
     <div
       draggable
       onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
       onClick={() => onOpen(task.id)}
-      style={cardStyle}
+      style={{ ...cardStyle, opacity: dragging ? 0.4 : 1 }}
       title={task.title}
     >
-      <div
-        style={{
-          fontSize: 13,
-          fontWeight: 500,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {task.contentType === 'video' ? '▶' : '▧'} {task.title}
+      <span style={{ ...cardStripe, background: stripe }} />
+      {urgent && <span style={urgentTriangle} aria-label="итно" />}
+      <div style={cardTitle}>{task.title}</div>
+      <div style={{ margin: '6px 0' }}>
+        <StatusBadge status={task.status} />
       </div>
-      <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)', marginTop: 4 }}>
-        {task.slot ? task.slot.date.slice(0, 10) : '—'} · v{task.version}
+      {owner && (
+        <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>
+          {ROLE_LABEL[owner]} · {assignee ?? 'Недоделен'}
+        </div>
+      )}
+      <div style={cardMeta}>
+        {dl && (
+          <span style={{ color: dlColor(dl.level) }}>
+            {dlPrefix(dl.level)}
+            {dl.text}
+          </span>
+        )}
+        {task._count.comments > 0 && (
+          <span style={metaItem}>
+            <MessageSquare size={12} /> {task._count.comments}
+          </span>
+        )}
+        {task._count.publications > 0 && (
+          <span style={metaItem}>
+            <Paperclip size={12} /> {task._count.publications}
+          </span>
+        )}
+        <span>v{task.version}</span>
+        {stuck > 3 && !['objaveno', 'zavrseno', 'otkazano', 'pauza'].includes(task.status) && (
+          <span style={{ color: 'var(--gd-warning)' }}>◷ {stuck} дена</span>
+        )}
       </div>
     </div>
   );
 }
 
-const column = (isOver: boolean): React.CSSProperties => ({
+const label = (s: string) => TASK_STATUS_META[s as TaskStatus]?.label ?? s;
+const dlColor = (l: string) =>
+  l === 'overdue' ? 'var(--gd-danger)' : l === 'soon' ? 'var(--gd-warning)' : 'var(--gd-ink-muted)';
+const dlPrefix = (l: string) => (l === 'overdue' ? '⚠ ' : l === 'soon' ? '◷ ' : '');
+
+/** Боја на drop-целта: зелена ако преодот е дозволен, црвена ако не (D-8). */
+function dropColor(
+  drag: { from: string; type: ContentType } | null,
+  colKey: string,
+  groupBy: 'client' | 'status',
+): string | null {
+  if (!drag || groupBy !== 'status') return null;
+  if (drag.from === colKey) return null;
+  return isBoardDraggable(drag.from as TaskStatus, colKey as TaskStatus, drag.type)
+    ? '#16A34A'
+    : '#DC2626';
+}
+
+const boardWrap: React.CSSProperties = {
+  display: 'flex',
+  gap: 16,
+  overflowX: 'auto',
+  height: '100%',
+  padding: '4px 0',
+};
+const column = (isOver: boolean, dropClr: string | null): React.CSSProperties => ({
   minWidth: 300,
   width: 300,
   background: 'var(--gd-surface-alt)',
-  border: `1px solid ${isOver ? 'var(--gd-primary-border)' : 'var(--gd-border)'}`,
+  border: `1px ${isOver ? 'dashed' : 'solid'} ${
+    dropClr ?? (isOver ? 'var(--gd-primary-border)' : 'var(--gd-border)')
+  }`,
   borderRadius: 8,
   padding: 8,
   display: 'flex',
   flexDirection: 'column',
   gap: 8,
+  flex: '0 0 auto',
 });
 const colHeader: React.CSSProperties = {
   display: 'flex',
@@ -142,20 +231,57 @@ const colHeader: React.CSSProperties = {
   padding: '4px 4px 8px',
 };
 const cardStyle: React.CSSProperties = {
+  position: 'relative',
   background: 'var(--gd-surface)',
   border: '1px solid var(--gd-border)',
   borderRadius: 8,
-  padding: 12,
+  padding: '12px 12px 12px 16px',
   cursor: 'grab',
+  overflow: 'hidden',
 };
+const cardStripe: React.CSSProperties = {
+  position: 'absolute',
+  left: 0,
+  top: 0,
+  bottom: 0,
+  width: 4,
+};
+const urgentTriangle: React.CSSProperties = {
+  position: 'absolute',
+  top: 0,
+  right: 0,
+  width: 0,
+  height: 0,
+  borderTop: '14px solid #DC2626',
+  borderLeft: '14px solid transparent',
+};
+const cardTitle: React.CSSProperties = {
+  fontSize: 13,
+  fontWeight: 500,
+  display: '-webkit-box',
+  WebkitLineClamp: 2,
+  WebkitBoxOrient: 'vertical',
+  overflow: 'hidden',
+};
+const cardMeta: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  marginTop: 8,
+  fontSize: 12,
+  color: 'var(--gd-ink-muted)',
+  fontVariantNumeric: 'tabular-nums',
+};
+const metaItem: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 3 };
 const toastStyle: React.CSSProperties = {
   position: 'fixed',
   bottom: 20,
   right: 20,
-  background: 'var(--gd-ink)',
+  background: '#12161C',
   color: '#fff',
   padding: '10px 16px',
   borderRadius: 8,
   fontSize: 14,
   cursor: 'pointer',
+  zIndex: 50,
 };

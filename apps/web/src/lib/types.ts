@@ -62,6 +62,21 @@ export interface TaskDetailData extends TaskListItem {
   publications: PublicationRow[];
 }
 
+export interface TaskGroupRow {
+  id: string;
+  clientId: string;
+  contentType: 'video' | 'graphic';
+  monthKey: string;
+  status: string;
+  scenaristId: string | null;
+  rezId: string | null;
+  kamId: string | null;
+  shootDate: string | null;
+  shootLocation: string | null;
+  plannedCount: number;
+  scenarioDocVersion: number;
+}
+
 export interface ActivityItem {
   kind: 'event' | 'comment';
   at: string;
