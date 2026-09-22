@@ -2,6 +2,7 @@ import type React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { PERMISSIONS, type Screen } from '@gd/core';
 import { useLogout, useMe } from '../api/auth.js';
+import { NotificationsBell } from './NotificationsBell.js';
 
 const NAV: Array<{ screen: Screen; icon: string; label: string; path: string }> = [
   { screen: 'director', icon: '⌂', label: 'Преглед', path: '/' },
@@ -71,6 +72,7 @@ export function AppShell() {
         >
           <strong style={{ fontSize: 16 }}>GoDigital Таск-менаџер</strong>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <NotificationsBell />
             {me && (
               <span style={{ fontSize: 13, color: 'var(--gd-ink-muted)' }}>
                 {me.name} · {me.role}

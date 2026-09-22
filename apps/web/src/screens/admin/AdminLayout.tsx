@@ -5,6 +5,7 @@ const SECTIONS = [
   { path: '/admin/clients', label: 'Клиенти' },
   { path: '/admin/employees', label: 'Вработени и улоги' },
   { path: '/admin/permissions', label: 'Улоги и дозволи' },
+  { path: '/admin/automations', label: 'Автоматизации' },
 ];
 
 export function AdminLayout() {

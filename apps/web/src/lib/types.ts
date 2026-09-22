@@ -57,6 +57,25 @@ export interface ActivityItem {
   text: string;
 }
 
+export interface NotificationRow {
+  id: string;
+  level: 'potsetnik' | 'alarm' | 'kritichen';
+  eventKey: string;
+  title: string;
+  body: string;
+  clientId: string | null;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export interface RuleRow {
+  id: string;
+  name: string;
+  scope: string;
+  enabled: boolean;
+  isSystem: boolean;
+}
+
 export type SlotStatus = 'predlog' | 'free' | 'reserved' | 'used' | 'missed';
 
 export interface SlotRow {
