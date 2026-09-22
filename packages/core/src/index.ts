@@ -15,3 +15,4 @@ export * from './workflow/specials.js';
 export * from './slots/algorithm.js';
 export * from './publications.js';
 export * from './notifications.js';
+export * from './metrics.js';
