@@ -73,3 +73,81 @@ export function useAddComment(id: string) {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['activity', id] }),
   });
 }
+
+/** Заеднички invalidation за акции врз еден таск. */
+function invalidateTask(qc: ReturnType<typeof useQueryClient>, id: string) {
+  void qc.invalidateQueries({ queryKey: ['tasks'] });
+  void qc.invalidateQueries({ queryKey: ['task', id] });
+  void qc.invalidateQueries({ queryKey: ['activity', id] });
+}
+
+/** Пауза (dir/am, причина задолжителна). */
+export function usePause(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { reason: string }) =>
+      api.post<TaskDetailData>(`/tasks/${id}/pause`, input),
+    onSuccess: () => invalidateTask(qc, id),
+  });
+}
+
+/** Откажување (само dir, причина задолжителна). */
+export function useCancel(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { reason: string }) =>
+      api.post<TaskDetailData>(`/tasks/${id}/cancel`, input),
+    onSuccess: () => invalidateTask(qc, id),
+  });
+}
+
+/** Враќање од пауза (dir/am) — нов датум/слот. */
+export function useResume(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { newDate: string; orderInDay?: number }) =>
+      api.post<TaskDetailData>(`/tasks/${id}/resume`, input),
+    onSuccess: () => invalidateTask(qc, id),
+  });
+}
+
+/** Промена на датум (dir/am/сопственик по тип) — нов датум + причина. */
+export function useDateChange(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { newDate: string; orderInDay?: number; reason: string }) =>
+      api.post<TaskDetailData>(`/tasks/${id}/date-change`, input),
+    onSuccess: () => invalidateTask(qc, id),
+  });
+}
+
+export interface PublicationInput {
+  platform: 'fb' | 'ig' | 'tiktok';
+  postType: 'reel' | 'post' | 'story' | 'carousel';
+  permalink?: string;
+  publishedAt?: string;
+}
+
+/** Објава по платформа (задоволува G_PUBLICATION за „За објавување"). */
+export function useAddPublication(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: PublicationInput) => api.post(`/tasks/${id}/publications`, input),
+    onSuccess: () => invalidateTask(qc, id),
+  });
+}
+
+/** Одлука за промоција по објава (органски/платено) — задоволува G_DECISION. */
+export function usePromotion(taskId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      publicationId,
+      decision,
+    }: {
+      publicationId: string;
+      decision: 'organic' | 'paid';
+    }) => api.post(`/publications/${publicationId}/promotion`, { decision }),
+    onSuccess: () => invalidateTask(qc, taskId),
+  });
+}
