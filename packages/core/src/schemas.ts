@@ -144,6 +144,37 @@ export const groupTransitionSchema = z.object({
 });
 export type GroupTransitionInput = z.infer<typeof groupTransitionSchema>;
 
+// ── Files / uploads (A6, PRD §4.14, §I7) ──
+export const filePresignSchema = z.object({
+  ownerType: z.enum(['group', 'task', 'revision', 'approval', 'comment']),
+  ownerId: z.string().uuid(),
+  kind: z.enum([
+    'raw',
+    'final',
+    'graphic',
+    'scenarioDoc',
+    'briefRef',
+    'sharedMaterial',
+    'screenshot',
+    'preview',
+    'logo',
+  ]),
+  mime: z.string().min(1),
+  size: z
+    .number()
+    .int()
+    .positive()
+    .max(20 * 1024 * 1024 * 1024), // макс 20 GB
+});
+export type FilePresignInput = z.infer<typeof filePresignSchema>;
+
+export const fileCompleteSchema = z.object({
+  parts: z
+    .array(z.object({ PartNumber: z.number().int().positive(), ETag: z.string().min(1) }))
+    .min(1),
+});
+export type FileCompleteInput = z.infer<typeof fileCompleteSchema>;
+
 // ── Publications (A6, PRD §4.8) ──
 export const publicationCreateSchema = z.object({
   platform: z.enum(['fb', 'ig', 'tiktok']),
