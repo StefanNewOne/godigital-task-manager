@@ -76,8 +76,41 @@ async function runGroupGuards(tokens: string[], ctx: GroupCtx): Promise<string[]
   return missing;
 }
 
-/** Активација на видео деца (D-1/D-2): врзи одобрени сценарија, датумите ОСТАНУВААТ. */
-async function activateVideoChildren(ctx: GroupCtx): Promise<number> {
+function extraTitle(clientName: string, date: Date): string {
+  const dd = String(date.getUTCDate()).padStart(2, '0');
+  const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+  return `${clientName} · Видео · ${dd}.${mm}`;
+}
+
+/**
+ * Најди наредна слободна дата за екстра слот: следен видео-ден (по календар) после `after`
+ * што нема веќе слот на orderInDay=1. Детерминистички, ограничен на 400 дена.
+ */
+async function nextExtraSlotDate(
+  tx: TxClient,
+  clientId: string,
+  weekdays: Set<number>,
+  after: Date,
+): Promise<Date> {
+  const d = new Date(Date.UTC(after.getUTCFullYear(), after.getUTCMonth(), after.getUTCDate()));
+  for (let i = 0; i < 400; i++) {
+    d.setUTCDate(d.getUTCDate() + 1);
+    const iso = d.getUTCDay() === 0 ? 7 : d.getUTCDay();
+    if (!weekdays.has(iso)) continue;
+    const exists = await tx.publishingSlot.findFirst({
+      where: { clientId, contentType: 'video', date: new Date(d), orderInDay: 1 },
+    });
+    if (!exists) return new Date(d);
+  }
+  throw new AppError('VALIDATION_FAILED', 'Нема слободна дата за екстра сценарио.', 400);
+}
+
+/**
+ * Активација на видео деца (D-1/D-2): врзи одобрени сценарија, датумите ОСТАНУВААТ.
+ * E_CREATE_EXTRA_SLOTS: ако одобрените сценарија се повеќе од резервираните слотови,
+ * за секое вишок сценарио се создава нов резервиран слот + екстра таск (isExtra).
+ */
+async function activateVideoChildren(ctx: GroupCtx): Promise<{ activated: number; extra: number }> {
   const { tx, group } = ctx;
   const approved = await tx.scenario.findMany({
     where: { groupId: group.id, status: { in: ['odobreno', 'odobrenoSoIzmeni'] } },
@@ -86,6 +119,7 @@ async function activateVideoChildren(ctx: GroupCtx): Promise<number> {
   const children = await tx.task.findMany({
     where: { groupId: group.id, status: 'mrtov' },
     orderBy: { slot: { date: 'asc' } },
+    include: { slot: true },
   });
   const n = Math.min(approved.length, children.length);
   for (let i = 0; i < n; i++) {
@@ -111,7 +145,49 @@ async function activateVideoChildren(ctx: GroupCtx): Promise<number> {
       },
     });
   }
-  return n; // ако approved != children → аларм 9 (B1); засега само наратив
+
+  // E_CREATE_EXTRA_SLOTS: вишок одобрени сценарија → екстра слотови + таскови.
+  let extra = 0;
+  if (approved.length > children.length) {
+    const config = await tx.calendarConfig.findFirst({
+      where: { clientId: group.clientId, contentType: 'video' },
+    });
+    const weekdays = new Set<number>(config?.weekdays.length ? config.weekdays : [2, 5]);
+    let cursor = children[children.length - 1]?.slot?.date ?? group.shootDate ?? new Date();
+    for (let i = children.length; i < approved.length; i++) {
+      const date = await nextExtraSlotDate(tx, group.clientId, weekdays, cursor);
+      cursor = date;
+      const monthKey = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+      const slot = await tx.publishingSlot.create({
+        data: {
+          clientId: group.clientId,
+          contentType: 'video',
+          date,
+          orderInDay: 1,
+          status: 'reserved',
+          monthKey,
+        },
+      });
+      await tx.task.create({
+        data: {
+          groupId: group.id,
+          clientId: group.clientId,
+          contentType: 'video',
+          title: extraTitle(group.client.name, date),
+          titleIsAuto: true,
+          status: 'cekaSnimanje',
+          isExtra: true,
+          scenarioId: approved[i]!.id,
+          slotId: slot.id,
+          rezId: group.rezId,
+          assigneeId: group.kamId,
+        },
+      });
+      extra++;
+    }
+  }
+
+  return { activated: n, extra };
 }
 
 /**
@@ -202,6 +278,7 @@ export async function transitionTaskGroup(
 
     const upd: Prisma.TaskGroupUpdateInput = { status: to };
     let activated = 0;
+    let extra = 0;
 
     for (const token of rule.effects) {
       const { name, args } = parseToken(token);
@@ -218,7 +295,9 @@ export async function transitionTaskGroup(
           break;
         case 'E_ACTIVATE_CHILDREN': {
           if (args[0] === 'cekaSnimanje') {
-            activated = await activateVideoChildren(ctx);
+            const res = await activateVideoChildren(ctx);
+            activated = res.activated;
+            extra = res.extra;
           } else if (args[0] === 'chekaRezija') {
             const kids = await tx.task.findMany({
               where: { groupId: group.id, status: 'cekaSnimanje' },
@@ -264,8 +343,8 @@ export async function transitionTaskGroup(
       groupId: group.id,
       clientId: group.clientId,
       oldValue: { status: group.status },
-      newValue: { status: to, activated },
-      narrative: `${ROLE_LABEL[actor.role]} ја премести капата „${group.client.name} · ${group.monthKey}" од ${gLabel(group.status)} во ${gLabel(to)}${activated ? ` (активирани ${activated} деца)` : ''}.`,
+      newValue: { status: to, activated, extra },
+      narrative: `${ROLE_LABEL[actor.role]} ја премести капата „${group.client.name} · ${group.monthKey}" од ${gLabel(group.status)} во ${gLabel(to)}${activated ? ` (активирани ${activated} деца${extra ? `, +${extra} екстра` : ''})` : ''}.`,
     });
 
     return tx.taskGroup.findUnique({ where: { id: group.id } });
