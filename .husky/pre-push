@@ -1,0 +1,7 @@
+# Quality gate (Gate 1). Blocks the push on any failure.
+pnpm run lint
+pnpm run typecheck
+pnpm run build
+
+echo "Reminder: run full tests with the Docker stack up before merging:"
+echo "  docker compose up -d && pnpm run test"

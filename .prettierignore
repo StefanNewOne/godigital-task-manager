@@ -1,0 +1,9 @@
+node_modules
+dist
+build
+.vite
+coverage
+.turbo
+pnpm-lock.yaml
+packages/db/src/generated
+design_handoff_godigital_task_manager

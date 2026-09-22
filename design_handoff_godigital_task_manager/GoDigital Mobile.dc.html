@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:Inter,system-ui,sans-serif;font-size:14px;line-height:20px;color:#12161C;background:#F7F8FA;-webkit-font-smoothing:antialiased}
+  a{color:#0866FF;text-decoration:none}
+  a:hover{color:#0052D9;text-decoration:underline}
+  button{font-family:inherit;font-size:inherit;cursor:pointer}
+</style>
+</helmet>
+
+<div style="min-height:100vh;padding:32px 24px 56px;font-variant-numeric:tabular-nums">
+  <div style="max-width:1560px;margin:0 auto">
+    <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:8px">
+      <div style="width:32px;height:32px;flex:0 0 32px;border-radius:8px;background:#0866FF;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;letter-spacing:-.02em">GD</div>
+      <div style="flex:1;min-width:240px">
+        <div style="font-size:24px;line-height:32px;font-weight:600;letter-spacing:-.01em">Мобилни екрани</div>
+        <div style="font-size:14px;line-height:20px;color:#5C6672;max-width:72ch;margin-top:4px">Четирите улоги што работат од телефон. Истиот производ, отворен на мобилен — нема одделна секција „Мобилно“ во апликацијата.</div>
+      </div>
+      <a href="GoDigital Task Manager.dc.html" style="flex:0 0 auto;display:inline-flex;align-items:center;height:36px;padding:0 14px;border:1px solid #E2E7EB;border-radius:6px;background:#FFFFFF;color:#0052D9;font-size:14px;font-weight:500;text-decoration:none">← Десктоп апликација</a>
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start;margin-top:32px">
+      <sc-for list="{{ phones }}" as="p" hint-placeholder-count="4">
+        <div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:4px">{{ p.role }}</div>
+          <div style="font-size:13px;line-height:18px;color:#5C6672;margin-bottom:12px;max-width:320px">{{ p.note }}</div>
+          <div style="width:340px;height:700px;border-radius:36px;background:#12161C;padding:10px;box-shadow:0 12px 32px rgba(0,0,0,.14)">
+            <div style="width:100%;height:100%;border-radius:28px;background:#FFFFFF;overflow:hidden;display:flex;flex-direction:column;position:relative">
+              <div style="height:36px;flex:0 0 36px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-size:12px;font-weight:600">
+                <span>09:41</span><span>{{ p.battery }}</span>
+              </div>
+              <div style="height:48px;flex:0 0 48px;display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid #E2E7EB">
+                <span style="font-size:16px;color:#5C6672">{{ p.backIcon }}</span>
+                <span style="flex:1;min-width:0;font-size:16px;line-height:24px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.title }}</span>
+              </div>
+              <div style="flex:1;overflow:hidden;padding:16px;display:flex;flex-direction:column;gap:12px;background:{{ p.bodyBg }}">
+                <sc-for list="{{ p.blocks }}" as="b" hint-placeholder-count="3">
+                  <div style="background:#FFFFFF;border:1px {{ b.bdStyle }} {{ b.bd }};border-radius:8px;padding:12px">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                      <span style="width:8px;height:8px;flex:0 0 8px;border-radius:50%;background:{{ b.dot }}"></span>
+                      <span style="font-size:14px;font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ b.title }}</span>
+                      <span style="font-size:13px;color:{{ b.metaColor }};font-weight:500;white-space:nowrap">{{ b.meta }}</span>
+                    </div>
+                    <div style="font-size:13px;line-height:18px;color:#5C6672">{{ b.body }}</div>
+                    <sc-if value="{{ b.hasBar }}" hint-placeholder-val="{{ false }}">
+                      <div style="margin-top:10px;height:6px;border-radius:9999px;background:#F7F8FA;border:1px solid #E2E7EB;overflow:hidden">
+                        <div style="height:100%;background:#0866FF;width:{{ b.pct }}"></div>
+                      </div>
+                      <div style="margin-top:6px;font-size:12px;line-height:16px;color:#5C6672">{{ b.barLabel }}</div>
+                    </sc-if>
+                  </div>
+                </sc-for>
+                <div style="flex:1"></div>
+                <button style="width:100%;height:44px;border:none;border-radius:8px;background:#0866FF;color:#fff;font-size:15px;font-weight:500">{{ p.cta }}</button>
+              </div>
+              <div style="height:60px;flex:0 0 60px;border-top:1px solid #E2E7EB;display:grid;grid-template-columns:repeat(5,1fr);align-items:center;background:#FFFFFF">
+                <sc-for list="{{ p.nav }}" as="n" hint-placeholder-count="5">
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:3px;color:{{ n.fg }}">
+                    <span style="font-size:15px">{{ n.icon }}</span>
+                    <span style="font-size:10px;line-height:11px;font-weight:500">{{ n.label }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1560,&quot;height&quot;:900}}">
+class Component extends DCLogic {
+  renderVals(){
+    const nav = (active)=>['Задачи','Календар','Клиенти','Аларми','Профил'].map((l,i)=>({
+      label:l, icon:['☑','▦','◍','⚑','◉'][i], fg: i===active ? '#0866FF' : '#8A93A0'
+    }));
+    return {
+      phones: [
+        {role:'Камерман · Никола М.', note:'Терминот на снимање и качување суров материјал директно од терен.',
+         title:'Астибо · Снимање', backIcon:'←', battery:'▮▮▮', bodyBg:'#FFFFFF', cta:'Качи материјал', nav:nav(0),
+         blocks:[
+           {title:'Термин на снимање', meta:'22 сеп', metaColor:'#D97706', dot:'#7C3AED', bd:'#E2E7EB', bdStyle:'solid', body:'10:00 · Штип, ул. Гоце Делчев 14. Режисер Стефан Б., сценарист Стефан Б.'},
+           {title:'Сценарија', meta:'4', metaColor:'#5C6672', dot:'#0D9488', bd:'#E2E7EB', bdStyle:'solid', body:'Сите четири сценарија се одобрени од клиентот. Документот е во капа таскот.'},
+           {title:'Качување во тек', meta:'', metaColor:'#5C6672', dot:'#0866FF', bd:'#C7DCFF', bdStyle:'solid', body:'snimanje-22sep.zip · 6.4 GB', hasBar:true, pct:'64%', barLabel:'64% · продолжува и по прекин на врска'}
+         ]},
+        {role:'Монтажер · Дејан Т.', note:'Прегледува материјал и коментари, менува статус. Монтира на компјутер.',
+         title:'Ресторан ИВ V-9-4', backIcon:'←', battery:'▮▮▯', bodyBg:'#FFFFFF', cta:'Прикачи монтирано', nav:nav(0),
+         blocks:[
+           {title:'Монтажа', meta:'рок 19.09', metaColor:'#DC2626', dot:'#0D9488', bd:'#E2E7EB', bdStyle:'solid', body:'Објава 25 сеп. Внатрешниот рок за монтажа е пречекорен 1 ден.'},
+           {title:'Насоки за монтажа', meta:'', metaColor:'#5C6672', dot:'#7C3AED', bd:'#E2E7EB', bdStyle:'solid', body:'Динамичен рез на почетокот, музика под 60% од гласот, титли на македонски.'},
+           {title:'Суров материјал', meta:'6.4 GB', metaColor:'#5C6672', dot:'#9AA3AF', bd:'#E2E7EB', bdStyle:'solid', body:'Прегледна верзија со мала резолуција — не симнуваш 8 GB за да видиш дали снимката е добра.'}
+         ]},
+        {role:'Акаунт менаџер · Тамара К.', note:'Пишува копи, симнува креатива, објавува и внесува линк — сето на телефон.',
+         title:'Дарма Дома V-9-2', backIcon:'←', battery:'▮▮▮', bodyBg:'#FFFFFF', cta:'Потврди објава', nav:nav(0),
+         blocks:[
+           {title:'За објавување', meta:'доцни 2 дена', metaColor:'#DC2626', dot:'#65A30D', bd:'#DC2626', bdStyle:'solid', body:'Датумот 18 сеп помина. Критичен аларм до Директор е отворен.'},
+           {title:'Копи', meta:'182 знаци', metaColor:'#5C6672', dot:'#0866FF', bd:'#E2E7EB', bdStyle:'solid', body:'Домашна храна како кај баба. Нова неделна понуда во Дарма Дома. #дармадома #скопје'},
+           {title:'Линк до објавата', meta:'задолжително', metaColor:'#DC2626', dot:'#DC2626', bd:'#E2E7EB', bdStyle:'dashed', body:'Без копи и без линк таскот не може да премине во Објавено.'}
+         ]},
+        {role:'Директор · Александар С.', note:'Покриеност и аларми, каде и да е.',
+         title:'Аларми · 8', backIcon:'', battery:'▮▮▮', bodyBg:'#F7F8FA', cta:'Дневен преглед', nav:nav(3),
+         blocks:[
+           {title:'Голд Хотел', meta:'4 дена', metaColor:'#DC2626', dot:'#DC2626', bd:'#E2E7EB', bdStyle:'solid', body:'Покриеноста падна под прагот од 7 дена. Аларм до Акаунт менаџер и Директор.'},
+           {title:'Ресторан ИВ V-9-3', meta:'критичен', metaColor:'#DC2626', dot:'#DC2626', bd:'#E2E7EB', bdStyle:'solid', body:'2 дена до датум, таскот не е во За објавување. Обележан како итен.'},
+           {title:'ЛЛ Гурмет', meta:'аларм', metaColor:'#D97706', dot:'#D97706', bd:'#E2E7EB', bdStyle:'solid', body:'3 одобрени сценарија при 4 резервирани слота. Еден слот поцрвене.'}
+         ]}
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+# Local development infrastructure.
+# App services (api / web / worker) run on the host via `pnpm dev` (Turborepo) for hot reload.
+# Production containers live in docker-compose.prod.yml (added in the deployment phase).
+#
+#   docker compose up -d      # start infra
+#   pnpm dev                  # start api + web + worker
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: gd-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: gd
+      POSTGRES_PASSWORD: gd
+      POSTGRES_DB: godigital
+      TZ: Europe/Skopje
+    ports:
+      - '5532:5432'
+    volumes:
+      - gd-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U gd -d godigital']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: gd-redis
+    restart: unless-stopped
+    ports:
+      - '6479:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: gd-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - '9100:9000'
+      - '9101:9001'
+    volumes:
+      - gd-minio:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: gd-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minioadmin minioadmin;
+      mc mb --ignore-existing local/godigital;
+      mc anonymous set download local/godigital;
+      exit 0;
+      "
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: gd-mailhog
+    restart: unless-stopped
+    ports:
+      - '1135:1025'
+      - '8135:8025'
+
+volumes:
+  gd-pgdata:
+  gd-minio:
