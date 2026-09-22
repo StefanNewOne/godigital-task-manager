@@ -10,6 +10,7 @@ import { employeesRouter } from './employees.js';
 import { holidaysRouter } from './holidays.js';
 import { clientSlotsRouter, slotsRouter } from './slots.js';
 import { tasksRouter } from './tasks.js';
+import { taskGroupsRouter } from './taskGroups.js';
 import { cronRouter } from './cron.js';
 
 export const apiRouter: ExpressRouter = Router();
@@ -32,4 +33,5 @@ apiRouter.use('/slots', slotsRouter);
 apiRouter.use('/employees', employeesRouter);
 apiRouter.use('/holidays', holidaysRouter);
 apiRouter.use('/tasks', tasksRouter);
+apiRouter.use('/task-groups', taskGroupsRouter);
 apiRouter.use('/cron', cronRouter);

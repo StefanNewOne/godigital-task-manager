@@ -122,6 +122,12 @@ export const transitionPayloadSchema = z
     outcome: z.enum(['approved', 'approvedWithChanges', 'rejected', 'returned']).optional(),
     channel: channelSchema.optional(),
     reason: z.string().optional(), // за Директор наместо друга улога (D-5)
+    // капа полиња (podgotovka → scenarija, PRD §4.3 G_CAPA_FIELDS)
+    scenaristId: z.string().uuid().optional(),
+    kamId: z.string().uuid().optional(),
+    shootDate: z.coerce.date().optional(),
+    shootLocation: z.string().optional(),
+    scenaristNotes: z.string().optional(),
   })
   .partial();
 export type TransitionPayload = z.infer<typeof transitionPayloadSchema>;

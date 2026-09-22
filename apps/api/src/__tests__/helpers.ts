@@ -18,6 +18,19 @@ export async function cleanupMonth(db: PrismaClient, monthKey: string): Promise<
     await db.dateChange.deleteMany({ where: { taskId: { in: ids } } });
     await db.task.deleteMany({ where: { id: { in: ids } } });
   }
+  const groups = await db.taskGroup.findMany({ where: { monthKey }, select: { id: true } });
+  const gids = groups.map((g) => g.id);
+  if (gids.length) {
+    const scens = await db.scenario.findMany({
+      where: { groupId: { in: gids } },
+      select: { id: true },
+    });
+    const sids = scens.map((s) => s.id);
+    if (sids.length) {
+      await db.approval.deleteMany({ where: { objectType: 'scenario', objectId: { in: sids } } });
+      await db.scenario.deleteMany({ where: { id: { in: sids } } });
+    }
+  }
   await db.publishingSlot.deleteMany({ where: { monthKey } });
   await db.taskGroup.deleteMany({ where: { monthKey } });
 }
