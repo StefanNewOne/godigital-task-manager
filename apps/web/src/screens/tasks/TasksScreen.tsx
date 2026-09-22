@@ -6,8 +6,11 @@ import { useTasks } from '../../api/tasks.js';
 import type { TaskListItem } from '../../lib/types.js';
 import { StatusBadge } from '../../components/StatusBadge.js';
 import { TaskDetail } from './TaskDetail.js';
+import { Board } from './Board.js';
 
-type Tab = 'my' | 'list';
+type Tab = 'my' | 'list' | 'board';
+
+const TAB_LABEL: Record<Tab, string> = { my: 'Мои задачи', list: 'Список', board: 'Табла' };
 
 export function TasksScreen() {
   const { data: me } = useMe();
@@ -43,75 +46,78 @@ export function TasksScreen() {
             borderBottom: '1px solid var(--gd-border)',
           }}
         >
-          {(['my', 'list'] as Tab[]).map((t) => (
+          {(['my', 'list', 'board'] as Tab[]).map((t) => (
             <button key={t} onClick={() => setTab(t)} style={tabBtn(tab === t)}>
-              {t === 'my' ? 'Мои задачи' : 'Список'}
+              {TAB_LABEL[t]}
             </button>
           ))}
         </div>
 
-        {tasks.length === 0 && (
+        {tab === 'board' && <Board onOpen={setOpenId} />}
+
+        {tab !== 'board' && tasks.length === 0 && (
           <p style={{ color: 'var(--gd-ink-muted)' }}>Нема задачи за приказ.</p>
         )}
 
-        {groups.map(([clientId, rows]) => (
-          <div key={clientId || 'all'} style={{ marginBottom: 20 }}>
-            {tab === 'list' && (
-              <div style={groupHeader}>
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    background: clientOf(clientId)?.color ?? '#ccc',
-                  }}
-                />
-                {clientOf(clientId)?.name ?? 'Клиент'}{' '}
-                <span style={{ color: 'var(--gd-ink-muted)' }}>· {rows.length}</span>
-              </div>
-            )}
-            <div style={card}>
-              {rows.map((t) => (
-                <button key={t.id} onClick={() => setOpenId(t.id)} style={row(openId === t.id)}>
+        {tab !== 'board' &&
+          groups.map(([clientId, rows]) => (
+            <div key={clientId || 'all'} style={{ marginBottom: 20 }}>
+              {tab === 'list' && (
+                <div style={groupHeader}>
                   <span
                     style={{
-                      width: 3,
-                      height: 24,
-                      borderRadius: 2,
-                      background: clientOf(t.clientId)?.color ?? '#ccc',
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: clientOf(clientId)?.color ?? '#ccc',
                     }}
                   />
-                  <span style={{ fontSize: 16, width: 18 }}>
-                    {t.contentType === 'video' ? '▶' : '▧'}
-                  </span>
-                  <span
-                    style={{
-                      flex: 1,
-                      fontWeight: 500,
-                      textAlign: 'left',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {t.title}
-                  </span>
-                  <StatusBadge status={t.status} />
-                  <span
-                    style={{
-                      width: 88,
-                      textAlign: 'right',
-                      color: 'var(--gd-ink-muted)',
-                      fontSize: 13,
-                    }}
-                  >
-                    {t.slot ? t.slot.date.slice(0, 10) : '—'}
-                  </span>
-                </button>
-              ))}
+                  {clientOf(clientId)?.name ?? 'Клиент'}{' '}
+                  <span style={{ color: 'var(--gd-ink-muted)' }}>· {rows.length}</span>
+                </div>
+              )}
+              <div style={card}>
+                {rows.map((t) => (
+                  <button key={t.id} onClick={() => setOpenId(t.id)} style={row(openId === t.id)}>
+                    <span
+                      style={{
+                        width: 3,
+                        height: 24,
+                        borderRadius: 2,
+                        background: clientOf(t.clientId)?.color ?? '#ccc',
+                      }}
+                    />
+                    <span style={{ fontSize: 16, width: 18 }}>
+                      {t.contentType === 'video' ? '▶' : '▧'}
+                    </span>
+                    <span
+                      style={{
+                        flex: 1,
+                        fontWeight: 500,
+                        textAlign: 'left',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {t.title}
+                    </span>
+                    <StatusBadge status={t.status} />
+                    <span
+                      style={{
+                        width: 88,
+                        textAlign: 'right',
+                        color: 'var(--gd-ink-muted)',
+                        fontSize: 13,
+                      }}
+                    >
+                      {t.slot ? t.slot.date.slice(0, 10) : '—'}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
       </div>
 
       {openId && <TaskDetail taskId={openId} onClose={() => setOpenId(null)} />}

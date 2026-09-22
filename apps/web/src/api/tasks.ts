@@ -55,6 +55,16 @@ export function useTransition(id: string) {
   });
 }
 
+/** Преод преку Board DnD (динамичен id) — само за преоди без input-guards (D-8). */
+export function useBoardTransition() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, to }: { id: string; to: string }) =>
+      api.post(`/tasks/${id}/transition`, { to }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['tasks'] }),
+  });
+}
+
 export function useAddComment(id: string) {
   const qc = useQueryClient();
   return useMutation({
