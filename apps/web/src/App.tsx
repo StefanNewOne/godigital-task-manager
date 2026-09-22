@@ -1,7 +1,9 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { useMe } from './api/auth.js';
 import { AppShell } from './components/AppShell.js';
+import { Analytics } from './screens/Analytics.js';
 import { Calendar } from './screens/Calendar.js';
+import { Clients } from './screens/Clients.js';
 import { Login } from './screens/Login.js';
 import { Overview } from './screens/Overview.js';
 import { Placeholder } from './screens/Placeholder.js';
@@ -28,8 +30,8 @@ export function App() {
           <Route index element={<Overview />} />
           <Route path="tasks" element={<TasksScreen />} />
           <Route path="calendar" element={<Calendar />} />
-          <Route path="clients" element={<Placeholder title="Клиенти" />} />
-          <Route path="analytics" element={<Placeholder title="Аналитика" />} />
+          <Route path="clients" element={<Clients />} />
+          <Route path="analytics" element={<Analytics />} />
           <Route path="admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="/admin/clients" replace />} />
             <Route path="clients" element={<AdminClients />} />
