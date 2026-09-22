@@ -1,12 +1,15 @@
 import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import type { TaskStatus } from '@gd/core';
 import { Button, Modal, tokens } from '@gd/ui';
 import { useClients } from '../api/admin.js';
 import { useConfirmMonth, useGenerateSlots, usePatchSlot, useSlots } from '../api/slots.js';
+import { useDateChange } from '../api/tasks.js';
 import { ApiRequestError } from '../lib/api.js';
 import { MONTH_LABELS, WEEKDAY_LABELS, buildMonthGrid, monthKeyOf, ymd } from '../lib/calendar.js';
 import type { SlotRow } from '../lib/types.js';
+import { StatusBadge } from '../components/StatusBadge.js';
 
 type TypeFilter = 'all' | 'video' | 'graphic';
 
@@ -37,6 +40,9 @@ export function Calendar() {
   const [month0, setMonth0] = useState(now.getUTCMonth());
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [moving, setMoving] = useState<SlotRow | null>(null);
+  const [drag, setDrag] = useState<{ taskId: string; title: string } | null>(null);
+  const [dc, setDc] = useState<{ taskId: string; newDate: string; title: string } | null>(null);
+  const [reason, setReason] = useState('');
   const [toast, setToast] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<string>(todayKey);
   const [winW, setWinW] = useState(() =>
@@ -60,6 +66,7 @@ export function Calendar() {
   const generate = useGenerateSlots(activeClient ?? '', monthKey);
   const confirm = useConfirmMonth(activeClient ?? '', monthKey);
   const patch = usePatchSlot(activeClient ?? '', monthKey);
+  const dateChange = useDateChange(dc?.taskId ?? '');
 
   const grid = useMemo(() => buildMonthGrid(year, month0), [year, month0]);
   const visible = (slots ?? []).filter((s) => typeFilter === 'all' || s.contentType === typeFilter);
@@ -194,30 +201,53 @@ export function Calendar() {
                   <button
                     key={cell.key}
                     onClick={() => setSelectedDay(cell.key)}
+                    onDragOver={(e) => {
+                      if (drag) e.preventDefault();
+                    }}
+                    onDrop={() => {
+                      if (!drag) return;
+                      if (isPast) {
+                        setToast('Не може да се помести во минато.');
+                        setDrag(null);
+                        return;
+                      }
+                      setDc({ taskId: drag.taskId, newDate: cell.key, title: drag.title });
+                      setReason('');
+                      setDrag(null);
+                    }}
                     style={dayCell(cell.inMonth, isSel)}
                   >
                     <div style={dayNum(isToday, isPast)}>{cell.date.getUTCDate()}</div>
-                    {(byDay.get(cell.key) ?? []).map((s) => (
-                      <span
-                        key={s.id}
-                        onClick={(e) => {
-                          if (s.status === 'predlog') {
-                            e.stopPropagation();
-                            setMoving(s);
+                    {(byDay.get(cell.key) ?? []).map((s) => {
+                      const draggable = s.status === 'reserved' && !!s.task;
+                      return (
+                        <span
+                          key={s.id}
+                          draggable={draggable}
+                          onDragStart={() =>
+                            s.task && setDrag({ taskId: s.task.id, title: s.task.title })
                           }
-                        }}
-                        style={slotBar(s)}
-                        title={
-                          s.status === 'predlog'
-                            ? 'Кликни за поместување'
-                            : SLOT_STATUS_LABEL[s.status]
-                        }
-                      >
-                        {s.contentType === 'video' ? '▶' : '▧'}{' '}
-                        {s.contentType === 'video' ? 'Видео' : 'Графика'}
-                        {s.orderInDay === 2 ? ' ②' : ''}
-                      </span>
-                    ))}
+                          onClick={(e) => {
+                            if (s.status === 'predlog') {
+                              e.stopPropagation();
+                              setMoving(s);
+                            }
+                          }}
+                          style={slotBar(s)}
+                          title={
+                            s.status === 'predlog'
+                              ? 'Кликни за поместување'
+                              : draggable
+                                ? 'Влечи за промена на датум'
+                                : SLOT_STATUS_LABEL[s.status]
+                          }
+                        >
+                          {s.contentType === 'video' ? '▶' : '▧'}{' '}
+                          {s.task ? s.task.title : s.contentType === 'video' ? 'Видео' : 'Графика'}
+                          {s.orderInDay === 2 ? ' ②' : ''}
+                        </span>
+                      );
+                    })}
                   </button>
                 );
               })}
@@ -237,12 +267,23 @@ export function Calendar() {
           ) : (
             daySlots.map((s) => (
               <div key={s.id} style={dayPanelRow}>
-                <span style={{ fontWeight: 500 }}>
-                  {s.contentType === 'video' ? '▶ Видео' : '▧ Графика'}
+                <span
+                  style={{
+                    fontWeight: 500,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {s.task ? s.task.title : s.contentType === 'video' ? '▶ Видео' : '▧ Графика'}
                 </span>
-                <span style={{ color: 'var(--gd-ink-muted)', fontSize: 12 }}>
-                  {SLOT_STATUS_LABEL[s.status] ?? s.status}
-                </span>
+                {s.task ? (
+                  <StatusBadge status={s.task.status as TaskStatus} />
+                ) : (
+                  <span style={{ color: 'var(--gd-ink-muted)', fontSize: 12 }}>
+                    {SLOT_STATUS_LABEL[s.status] ?? s.status}
+                  </span>
+                )}
               </div>
             ))
           )}
@@ -262,6 +303,50 @@ export function Calendar() {
             patch={patch}
             setToast={setToast}
           />
+        )}
+      </Modal>
+
+      <Modal open={!!dc} onClose={() => setDc(null)} title="Промени датум" width={360}>
+        {dc && (
+          <div>
+            <p style={{ fontSize: 13, margin: '0 0 12px' }}>
+              „{dc.title}" → {dc.newDate.slice(8, 10)}.{dc.newDate.slice(5, 7)}.
+              {dc.newDate.slice(0, 4)}
+            </p>
+            <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--gd-ink-muted)' }}>
+              Причина
+              <input
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                className="gd-field"
+                style={{ display: 'block', width: '100%', marginTop: 4 }}
+              />
+            </label>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+              <Button variant="secondary" size="form" onClick={() => setDc(null)}>
+                Откажи
+              </Button>
+              <Button
+                size="form"
+                disabled={dateChange.isPending || !reason.trim()}
+                onClick={() =>
+                  dateChange.mutate(
+                    { newDate: dc.newDate, reason },
+                    {
+                      onSuccess: () => {
+                        setDc(null);
+                        setToast('Датумот е променет.');
+                      },
+                      onError: (e) =>
+                        setToast(e instanceof ApiRequestError ? e.message : 'Грешка.'),
+                    },
+                  )
+                }
+              >
+                Промени
+              </Button>
+            </div>
+          </div>
         )}
       </Modal>
 
@@ -416,19 +501,48 @@ const dayNum = (isToday: boolean, isPast: boolean): React.CSSProperties => ({
   background: isToday ? 'var(--gd-success)' : 'transparent',
   fontVariantNumeric: 'tabular-nums',
 });
-const slotBar = (s: SlotRow): React.CSSProperties => ({
-  display: 'block',
-  width: '100%',
-  textAlign: 'left',
-  fontSize: 12,
-  padding: '3px 6px',
-  marginBottom: 3,
-  borderRadius: 4,
-  cursor: s.status === 'predlog' ? 'pointer' : 'default',
-  border: s.status === 'predlog' ? '1px dashed var(--gd-danger)' : '1px solid var(--gd-border)',
-  color: s.status === 'predlog' ? 'var(--gd-danger-text)' : 'var(--gd-ink)',
-  background: s.status === 'predlog' ? 'transparent' : 'var(--gd-surface-alt)',
-});
+const slotBar = (s: SlotRow): React.CSSProperties => {
+  const base: React.CSSProperties = {
+    display: 'block',
+    width: '100%',
+    textAlign: 'left',
+    fontSize: 12,
+    padding: '3px 6px',
+    marginBottom: 3,
+    borderRadius: 4,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  };
+  if (s.status === 'predlog') {
+    return {
+      ...base,
+      cursor: 'pointer',
+      border: '1px dashed var(--gd-danger)',
+      color: 'var(--gd-danger-text)',
+      background: 'transparent',
+    };
+  }
+  if (s.task) {
+    const key = s.task.status as keyof typeof tokens.statusColor;
+    const c = tokens.statusColor[key] ?? tokens.color.inkMuted;
+    const text = tokens.statusText[key] ?? tokens.color.ink;
+    return {
+      ...base,
+      cursor: s.status === 'reserved' ? 'grab' : 'default',
+      border: `1px solid ${c}`,
+      color: text,
+      background: tokens.hexAlpha(c, 0.1),
+    };
+  }
+  return {
+    ...base,
+    cursor: 'default',
+    border: '1px solid var(--gd-border)',
+    color: 'var(--gd-ink)',
+    background: 'var(--gd-surface-alt)',
+  };
+};
 const dayPanel: React.CSSProperties = {
   flex: '0 0 auto',
   border: '1px solid var(--gd-border)',
