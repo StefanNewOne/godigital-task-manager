@@ -2,6 +2,7 @@ import request from 'supertest';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { PrismaClient } from '@gd/db';
 import { createApp } from '../app.js';
+import { cleanupMonth } from './helpers.js';
 
 /** Интеграциски тест за A2: слот генерирање → потврда → мртви таскови + автоматска капа (D-7). */
 const app = createApp();
@@ -23,10 +24,7 @@ beforeAll(async () => {
     (c) => c.name === 'Ресторан ИВ',
   )!.id;
 
-  // Чисти го тест-месецот за идемпотентност.
-  await db.task.deleteMany({ where: { group: { monthKey: TEST_MONTH } } });
-  await db.publishingSlot.deleteMany({ where: { monthKey: TEST_MONTH } });
-  await db.taskGroup.deleteMany({ where: { monthKey: TEST_MONTH } });
+  await cleanupMonth(db, TEST_MONTH); // идемпотентност
 });
 
 describe('A2 слот тек', () => {

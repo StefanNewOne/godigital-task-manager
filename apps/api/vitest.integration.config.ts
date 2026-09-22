@@ -7,5 +7,7 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.integration.test.ts'],
     testTimeout: 30000,
+    // Серски: сите фајлови делат една DB → без file-parallelism за да нема race.
+    fileParallelism: false,
   },
 });

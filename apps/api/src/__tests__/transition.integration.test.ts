@@ -2,6 +2,7 @@ import request from 'supertest';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { PrismaClient, type ContentType, type TaskStatus } from '@gd/db';
 import { createApp } from '../app.js';
+import { cleanupMonth } from './helpers.js';
 
 /** Интеграциски тест за A3 transition engine (guards → статус → effects → EventLog). */
 const app = createApp();
@@ -51,9 +52,7 @@ beforeAll(async () => {
   const client = await db.client.findFirst({ where: { name: 'Ресторан ИВ' } });
   clientId = client!.id;
 
-  await db.task.deleteMany({ where: { group: { monthKey: MONTH } } });
-  await db.publishingSlot.deleteMany({ where: { monthKey: MONTH } });
-  await db.taskGroup.deleteMany({ where: { monthKey: MONTH } });
+  await cleanupMonth(db, MONTH);
 
   graphicGroupId = (
     await db.taskGroup.create({

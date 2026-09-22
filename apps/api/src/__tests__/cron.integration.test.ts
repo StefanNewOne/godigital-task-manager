@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { PrismaClient } from '@gd/db';
 import { createApp } from '../app.js';
 import { env } from '../env.js';
+import { cleanupMonth } from './helpers.js';
 
 /** Интеграциски тест за A2 cron: генерирање слотови за сите активни клиенти. */
 const app = createApp();
@@ -10,9 +11,7 @@ const db = new PrismaClient();
 const TEST_MONTH = '2026-12';
 
 beforeAll(async () => {
-  await db.task.deleteMany({ where: { group: { monthKey: TEST_MONTH } } });
-  await db.publishingSlot.deleteMany({ where: { monthKey: TEST_MONTH } });
-  await db.taskGroup.deleteMany({ where: { monthKey: TEST_MONTH } });
+  await cleanupMonth(db, TEST_MONTH);
 });
 
 describe('A2 cron slots-generate', () => {

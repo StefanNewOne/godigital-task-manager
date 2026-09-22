@@ -137,3 +137,24 @@ export const groupTransitionSchema = z.object({
   payload: transitionPayloadSchema.optional(),
 });
 export type GroupTransitionInput = z.infer<typeof groupTransitionSchema>;
+
+// ── Comments (@таг, D-9) ──
+export const commentCreateSchema = z.object({
+  body: z.string().min(1, 'Коментарот е задолжителен.'),
+  mentions: z.array(z.string().uuid()).optional(),
+});
+export type CommentCreateInput = z.infer<typeof commentCreateSchema>;
+
+// ── Task list филтри (A3) ──
+export const taskListQuerySchema = z.object({
+  clientId: z.string().uuid().optional(),
+  type: contentTypeSchema.optional(),
+  status: z.enum(TASK_STATUSES).optional(),
+  month: z
+    .string()
+    .regex(/^\d{4}-\d{2}$/)
+    .optional(),
+  assigneeId: z.string().uuid().optional(),
+  q: z.string().optional(),
+});
+export type TaskListQuery = z.infer<typeof taskListQuerySchema>;
