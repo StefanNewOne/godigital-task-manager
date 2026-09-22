@@ -30,6 +30,33 @@ export interface ClientRow {
   coverageAlarmDays: number;
 }
 
+export interface TaskListItem {
+  id: string;
+  clientId: string;
+  contentType: 'video' | 'graphic';
+  title: string;
+  status: string;
+  assigneeId: string | null;
+  priority: string;
+  version: number;
+  slot: { date: string; orderInDay: number; status: string } | null;
+}
+
+export interface TaskDetailData extends TaskListItem {
+  brief: string | null;
+  copy: string | null;
+  rezId: string | null;
+  kreaId: string | null;
+  client: { name: string; usesMetaAds: boolean };
+}
+
+export interface ActivityItem {
+  kind: 'event' | 'comment';
+  at: string;
+  actorId: string | null;
+  text: string;
+}
+
 export type SlotStatus = 'predlog' | 'free' | 'reserved' | 'used' | 'missed';
 
 export interface SlotRow {

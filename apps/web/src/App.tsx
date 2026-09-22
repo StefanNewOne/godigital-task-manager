@@ -4,6 +4,7 @@ import { AppShell } from './components/AppShell.js';
 import { Calendar } from './screens/Calendar.js';
 import { Login } from './screens/Login.js';
 import { Placeholder } from './screens/Placeholder.js';
+import { TasksScreen } from './screens/tasks/TasksScreen.js';
 import { AdminLayout } from './screens/admin/AdminLayout.js';
 import { AdminClients } from './screens/admin/Clients.js';
 import { AdminEmployees } from './screens/admin/Employees.js';
@@ -24,7 +25,7 @@ export function App() {
       <Routes>
         <Route element={<AppShell />}>
           <Route index element={<Placeholder title="Преглед" />} />
-          <Route path="tasks" element={<Placeholder title="Задачи" />} />
+          <Route path="tasks" element={<TasksScreen />} />
           <Route path="calendar" element={<Calendar />} />
           <Route path="clients" element={<Placeholder title="Клиенти" />} />
           <Route path="analytics" element={<Placeholder title="Аналитика" />} />
