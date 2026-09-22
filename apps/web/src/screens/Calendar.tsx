@@ -1,20 +1,55 @@
 import type React from 'react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Button, Modal, tokens } from '@gd/ui';
 import { useClients } from '../api/admin.js';
 import { useConfirmMonth, useGenerateSlots, usePatchSlot, useSlots } from '../api/slots.js';
 import { ApiRequestError } from '../lib/api.js';
-import { MONTH_LABELS, WEEKDAY_LABELS, buildMonthGrid, monthKeyOf } from '../lib/calendar.js';
+import { MONTH_LABELS, WEEKDAY_LABELS, buildMonthGrid, monthKeyOf, ymd } from '../lib/calendar.js';
 import type { SlotRow } from '../lib/types.js';
 
 type TypeFilter = 'all' | 'video' | 'graphic';
 
+const WEEKDAY_FULL = ['Понеделник', 'Вторник', 'Среда', 'Четврток', 'Петок', 'Сабота', 'Недела'];
+
+const SLOT_STATUS_LABEL: Record<string, string> = {
+  predlog: 'предлог',
+  free: 'слободен',
+  reserved: 'резервиран',
+  used: 'искористен',
+  missed: 'пропуштен',
+};
+
+/** Легенда (Handoff §2.4) — визуелен клуч на боите. */
+const LEGEND: Array<{ label: string; color: string; dashed?: boolean; prefix?: string }> = [
+  { label: 'Монтажа/Дизајн', color: tokens.statusColor.montaza },
+  { label: 'Одобрување', color: tokens.statusColor.vnatresno },
+  { label: 'Кај клиент', color: tokens.statusColor.kajKlient },
+  { label: 'Објавено', color: tokens.statusColor.objaveno, prefix: '✓' },
+  { label: 'Аналитика', color: tokens.statusColor.analitika, prefix: '◔' },
+  { label: 'Празен слот', color: 'var(--gd-danger)', dashed: true },
+];
+
 export function Calendar() {
   const now = new Date();
+  const todayKey = ymd(now);
   const [year, setYear] = useState(now.getUTCFullYear());
   const [month0, setMonth0] = useState(now.getUTCMonth());
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [moving, setMoving] = useState<SlotRow | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [selectedDay, setSelectedDay] = useState<string>(todayKey);
+  const [winW, setWinW] = useState(() =>
+    typeof window === 'undefined' ? 1280 : window.innerWidth,
+  );
+
+  useEffect(() => {
+    const on = () => setWinW(window.innerWidth);
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+  const weekdays = winW >= 820 ? WEEKDAY_FULL : WEEKDAY_LABELS;
+  const stackPanel = winW < 1100;
 
   const { data: clients } = useClients();
   const [clientId, setClientId] = useState<string | null>(null);
@@ -41,6 +76,7 @@ export function Calendar() {
 
   const proposal = visible.filter((s) => s.status === 'predlog');
   const isProposal = proposal.length > 0;
+  const daySlots = byDay.get(selectedDay) ?? [];
 
   const shiftMonth = (delta: number) => {
     const d = new Date(Date.UTC(year, month0 + delta, 1));
@@ -53,7 +89,6 @@ export function Calendar() {
       onSuccess: () => setToast('Месецот е потврден. Слотовите се резервирани.'),
       onError: (e) => setToast(e instanceof ApiRequestError ? e.message : 'Грешка.'),
     });
-
   const runGenerate = () =>
     generate.mutate(undefined, {
       onSuccess: () => setToast('Предлог-распоредот е генериран.'),
@@ -63,20 +98,21 @@ export function Calendar() {
   return (
     <div style={{ padding: '24px 20px' }}>
       {/* Заглавие + контроли */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-        <button onClick={() => shiftMonth(-1)} style={navBtn}>
-          ‹
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+        <button onClick={() => shiftMonth(-1)} style={navBtn} aria-label="Претходен месец">
+          <ChevronLeft size={16} />
         </button>
         <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, minWidth: 180 }}>
           {MONTH_LABELS[month0]} {year}
         </h1>
-        <button onClick={() => shiftMonth(1)} style={navBtn}>
-          ›
+        <button onClick={() => shiftMonth(1)} style={navBtn} aria-label="Следен месец">
+          <ChevronRight size={16} />
         </button>
         <select
           value={activeClient ?? ''}
           onChange={(e) => setClientId(e.target.value)}
-          style={selectStyle}
+          className="gd-field"
+          style={{ width: 180, height: 28 }}
         >
           {(clients ?? []).map((c) => (
             <option key={c.id} value={c.id}>
@@ -93,7 +129,26 @@ export function Calendar() {
         </div>
       </div>
 
-      {/* Предлог банер (H1) */}
+      {/* Легенда */}
+      <div style={legendRow}>
+        {LEGEND.map((l) => (
+          <span key={l.label} style={legendItem}>
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: l.dashed ? 'transparent' : l.color,
+                border: l.dashed ? `1px dashed ${l.color}` : 'none',
+              }}
+            />
+            {l.prefix ? `${l.prefix} ` : ''}
+            {l.label}
+          </span>
+        ))}
+      </div>
+
+      {/* Предлог банер */}
       {isProposal && (
         <div style={proposalBanner}>
           <span>
@@ -101,9 +156,9 @@ export function Calendar() {
             {proposal.filter((s) => s.contentType === 'video').length} видео ·{' '}
             {proposal.filter((s) => s.contentType === 'graphic').length} графика
           </span>
-          <button onClick={runConfirm} disabled={confirm.isPending} style={primaryBtn}>
+          <Button size="form" onClick={runConfirm} disabled={confirm.isPending}>
             {confirm.isPending ? 'Потврдување…' : 'Потврди месец'}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -113,64 +168,102 @@ export function Calendar() {
           <p style={{ color: 'var(--gd-ink-muted)', margin: '0 0 12px' }}>
             {MONTH_LABELS[month0]} уште не е испланиран.
           </p>
-          <button onClick={runGenerate} disabled={generate.isPending} style={primaryBtn}>
+          <Button size="form" onClick={runGenerate} disabled={generate.isPending}>
             {generate.isPending ? 'Генерирање…' : 'Генерирај распоред'}
-          </button>
+          </Button>
         </div>
       )}
 
-      {/* Мрежа */}
-      <div style={gridWrap}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
-          {WEEKDAY_LABELS.map((w) => (
-            <div key={w} style={weekdayHead}>
-              {w}
-            </div>
-          ))}
-        </div>
-        {grid.map((week, wi) => (
-          <div key={wi} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
-            {week.map((cell) => (
-              <div key={cell.key} style={dayCell(cell.inMonth)}>
-                <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)', marginBottom: 4 }}>
-                  {cell.date.getUTCDate()}
-                </div>
-                {(byDay.get(cell.key) ?? []).map((s) => (
-                  <button
-                    key={s.id}
-                    onClick={() => s.status === 'predlog' && setMoving(s)}
-                    style={slotBar(s)}
-                    title={s.status === 'predlog' ? 'Кликни за поместување' : s.status}
-                  >
-                    {s.contentType === 'video' ? '▶' : '▧'}{' '}
-                    {s.contentType === 'video' ? 'Видео' : 'Графика'}
-                    {s.orderInDay === 2 ? ' ②' : ''}
-                  </button>
-                ))}
+      {/* Мрежа + ден-панел */}
+      <div style={{ display: 'flex', gap: 16, flexDirection: stackPanel ? 'column' : 'row' }}>
+        <div style={{ ...gridWrap, flex: 1 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
+            {weekdays.map((w) => (
+              <div key={w} style={weekdayHead}>
+                {w}
               </div>
             ))}
           </div>
-        ))}
+          {grid.map((week, wi) => (
+            <div key={wi} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
+              {week.map((cell) => {
+                const isToday = cell.key === todayKey;
+                const isPast = cell.key < todayKey;
+                const isSel = cell.key === selectedDay;
+                return (
+                  <button
+                    key={cell.key}
+                    onClick={() => setSelectedDay(cell.key)}
+                    style={dayCell(cell.inMonth, isSel)}
+                  >
+                    <div style={dayNum(isToday, isPast)}>{cell.date.getUTCDate()}</div>
+                    {(byDay.get(cell.key) ?? []).map((s) => (
+                      <span
+                        key={s.id}
+                        onClick={(e) => {
+                          if (s.status === 'predlog') {
+                            e.stopPropagation();
+                            setMoving(s);
+                          }
+                        }}
+                        style={slotBar(s)}
+                        title={
+                          s.status === 'predlog'
+                            ? 'Кликни за поместување'
+                            : SLOT_STATUS_LABEL[s.status]
+                        }
+                      >
+                        {s.contentType === 'video' ? '▶' : '▧'}{' '}
+                        {s.contentType === 'video' ? 'Видео' : 'Графика'}
+                        {s.orderInDay === 2 ? ' ②' : ''}
+                      </span>
+                    ))}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+
+        {/* Ден-панел 300px */}
+        <aside style={{ ...dayPanel, width: stackPanel ? '100%' : 300 }}>
+          <div style={dayPanelHead}>
+            {selectedDay.slice(8, 10)}.{selectedDay.slice(5, 7)}.{selectedDay.slice(0, 4)}
+          </div>
+          {daySlots.length === 0 ? (
+            <p style={{ color: 'var(--gd-ink-muted)', fontSize: 13, padding: '8px 0' }}>
+              Нема објави за овој ден.
+            </p>
+          ) : (
+            daySlots.map((s) => (
+              <div key={s.id} style={dayPanelRow}>
+                <span style={{ fontWeight: 500 }}>
+                  {s.contentType === 'video' ? '▶ Видео' : '▧ Графика'}
+                </span>
+                <span style={{ color: 'var(--gd-ink-muted)', fontSize: 12 }}>
+                  {SLOT_STATUS_LABEL[s.status] ?? s.status}
+                </span>
+              </div>
+            ))
+          )}
+        </aside>
       </div>
 
-      {moving && (
-        <MoveModal
-          slot={moving}
-          onClose={() => setMoving(null)}
-          onMove={(date) => {
-            patch.mutate(
-              { id: moving.id, date, orderInDay: moving.orderInDay },
-              {
-                onSuccess: () => {
-                  setMoving(null);
-                  setToast('Слотот е поместен.');
-                },
-                onError: (e) => setToast(e instanceof ApiRequestError ? e.message : 'Грешка.'),
-              },
-            );
-          }}
-        />
-      )}
+      <Modal
+        open={!!moving}
+        onClose={() => setMoving(null)}
+        title="Помести предлог-слот"
+        width={360}
+      >
+        {moving && (
+          <MoveForm
+            slot={moving}
+            onClose={() => setMoving(null)}
+            patch={patch}
+            setToast={setToast}
+          />
+        )}
+      </Modal>
 
       {toast && (
         <div style={toastStyle} onClick={() => setToast(null)}>
@@ -181,43 +274,52 @@ export function Calendar() {
   );
 }
 
-function MoveModal({
+function MoveForm({
   slot,
   onClose,
-  onMove,
+  patch,
+  setToast,
 }: {
   slot: SlotRow;
   onClose: () => void;
-  onMove: (date: string) => void;
+  patch: ReturnType<typeof usePatchSlot>;
+  setToast: (v: string) => void;
 }) {
   const [date, setDate] = useState(slot.date.slice(0, 10));
   return (
-    <div style={overlay} onClick={onClose}>
-      <div style={modal} onClick={(e) => e.stopPropagation()}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, margin: '0 0 12px' }}>Помести предлог-слот</h2>
-        <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--gd-ink-muted)' }}>
-          Нов датум
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            style={{
-              display: 'block',
-              width: '100%',
-              height: 36,
-              marginTop: 4,
-              boxSizing: 'border-box',
-            }}
-          />
-        </label>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
-          <button onClick={onClose} style={secondaryBtn}>
-            Откажи
-          </button>
-          <button onClick={() => onMove(date)} style={primaryBtn}>
-            Помести
-          </button>
-        </div>
+    <div>
+      <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--gd-ink-muted)' }}>
+        Нов датум
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="gd-field"
+          style={{ display: 'block', width: '100%', marginTop: 4 }}
+        />
+      </label>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+        <Button variant="secondary" size="form" onClick={onClose}>
+          Откажи
+        </Button>
+        <Button
+          size="form"
+          disabled={patch.isPending}
+          onClick={() =>
+            patch.mutate(
+              { id: slot.id, date, orderInDay: slot.orderInDay },
+              {
+                onSuccess: () => {
+                  onClose();
+                  setToast('Слотот е поместен.');
+                },
+                onError: (e) => setToast(e instanceof ApiRequestError ? e.message : 'Грешка.'),
+              },
+            )
+          }
+        >
+          Помести
+        </Button>
       </div>
     </div>
   );
@@ -226,16 +328,13 @@ function MoveModal({
 const navBtn: React.CSSProperties = {
   width: 28,
   height: 28,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
   border: '1px solid var(--gd-border)',
   borderRadius: 6,
   background: 'var(--gd-surface)',
   cursor: 'pointer',
-};
-const selectStyle: React.CSSProperties = {
-  height: 28,
-  border: '1px solid var(--gd-border)',
-  borderRadius: 6,
-  padding: '0 8px',
 };
 const toggleBtn = (active: boolean): React.CSSProperties => ({
   height: 28,
@@ -247,6 +346,15 @@ const toggleBtn = (active: boolean): React.CSSProperties => ({
   cursor: 'pointer',
   fontSize: 13,
 });
+const legendRow: React.CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 16,
+  marginBottom: 16,
+  fontSize: 12,
+  color: 'var(--gd-ink-secondary)',
+};
+const legendItem: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 6 };
 const proposalBanner: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
@@ -279,13 +387,34 @@ const weekdayHead: React.CSSProperties = {
   background: 'var(--gd-surface-alt)',
   borderBottom: '1px solid var(--gd-border)',
 };
-const dayCell = (inMonth: boolean): React.CSSProperties => ({
+const dayCell = (inMonth: boolean, selected: boolean): React.CSSProperties => ({
   minHeight: 96,
   padding: 6,
+  textAlign: 'left',
+  border: 'none',
   borderRight: '1px solid var(--gd-border)',
   borderBottom: '1px solid var(--gd-border)',
-  background: inMonth ? 'var(--gd-surface)' : 'var(--gd-surface-pad)',
+  background: selected
+    ? 'var(--gd-primary-tint)'
+    : inMonth
+      ? 'var(--gd-surface)'
+      : 'var(--gd-surface-pad)',
   opacity: inMonth ? 1 : 0.5,
+  cursor: 'pointer',
+});
+const dayNum = (isToday: boolean, isPast: boolean): React.CSSProperties => ({
+  fontSize: 12,
+  marginBottom: 4,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minWidth: 20,
+  height: 20,
+  borderRadius: '50%',
+  fontWeight: isToday ? 700 : 400,
+  color: isToday ? '#fff' : isPast ? 'var(--gd-ink-muted)' : 'var(--gd-ink)',
+  background: isToday ? 'var(--gd-success)' : 'transparent',
+  fontVariantNumeric: 'tabular-nums',
 });
 const slotBar = (s: SlotRow): React.CSSProperties => ({
   display: 'block',
@@ -300,46 +429,33 @@ const slotBar = (s: SlotRow): React.CSSProperties => ({
   color: s.status === 'predlog' ? 'var(--gd-danger-text)' : 'var(--gd-ink)',
   background: s.status === 'predlog' ? 'transparent' : 'var(--gd-surface-alt)',
 });
-const primaryBtn: React.CSSProperties = {
-  height: 36,
-  padding: '0 16px',
-  background: 'var(--gd-primary)',
-  color: '#fff',
-  border: 'none',
-  borderRadius: 'var(--gd-radius-button)',
-  fontSize: 14,
-  fontWeight: 500,
-  cursor: 'pointer',
-};
-const secondaryBtn: React.CSSProperties = {
-  height: 36,
-  padding: '0 16px',
-  background: 'var(--gd-surface)',
+const dayPanel: React.CSSProperties = {
+  flex: '0 0 auto',
   border: '1px solid var(--gd-border)',
-  borderRadius: 'var(--gd-radius-button)',
-  fontSize: 14,
-  cursor: 'pointer',
-};
-const overlay: React.CSSProperties = {
-  position: 'fixed',
-  inset: 0,
-  background: 'rgba(0,0,0,.3)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-};
-const modal: React.CSSProperties = {
-  width: 360,
-  background: 'var(--gd-surface)',
   borderRadius: 'var(--gd-radius-card)',
-  padding: 24,
-  boxShadow: 'var(--gd-shadow-popover)',
+  background: 'var(--gd-surface)',
+  padding: 12,
+  alignSelf: 'flex-start',
+};
+const dayPanelHead: React.CSSProperties = {
+  fontSize: 14,
+  fontWeight: 600,
+  marginBottom: 8,
+  fontVariantNumeric: 'tabular-nums',
+};
+const dayPanelRow: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  padding: '8px 0',
+  borderBottom: '1px solid var(--gd-border)',
+  fontSize: 13,
 };
 const toastStyle: React.CSSProperties = {
   position: 'fixed',
   bottom: 20,
   right: 20,
-  background: 'var(--gd-ink)',
+  background: '#12161C',
   color: '#fff',
   padding: '10px 16px',
   borderRadius: 8,
