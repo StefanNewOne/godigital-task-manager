@@ -1,0 +1,11 @@
+@import 'tailwindcss';
+@import '@gd/ui/tokens.css';
+
+body {
+  margin: 0;
+  font-family: var(--gd-font);
+  color: var(--gd-ink);
+  background: var(--gd-surface);
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
