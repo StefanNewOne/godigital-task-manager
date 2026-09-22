@@ -1,27 +1,13 @@
 import { TASK_STATUS_META, type TaskStatus } from '@gd/core';
-import { tokens } from '@gd/ui';
+import { StatusBadge as UiStatusBadge, tokens } from '@gd/ui';
 
-/** Беџ со статус — точка во семантичка боја + етикета (Handoff §5 Чипови). */
-export function StatusBadge({ status }: { status: string }) {
-  const meta = TASK_STATUS_META[status as TaskStatus];
-  const color = tokens.statusColor[status as keyof typeof tokens.statusColor] ?? '#6B7280';
-  return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        height: 22,
-        padding: '0 8px',
-        borderRadius: 4,
-        fontSize: 12,
-        fontWeight: 500,
-        color,
-        background: `${color}1a`, // ~10% алфа
-      }}
-    >
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
-      {meta?.label ?? status}
-    </span>
-  );
+/**
+ * Беџ со статус — тенок адаптер врз @gd/ui StatusBadge: ја зема кирилската етикета
+ * од TASK_STATUS_META, ги префрла бојата/потемнетиот текст од токените. `mrtov` е
+ * со испрекината рамка (резервиран слот). `atRisk` го прави црвен (близу рок).
+ */
+export function StatusBadge({ status, atRisk }: { status: string; atRisk?: boolean }) {
+  const key = status as keyof typeof tokens.statusColor;
+  const label = TASK_STATUS_META[status as TaskStatus]?.label ?? status;
+  return <UiStatusBadge status={key} label={label} dashed={status === 'mrtov'} atRisk={atRisk} />;
 }
