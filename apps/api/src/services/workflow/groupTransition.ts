@@ -115,6 +115,52 @@ async function activateVideoChildren(ctx: GroupCtx): Promise<number> {
 }
 
 /**
+ * Bulk активација на графичка капа (D-3): сите мртви деца → brifing, доделени на креатор;
+ * капата се затвора (gPodgotovka → zatvoren). Датумите остануваат (D-2).
+ */
+export async function bulkActivateGraphic(groupId: string, actor: { id: string; role: Role }) {
+  const group = await prisma.taskGroup.findUnique({
+    where: { id: groupId },
+    include: { client: true },
+  });
+  if (!group) throw new AppError('NOT_FOUND', 'Капа таскот не е пронајден.', 404);
+  if (group.contentType !== 'graphic') {
+    throw new AppError('VALIDATION_FAILED', 'Bulk активација е само за графика.', 400);
+  }
+  if (actor.role !== 'krea' && actor.role !== 'dir') {
+    throw new AppError('FORBIDDEN_ROLE', 'Само Гр. креатор може да активира слотови.', 403);
+  }
+  const defaults = (group.client.defaultAssignees ?? {}) as Record<string, string>;
+  const kreaId = actor.role === 'krea' ? actor.id : (defaults.krea ?? null);
+
+  return prisma.$transaction(async (tx) => {
+    const children = await tx.task.findMany({ where: { groupId, status: 'mrtov' } });
+    for (const c of children) {
+      await tx.task.update({
+        where: { id: c.id },
+        data: { status: 'brifing', assigneeId: kreaId, kreaId },
+      });
+    }
+    if (group.status === 'gPodgotovka') {
+      await tx.taskGroup.update({
+        where: { id: group.id },
+        data: { status: 'zatvoren', closedAt: new Date() },
+      });
+    }
+    await recordEvent(tx, {
+      eventType: 'taskGroup.bulkActivated',
+      objectType: 'group',
+      objectId: group.id,
+      groupId: group.id,
+      clientId: group.clientId,
+      newValue: { activated: children.length },
+      narrative: `${ROLE_LABEL[actor.role]} активираше ${children.length} графички слотови за „${group.client.name} · ${group.monthKey}".`,
+    });
+    return { activated: children.length };
+  });
+}
+
+/**
  * Преод на капа таск (PRD §4.3 капа матрица). Една трансакција: улога → guards →
  * статус + effects (вклучувајќи активација на деца, D-1/D-2) → EventLog.
  */

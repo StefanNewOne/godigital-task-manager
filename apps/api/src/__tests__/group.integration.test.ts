@@ -9,7 +9,7 @@ const app = createApp();
 const db = new PrismaClient();
 const DEV_PASSWORD = 'gd-devpass-2026';
 // Секој тест свој месец (TaskGroup е unique по клиент+тип+месец).
-const MONTHS = ['2027-03', '2027-04', '2027-05', '2027-06'];
+const MONTHS = ['2027-03', '2027-04', '2027-05', '2027-06', '2027-08'];
 
 let clientId = '';
 const empId: Record<string, string> = {};
@@ -57,6 +57,7 @@ beforeAll(async () => {
     rez: 'stefan@godigital.mk',
     scen: 'ilija@godigital.mk',
     kam: 'nikola@godigital.mk',
+    krea: 'ljubica@godigital.mk',
   })) {
     token[role] = await login(email);
     empId[role] = (await db.employee.findUnique({ where: { email } }))!.id;
@@ -156,5 +157,49 @@ describe('A4 капа преоди', () => {
 
     const kids = await db.task.findMany({ where: { groupId: g.id } });
     expect(kids.every((k) => k.status === 'chekaRezija' && k.assigneeId === empId.rez)).toBe(true);
+  });
+
+  it('графичка капа: bulk активација → сите деца во brifing, капа затворена (D-3)', async () => {
+    const g = await db.taskGroup.create({
+      data: {
+        clientId,
+        contentType: 'graphic',
+        monthKey: MONTHS[4]!,
+        status: 'gPodgotovka',
+        plannedCount: 3,
+      },
+    });
+    for (let i = 0; i < 3; i++) {
+      const slot = await db.publishingSlot.create({
+        data: {
+          clientId,
+          contentType: 'graphic',
+          date: new Date(Date.UTC(2027, 7, 5 + i)),
+          status: 'reserved',
+          monthKey: MONTHS[4]!,
+        },
+      });
+      await db.task.create({
+        data: {
+          groupId: g.id,
+          clientId,
+          contentType: 'graphic',
+          title: `г${i}`,
+          status: 'mrtov',
+          slotId: slot.id,
+        },
+      });
+    }
+    const r = await request(app)
+      .post(`/api/task-groups/${g.id}/activate-all`)
+      .set(bearer('krea'))
+      .send({});
+    expect(r.status).toBe(200);
+    expect(r.body.data.activated).toBe(3);
+
+    const group = await db.taskGroup.findUnique({ where: { id: g.id } });
+    expect(group!.status).toBe('zatvoren');
+    const kids = await db.task.findMany({ where: { groupId: g.id } });
+    expect(kids.every((k) => k.status === 'brifing' && k.assigneeId === empId.krea)).toBe(true);
   });
 });
