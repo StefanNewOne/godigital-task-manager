@@ -1,0 +1,799 @@
+// GoDigital Task Manager — Prisma schema
+// Извор на вистина: PRD_v3 §4.4. Сите примарни табели носат `tenantId` (tenant-ready, default „godigital").
+// Многу актор/референци (assigneeId, enteredById, …) се scalar uuid БЕЗ Prisma relation — намерно,
+// за да не се експлодираат back-relations на Employee/Client. Структурните врски (Client→Group→Task→Slot)
+// се експлицитни. Инваријанти во база (append-only grant, check constraints, HNSW/GIN индекси) се
+// додаваат преку raw SQL во миграцијата (види migrations/ + CLAUDE.md §15.5).
+
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../src/generated/client"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+// ─────────────────────────── Enums ───────────────────────────
+
+enum Role {
+  dir
+  am
+  rez
+  scen
+  kam
+  mon
+  krea
+  diz
+  ana
+}
+
+enum ContentType {
+  video
+  graphic
+}
+
+enum ClientStatus {
+  aktiven
+  pauza
+  zavrsen
+}
+
+enum CalendarType {
+  standarden
+  specificen
+}
+
+enum Channel {
+  viber
+  whatsapp
+  email
+}
+
+enum TaskStatus {
+  mrtov
+  cekaSnimanje
+  brifing
+  dizajn
+  chekaRezija
+  montaza
+  vnatresno
+  kajKlient
+  zaObjavuvanje
+  objaveno
+  analitika
+  zavrseno
+  pauza
+  otkazano
+}
+
+enum GroupStatus {
+  podgotovka
+  scenarija
+  scenKajKlient
+  snimanje
+  gPodgotovka
+  zatvoren
+}
+
+enum SlotStatus {
+  predlog
+  free
+  reserved
+  used
+  missed
+}
+
+enum ScenarioStatus {
+  predlozeno
+  odobreno
+  odobrenoSoIzmeni
+  otfrleno
+}
+
+enum Priority {
+  normalen
+  iten
+}
+
+enum HolidayScope {
+  global
+  client
+}
+
+enum PublicationPlatform {
+  fb
+  ig
+  tiktok
+}
+
+enum PostType {
+  reel
+  post
+  story
+  carousel
+}
+
+enum ResolveStatus {
+  pending
+  resolved
+  failed
+  manual
+}
+
+enum ApprovalObjectType {
+  task
+  scenario
+  group
+}
+
+enum ApprovalType {
+  internal
+  client
+}
+
+enum ApprovalOutcome {
+  approved
+  approvedWithChanges
+  rejected
+  returned
+}
+
+enum ApprovalSource {
+  employee
+  clientPwa
+}
+
+enum RevisionSource {
+  internal
+  client
+}
+
+enum CommentKind {
+  comment
+  systemNote
+}
+
+enum CampaignStatus {
+  planned
+  active
+  closed
+}
+
+enum PromotionDecision {
+  organic
+  paid
+}
+
+enum FileOwnerType {
+  group
+  task
+  revision
+  approval
+  comment
+}
+
+enum FileKind {
+  raw
+  final
+  graphic
+  scenarioDoc
+  briefRef
+  sharedMaterial
+  screenshot
+  preview
+  logo
+}
+
+enum FileLifecycle {
+  active
+  scheduledDeletion
+  deleted
+  archivedLocally
+}
+
+enum UploadStatus {
+  open
+  completed
+  aborted
+}
+
+enum DeadlineScope {
+  global
+  client
+}
+
+enum DeadlineTarget {
+  task
+  group
+}
+
+enum ModuleKind {
+  goScripterAi
+  graficarAi
+  aiCopywriter
+  claudeAssistant
+}
+
+enum NotificationLevel {
+  potsetnik
+  alarm
+  kritichen
+}
+
+enum OutboxKind {
+  realtime
+  knowledge
+  notification
+}
+
+enum KnowledgeSource {
+  clientProfile
+  scenario
+  brief
+  copy
+  clientFeedback
+  internalFeedback
+  comment
+  eventNarrative
+  metricSummary
+  processDoc
+  ruleDoc
+}
+
+enum Visibility {
+  internal
+  clientVisible
+}
+
+enum EmbStatus {
+  pending
+  done
+  failed
+  stale
+}
+
+// ─────────────────────────── Core structural models ───────────────────────────
+
+model Client {
+  id                String       @id @default(uuid(7)) @db.Uuid
+  tenantId          String       @default("godigital")
+  name              String
+  legalName         String?
+  logoFileId        String?      @db.Uuid
+  color             String
+  status            ClientStatus @default(aktiven)
+  contractStart     DateTime     @db.Date
+  contractMonths    Int
+  videosPerMonth    Int          @default(0)
+  graphicsPerMonth  Int          @default(0)
+  usesMetaAds       Boolean      @default(false)
+  metaAdAccountId   String?
+  metaPageId        String?
+  metaIgId          String?
+  calendarType      CalendarType @default(standarden)
+  approvalChannel   Channel      @default(viber)
+  coverageAlarmDays Int          @default(7)
+  notes             String?
+  defaultAssignees  Json?
+  archivedAt        DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  contacts          ClientContact[]
+  calendarConfigs   CalendarConfig[]
+  holidays          Holiday[]
+  slots             PublishingSlot[]
+  taskGroups        TaskGroup[]
+  tasks             Task[]
+  campaigns         Campaign[]
+  moduleAssignments ModuleAssignment[]
+
+  @@index([tenantId])
+}
+
+model ClientContact {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  tenantId   String   @default("godigital")
+  clientId   String   @db.Uuid
+  client     Client   @relation(fields: [clientId], references: [id])
+  name       String
+  roleAtClient String?
+  phone      String?
+  email      String?
+  isApprover Boolean  @default(false)
+  archivedAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([clientId])
+}
+
+model Employee {
+  id                String    @id @default(uuid(7)) @db.Uuid
+  tenantId          String    @default("godigital")
+  name              String
+  email             String    @unique
+  passwordHash      String
+  phone             String?
+  role              Role
+  isScenaristToo    Boolean   @default(false)
+  color             String
+  active            Boolean   @default(true)
+  capacityNote      String?
+  notificationPrefs Json?
+  lastActiveAt      DateTime?
+  createdById       String?   @db.Uuid
+  archivedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([tenantId])
+  // DB check (миграција): isScenaristToo = true само ако role = 'rez'.
+}
+
+model CalendarConfig {
+  id             String      @id @default(uuid(7)) @db.Uuid
+  tenantId       String      @default("godigital")
+  clientId       String      @db.Uuid
+  client         Client      @relation(fields: [clientId], references: [id])
+  contentType    ContentType
+  weekdays       Int[] // 1=пон … 7=нед
+  publishTime    String // "HH:mm"
+  allowTwoPerDay Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@unique([clientId, contentType])
+}
+
+model Holiday {
+  id        String       @id @default(uuid(7)) @db.Uuid
+  tenantId  String       @default("godigital")
+  date      DateTime     @db.Date
+  name      String
+  scope     HolidayScope @default(global)
+  clientId  String?      @db.Uuid
+  client    Client?      @relation(fields: [clientId], references: [id])
+  createdAt DateTime     @default(now())
+
+  @@unique([date, clientId])
+}
+
+model PublishingSlot {
+  id               String      @id @default(uuid(7)) @db.Uuid
+  tenantId         String      @default("godigital")
+  clientId         String      @db.Uuid
+  client           Client      @relation(fields: [clientId], references: [id])
+  contentType      ContentType
+  date             DateTime    @db.Date
+  orderInDay       Int         @default(1)
+  status           SlotStatus  @default(predlog)
+  monthKey         String // "2026-10"
+  carriedFromMonth String?
+  task             Task?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@unique([clientId, contentType, date, orderInDay])
+  @@index([clientId, monthKey])
+}
+
+model TaskGroup {
+  id                 String      @id @default(uuid(7)) @db.Uuid
+  tenantId           String      @default("godigital")
+  clientId           String      @db.Uuid
+  client             Client      @relation(fields: [clientId], references: [id])
+  contentType        ContentType
+  monthKey           String
+  status             GroupStatus
+  plannedCount       Int         @default(0)
+  scenaristId        String?     @db.Uuid
+  rezId              String?     @db.Uuid
+  kamId              String?     @db.Uuid
+  shootDate          DateTime? // timestamptz, Europe/Skopje
+  shootLocation      String?
+  scenaristNotes     String?
+  scenarioDocVersion Int         @default(0)
+  closedAt           DateTime?
+  rawDeleteAt        DateTime?
+  rawExtendedTimes   Int         @default(0)
+  localArchivePath   String?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  tasks     Task[]
+  scenarios Scenario[]
+  comments  Comment[]
+
+  @@unique([clientId, contentType, monthKey])
+}
+
+model Task {
+  id               String      @id @default(uuid(7)) @db.Uuid
+  tenantId         String      @default("godigital")
+  groupId          String      @db.Uuid
+  group            TaskGroup   @relation(fields: [groupId], references: [id])
+  clientId         String      @db.Uuid
+  client           Client      @relation(fields: [clientId], references: [id])
+  contentType      ContentType
+  title            String
+  titleIsAuto      Boolean     @default(true)
+  status           TaskStatus
+  pausedFromStatus TaskStatus?
+  slotId           String?     @unique @db.Uuid
+  slot             PublishingSlot? @relation(fields: [slotId], references: [id])
+  scenarioId       String?     @unique @db.Uuid
+  scenario         Scenario?   @relation(fields: [scenarioId], references: [id])
+  assigneeId       String?     @db.Uuid
+  rezId            String?     @db.Uuid
+  kreaId           String?     @db.Uuid
+  brief            String?
+  copy             String?
+  priority         Priority    @default(normalen)
+  version          Int         @default(1)
+  isExtra          Boolean     @default(false)
+  statusChangedAt  DateTime    @default(now())
+  postUnavailable  Boolean     @default(false)
+  cancelReason     String?
+  pauseReason      String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  revisions    Revision[]
+  comments     Comment[]
+  publications Publication[]
+
+  @@index([tenantId, status])
+  @@index([clientId, contentType])
+  @@index([assigneeId])
+}
+
+model Scenario {
+  id            String         @id @default(uuid(7)) @db.Uuid
+  tenantId      String         @default("godigital")
+  groupId       String         @db.Uuid
+  group         TaskGroup      @relation(fields: [groupId], references: [id])
+  ordinal       Int
+  docVersion    Int            @default(1)
+  title         String
+  hook          String?
+  body          String?
+  notes         String?
+  status        ScenarioStatus @default(predlozeno)
+  clientComment String?
+  source        String         @default("manual") // manual | ai
+  task          Task?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@unique([groupId, ordinal, docVersion])
+}
+
+model Revision {
+  id           String         @id @default(uuid(7)) @db.Uuid
+  tenantId     String         @default("godigital")
+  taskId       String         @db.Uuid
+  task         Task           @relation(fields: [taskId], references: [id])
+  version      Int
+  returnedById String?        @db.Uuid
+  role         Role?
+  comment      String
+  source       RevisionSource
+  fileId       String?        @db.Uuid
+  createdAt    DateTime       @default(now())
+
+  @@index([taskId])
+}
+
+model Approval {
+  id               String             @id @default(uuid(7)) @db.Uuid
+  tenantId         String             @default("godigital")
+  objectType       ApprovalObjectType
+  objectId         String             @db.Uuid
+  type             ApprovalType
+  outcome          ApprovalOutcome
+  enteredById      String?            @db.Uuid
+  enteredByRole    Role?
+  onBehalfOfRole   Role?
+  channel          Channel?
+  comment          String?
+  attachmentFileId String?            @db.Uuid
+  source           ApprovalSource     @default(employee)
+  createdAt        DateTime           @default(now())
+
+  @@index([objectType, objectId])
+}
+
+model Comment {
+  id        String      @id @default(uuid(7)) @db.Uuid
+  tenantId  String      @default("godigital")
+  taskId    String?     @db.Uuid
+  task      Task?       @relation(fields: [taskId], references: [id])
+  groupId   String?     @db.Uuid
+  group     TaskGroup?  @relation(fields: [groupId], references: [id])
+  authorId  String      @db.Uuid
+  body      String
+  mentions  String[]
+  kind      CommentKind @default(comment)
+  createdAt DateTime    @default(now())
+
+  @@index([taskId])
+  @@index([groupId])
+}
+
+model Publication {
+  id            String              @id @default(uuid(7)) @db.Uuid
+  tenantId      String              @default("godigital")
+  taskId        String              @db.Uuid
+  task          Task                @relation(fields: [taskId], references: [id])
+  platform      PublicationPlatform
+  postType      PostType
+  publishedAt   DateTime?
+  permalink     String?
+  externalRef   String?
+  metaMediaId   String?
+  resolveStatus ResolveStatus       @default(pending)
+  publishedById String?             @db.Uuid
+  promotion     Promotion?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@unique([taskId, platform])
+}
+
+model Campaign {
+  id            String         @id @default(uuid(7)) @db.Uuid
+  tenantId      String         @default("godigital")
+  clientId      String         @db.Uuid
+  client        Client         @relation(fields: [clientId], references: [id])
+  name          String
+  metaCampaignId String?
+  objective     String
+  budget        Decimal        @db.Decimal(12, 2)
+  periodFrom    DateTime       @db.Date
+  periodTo      DateTime       @db.Date
+  status        CampaignStatus @default(planned)
+  analystId     String?        @db.Uuid
+  promotions    Promotion[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([clientId])
+}
+
+model Promotion {
+  id            String            @id @default(uuid(7)) @db.Uuid
+  tenantId      String            @default("godigital")
+  publicationId String            @unique @db.Uuid
+  publication   Publication       @relation(fields: [publicationId], references: [id])
+  decision      PromotionDecision
+  rationale     String?
+  campaignId    String?           @db.Uuid
+  campaign      Campaign?         @relation(fields: [campaignId], references: [id])
+  decidedById   String?           @db.Uuid
+  decidedAt     DateTime          @default(now())
+}
+
+// MetricSnapshot — append-only (без UPDATE/DELETE grant; спроведено во миграција).
+model MetricSnapshot {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  tenantId      String   @default("godigital")
+  publicationId String?  @db.Uuid
+  campaignId    String?  @db.Uuid
+  capturedAt    DateTime @default(now())
+  raw           Json
+  reach         Decimal? @db.Decimal(14, 2)
+  impressions   Decimal? @db.Decimal(14, 2)
+  views         Decimal? @db.Decimal(14, 2)
+  engagement    Decimal? @db.Decimal(14, 2)
+  spend         Decimal? @db.Decimal(12, 2)
+  cpr           Decimal? @db.Decimal(12, 4)
+  ctr           Decimal? @db.Decimal(8, 4)
+  frequency     Decimal? @db.Decimal(8, 4)
+
+  @@index([publicationId, capturedAt])
+  @@index([campaignId, capturedAt])
+}
+
+model FileAsset {
+  id            String        @id @default(uuid(7)) @db.Uuid
+  tenantId      String        @default("godigital")
+  ownerType     FileOwnerType
+  ownerId       String        @db.Uuid
+  kind          FileKind
+  r2Key         String
+  size          BigInt
+  mime          String
+  version       Int?
+  previewFileId String?       @db.Uuid
+  lifecycle     FileLifecycle @default(active)
+  deleteAt      DateTime?
+  uploadedById  String?       @db.Uuid
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([ownerType, ownerId])
+}
+
+model UploadSession {
+  id          String       @id @default(uuid(7)) @db.Uuid
+  tenantId    String       @default("godigital")
+  fileAssetId String       @db.Uuid
+  r2UploadId  String
+  parts       Json
+  status      UploadStatus @default(open)
+  expiresAt   DateTime
+  createdAt   DateTime     @default(now())
+}
+
+model DateChange {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  tenantId      String   @default("godigital")
+  taskId        String   @db.Uuid
+  oldSlotId     String?  @db.Uuid
+  newSlotId     String?  @db.Uuid
+  reason        String
+  changedById   String?  @db.Uuid
+  changedByRole Role?
+  createdAt     DateTime @default(now())
+
+  @@index([taskId])
+}
+
+model StatusDeadlineConfig {
+  id          String         @id @default(uuid(7)) @db.Uuid
+  tenantId    String         @default("godigital")
+  scope       DeadlineScope  @default(global)
+  clientId    String?        @db.Uuid
+  target      DeadlineTarget
+  contentType ContentType
+  status      String // TaskStatus или GroupStatus клуч
+  leadDays    Int
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([scope, clientId, target, contentType, status])
+}
+
+model AutomationRule {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  tenantId    String    @default("godigital")
+  name        String
+  scope       String    @default("global") // global | client
+  clientId    String?   @db.Uuid
+  trigger     Json
+  conditions  Json
+  actions     Json
+  enabled     Boolean   @default(true)
+  isSystem    Boolean   @default(false)
+  createdById String?   @db.Uuid
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  runs        AutomationRun[]
+
+  @@index([tenantId])
+}
+
+model AutomationRun {
+  id       String         @id @default(uuid(7)) @db.Uuid
+  tenantId String         @default("godigital")
+  ruleId   String         @db.Uuid
+  rule     AutomationRule @relation(fields: [ruleId], references: [id])
+  taskId   String?        @db.Uuid
+  groupId  String?        @db.Uuid
+  ranAt    DateTime       @default(now())
+  result   String // ok | rejected | error
+  detail   Json?
+
+  @@index([ruleId])
+}
+
+model ModuleAssignment {
+  id           String     @id @default(uuid(7)) @db.Uuid
+  tenantId     String     @default("godigital")
+  clientId     String     @db.Uuid
+  client       Client     @relation(fields: [clientId], references: [id])
+  module       ModuleKind
+  active       Boolean    @default(true)
+  assignedById String?    @db.Uuid
+  assignedAt   DateTime   @default(now())
+
+  @@unique([clientId, module])
+}
+
+model Notification {
+  id           String            @id @default(uuid(7)) @db.Uuid
+  tenantId     String            @default("godigital")
+  recipientId  String            @db.Uuid
+  level        NotificationLevel
+  eventKey     String
+  taskId       String?           @db.Uuid
+  groupId      String?           @db.Uuid
+  clientId     String?           @db.Uuid
+  title        String
+  body         String
+  channelsSent Json?
+  readAt       DateTime?
+  dedupeKey    String            @unique
+  createdAt    DateTime          @default(now())
+
+  @@index([recipientId, readAt])
+}
+
+model SavedView {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  tenantId   String   @default("godigital")
+  employeeId String   @db.Uuid
+  screen     String
+  name       String
+  filters    Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([employeeId, screen])
+}
+
+// EventLog — append-only (без UPDATE/DELETE grant за апликацискиот DB корисник).
+model EventLog {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  tenantId       String   @default("godigital")
+  eventType      String
+  objectType     String
+  objectId       String
+  clientId       String?  @db.Uuid
+  taskId         String?  @db.Uuid
+  groupId        String?  @db.Uuid
+  actorId        String?  @db.Uuid
+  actorRole      String?
+  onBehalfOfRole String?
+  occurredAt     DateTime @default(now())
+  oldValue       Json?
+  newValue       Json?
+  context        Json?
+  narrative      String
+
+  outbox Outbox[]
+
+  @@index([tenantId, objectType, objectId])
+  @@index([tenantId, occurredAt])
+}
+
+// Outbox — образец за real-time / знаење / известувања (без dual write).
+model Outbox {
+  id          String     @id @default(uuid(7)) @db.Uuid
+  eventLogId  String     @db.Uuid
+  eventLog    EventLog   @relation(fields: [eventLogId], references: [id])
+  kind        OutboxKind
+  processedAt DateTime?
+  createdAt   DateTime   @default(now())
+
+  @@index([kind, processedAt])
+}
+
+model KnowledgeChunk {
+  id              String                       @id @default(uuid(7)) @db.Uuid
+  tenantId        String                       @default("godigital")
+  sourceType      KnowledgeSource
+  sourceId        String
+  clientId        String?                      @db.Uuid
+  taskId          String?                      @db.Uuid
+  groupId         String?                      @db.Uuid
+  visibility      Visibility                   @default(internal)
+  occurredAt      DateTime
+  text            String
+  metadata        Json
+  contentHash     String
+  embedding       Unsupported("vector(1024)")?
+  tsv             Unsupported("tsvector")?
+  embeddingStatus EmbStatus                    @default(pending)
+  embeddingModel  String?
+  createdAt       DateTime                     @default(now())
+
+  @@unique([sourceType, sourceId, contentHash])
+  @@index([clientId, sourceType, occurredAt])
+  // HNSW (embedding) + GIN (tsv) индекси се додаваат преку raw SQL во миграцијата.
+}
