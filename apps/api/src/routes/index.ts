@@ -11,6 +11,7 @@ import { holidaysRouter } from './holidays.js';
 import { clientSlotsRouter, slotsRouter } from './slots.js';
 import { tasksRouter } from './tasks.js';
 import { taskGroupsRouter } from './taskGroups.js';
+import { overviewRouter } from './overview.js';
 import { cronRouter } from './cron.js';
 
 export const apiRouter: ExpressRouter = Router();
@@ -34,4 +35,5 @@ apiRouter.use('/employees', employeesRouter);
 apiRouter.use('/holidays', holidaysRouter);
 apiRouter.use('/tasks', tasksRouter);
 apiRouter.use('/task-groups', taskGroupsRouter);
+apiRouter.use('/overview', overviewRouter);
 apiRouter.use('/cron', cronRouter);

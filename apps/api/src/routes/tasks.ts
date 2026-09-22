@@ -4,6 +4,8 @@ import {
   PERMISSIONS,
   commentCreateSchema,
   dateChangeSchema,
+  extractExternalRef,
+  publicationCreateSchema,
   taskListQuerySchema,
   taskTransitionSchema,
 } from '@gd/core';
@@ -99,6 +101,29 @@ tasksRouter.post('/:id/comments', async (req, res) => {
     },
   });
   res.status(201).json({ data: comment });
+});
+
+// Објава по платформа (PRD §4.8). Една по (таск, платформа); externalRef од core.
+tasksRouter.post('/:id/publications', async (req, res) => {
+  const id = (req.params as { id: string }).id;
+  const input = parse(publicationCreateSchema, req.body);
+  const externalRef = input.permalink ? extractExternalRef(input.permalink) : null;
+  const existing = await prisma.publication.findFirst({
+    where: { taskId: id, platform: input.platform },
+  });
+  const data = {
+    platform: input.platform,
+    postType: input.postType,
+    permalink: input.permalink,
+    publishedAt: input.publishedAt,
+    externalRef,
+    resolveStatus: 'pending' as const,
+    publishedById: req.auth!.sub,
+  };
+  const publication = existing
+    ? await prisma.publication.update({ where: { id: existing.id }, data })
+    : await prisma.publication.create({ data: { taskId: id, ...data } });
+  res.status(existing ? 200 : 201).json({ data: publication });
 });
 
 // Промена на статус преку state machine (PRD §4.3).

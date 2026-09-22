@@ -144,6 +144,15 @@ export const groupTransitionSchema = z.object({
 });
 export type GroupTransitionInput = z.infer<typeof groupTransitionSchema>;
 
+// ── Publications (A6, PRD §4.8) ──
+export const publicationCreateSchema = z.object({
+  platform: z.enum(['fb', 'ig', 'tiktok']),
+  postType: z.enum(['reel', 'post', 'story', 'carousel']),
+  permalink: z.string().url('Неважечки линк.').optional(),
+  publishedAt: z.coerce.date().optional(),
+});
+export type PublicationCreateInput = z.infer<typeof publicationCreateSchema>;
+
 // ── Comments (@таг, D-9) ──
 export const commentCreateSchema = z.object({
   body: z.string().min(1, 'Коментарот е задолжителен.'),
