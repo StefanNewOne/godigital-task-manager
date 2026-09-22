@@ -10,3 +10,5 @@ export { Button } from './components/Button.js';
 export type { ButtonProps, ButtonVariant, ButtonSize } from './components/Button.js';
 export { StatusBadge } from './components/StatusBadge.js';
 export type { StatusBadgeProps } from './components/StatusBadge.js';
+export { Modal } from './components/Modal.js';
+export type { ModalProps } from './components/Modal.js';
