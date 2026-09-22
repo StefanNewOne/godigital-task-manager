@@ -233,6 +233,14 @@ export const publicationCreateSchema = z.object({
 });
 export type PublicationCreateInput = z.infer<typeof publicationCreateSchema>;
 
+// ── Promotion (A6/B2, PRD §4.8): одлука органски/платено по објава ──
+export const promotionCreateSchema = z.object({
+  decision: z.enum(['organic', 'paid']),
+  rationale: z.string().optional(),
+  campaignId: z.string().uuid().optional(),
+});
+export type PromotionCreateInput = z.infer<typeof promotionCreateSchema>;
+
 // ── Comments (@таг, D-9) ──
 export const commentCreateSchema = z.object({
   body: z.string().min(1, 'Коментарот е задолжителен.'),
