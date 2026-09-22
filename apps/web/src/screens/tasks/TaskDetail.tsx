@@ -49,6 +49,7 @@ import {
 import { ApiRequestError } from '../../lib/api.js';
 import type { TaskDetailData } from '../../lib/types.js';
 import { StatusBadge } from '../../components/StatusBadge.js';
+import { CreativeViewer } from './CreativeViewer.js';
 
 const ROLE_COLOR: Record<Role, string> = {
   dir: '#0866FF',
@@ -90,6 +91,7 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
 
   const [expanded, setExpanded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [viewer, setViewer] = useState(false);
   const [modal, setModal] = useState<Modal>(null);
   const [reason, setReason] = useState('');
   const [modalDate, setModalDate] = useState('');
@@ -378,9 +380,9 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
             openState={open.creative}
             onToggle={() => setOpen((o) => ({ ...o, creative: !o.creative }))}
           >
-            <p style={sectionText}>
-              Прегледот на креатива се отвора во целосен екран (следен чекор).
-            </p>
+            <Button variant="secondary" size="form" onClick={() => setViewer(true)}>
+              Отвори преглед на креатива
+            </Button>
           </Section>
           {(status === 'zaObjavuvanje' || status === 'objaveno' || status === 'analitika') && (
             <Section
@@ -518,6 +520,8 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
           {toasts[0].text}
         </div>
       )}
+
+      {viewer && <CreativeViewer taskId={task.id} onClose={() => setViewer(false)} />}
     </aside>
   );
 }

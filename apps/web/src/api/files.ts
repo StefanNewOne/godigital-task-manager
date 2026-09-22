@@ -1,5 +1,6 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api.js';
+import type { FileAssetRow } from '../lib/types.js';
 
 /**
  * Прикачување фајл преку presigned URLs (CLAUDE.md И7): frontend НИКОГАШ не праќа
@@ -84,6 +85,18 @@ export function useFileUpload(taskId: string) {
       void qc.invalidateQueries({ queryKey: ['task', taskId] });
       void qc.invalidateQueries({ queryKey: ['activity', taskId] });
     },
+  });
+}
+
+/** Листа на фајлови за сопственик (со presigned url за преглед/симнување). */
+export function useFiles(ownerType: OwnerType, ownerId: string | null) {
+  return useQuery({
+    queryKey: ['files', ownerType, ownerId],
+    queryFn: () =>
+      api.get<FileAssetRow[]>(
+        `/files?ownerType=${ownerType}&ownerId=${encodeURIComponent(ownerId ?? '')}`,
+      ),
+    enabled: !!ownerId,
   });
 }
 
