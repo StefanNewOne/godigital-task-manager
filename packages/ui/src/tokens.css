@@ -1,0 +1,52 @@
+/* Дизајн токени како CSS променливи (огледало на tokens.ts). Light тема. */
+/* Темна тема се додава во A3 FE (Design Brief §2 „Темна тема"). */
+
+:root {
+  /* бренд */
+  --gd-primary: #0866ff;
+  --gd-primary-hover: #0052d9;
+  --gd-primary-tint: #ebf2ff;
+  --gd-primary-border: #c7dcff;
+  --gd-primary-wash: rgba(8, 102, 255, 0.04);
+
+  /* текст */
+  --gd-ink: #12161c;
+  --gd-ink-secondary: #5c6672;
+  --gd-ink-muted: #8a93a0;
+
+  /* површини */
+  --gd-border: #e2e7eb;
+  --gd-border-strong: #8a93a0;
+  --gd-surface: #ffffff;
+  --gd-surface-alt: #f7f8fa;
+  --gd-surface-pad: #fafbfc;
+  --gd-divider-light: #c9d0d8;
+
+  /* семантички */
+  --gd-danger: #dc2626;
+  --gd-danger-text: #b91c1c;
+  --gd-warning: #d97706;
+  --gd-warning-text: #b45309;
+  --gd-success: #16a34a;
+  --gd-success-text: #15803d;
+
+  /* радиуси */
+  --gd-radius-button: 6px;
+  --gd-radius-field: 8px;
+  --gd-radius-badge: 4px;
+  --gd-radius-card: 8px;
+
+  /* сенки */
+  --gd-shadow-popover: 0 12px 32px rgba(0, 0, 0, 0.14);
+  --gd-shadow-toast: 0 12px 32px rgba(0, 0, 0, 0.24);
+  --gd-shadow-card-hover: 0 1px 3px rgba(0, 0, 0, 0.08);
+
+  /* димензии */
+  --gd-rail: 64px;
+  --gd-context-sidebar: 240px;
+  --gd-top-bar: 56px;
+  --gd-toolbar: 48px;
+  --gd-detail-panel: 480px;
+
+  --gd-font: 'Inter', system-ui, sans-serif;
+}

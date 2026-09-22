@@ -1,0 +1,45 @@
+{
+  "app": {
+    "name": "GoDigital Таск-менаџер"
+  },
+  "nav": {
+    "director": "Преглед",
+    "list": "Задачи",
+    "calendar": "Календар",
+    "clients": "Клиенти",
+    "analytics": "Аналитика",
+    "admin": "Админ"
+  },
+  "common": {
+    "cancel": "Откажи",
+    "save": "Зачувај",
+    "filter": "Филтер",
+    "sort": "Подреди",
+    "group": "Групирај",
+    "options": "Опции",
+    "search": "Пребарувај",
+    "undefinedAssignee": "Недоделен"
+  },
+  "plural": {
+    "day": "{count, plural, one {# ден} other {# дена}}",
+    "task": "{count, plural, one {# таск} few {# таска} other {# таскови}}"
+  },
+  "deadline": {
+    "overdue": "рок пречекорен {count, plural, one {# ден} other {# дена}}",
+    "today": "рок денес",
+    "tomorrow": "рок утре",
+    "future": "рок за {count, plural, one {# ден} other {# дена}}"
+  },
+  "empty": {
+    "myTasks": "Нема задачи за тебе во моментот.",
+    "monthNotPlanned": "{month} уште не е испланиран.",
+    "noFilterMatch": "Нема задачи што одговараат на филтерот.",
+    "noAlarms": "Сè е во ред."
+  },
+  "toast": {
+    "transitionNotAllowed": "Преодот „{from}“ → „{to}“ не е во матрицата на дозволени преоди.",
+    "commentRequired": "Овој преод бара коментар — внеси го во работната зона.",
+    "publicationRequired": "Таскот не може во Објавено без внесено копи и линк.",
+    "dateInPast": "Не е дозволено поместување на датум во минатото."
+  }
+}
