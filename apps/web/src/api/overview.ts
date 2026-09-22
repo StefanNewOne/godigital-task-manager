@@ -1,0 +1,23 @@
+import { useQuery } from '@tanstack/react-query';
+import { api } from '../lib/api.js';
+
+export interface CoverageRow {
+  clientId: string;
+  name: string;
+  color: string;
+  video: number | null;
+  graphic: number | null;
+  days: number;
+  level: 'ok' | 'warn' | 'danger';
+}
+
+export interface OverviewData {
+  coverage: CoverageRow[];
+  byStatus: Array<{ status: string; count: number }>;
+  alarms: unknown[];
+  campaigns: unknown[];
+}
+
+export function useOverview() {
+  return useQuery({ queryKey: ['overview'], queryFn: () => api.get<OverviewData>('/overview') });
+}
