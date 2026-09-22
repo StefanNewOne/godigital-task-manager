@@ -1,95 +1,158 @@
 import type React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { TASK_STATUS_META, type TaskStatus } from '@gd/core';
-import { useOverview } from '../api/overview.js';
+import { useOverview, type CoverageRow } from '../api/overview.js';
+import { StatusBadge } from '../components/StatusBadge.js';
 
-const LEVEL_COLOR: Record<string, string> = {
+const LEVEL_COLOR: Record<CoverageRow['level'], string> = {
   ok: 'var(--gd-success)',
   warn: 'var(--gd-warning)',
   danger: 'var(--gd-danger)',
 };
+const LEVEL_TEXT: Record<CoverageRow['level'], string> = {
+  ok: 'var(--gd-success-text)',
+  warn: 'var(--gd-warning-text)',
+  danger: 'var(--gd-danger-text)',
+};
 
-/** Директорски преглед (Handoff §7): покриеност по клиент + работа по статус. */
+/** Директорски преглед (Handoff §2.7): покриеност по клиент + работа по статус. */
 export function Overview() {
   const { data, isLoading } = useOverview();
+  const navigate = useNavigate();
 
   if (isLoading) return <div style={{ padding: 24, color: 'var(--gd-ink-muted)' }}>Вчитување…</div>;
   if (!data) return null;
 
+  const coverage = [...data.coverage].sort((a, b) => a.days - b.days); // најлошо прво
+  const maxCount = Math.max(1, ...data.byStatus.map((s) => s.count));
+
   return (
-    <div
-      style={{
-        padding: '24px 20px',
-        display: 'grid',
-        gap: 24,
-        gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
-      }}
-    >
+    <div style={wrap}>
+      {/* Покриеност по клиент — клик отвора клиент во Список */}
       <section style={card}>
         <h2 style={cardTitle}>Покриеност по клиент</h2>
-        {data.coverage.map((c) => (
-          <div key={c.clientId} style={covRow}>
-            <span
-              style={{
-                width: 4,
-                alignSelf: 'stretch',
-                borderRadius: 2,
-                background: LEVEL_COLOR[c.level],
-              }}
-            />
+        {coverage.map((c) => (
+          <button
+            key={c.clientId}
+            style={covRow}
+            onClick={() => navigate(`/tasks?client=${c.clientId}&tab=list`)}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--gd-surface-alt)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+          >
+            <span style={{ ...covBar, background: LEVEL_COLOR[c.level] }} />
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.color }} />
-            <span style={{ flex: 1, fontWeight: 500 }}>{c.name}</span>
-            <span
-              style={{
-                color: LEVEL_COLOR[c.level],
-                fontWeight: 600,
-                fontVariantNumeric: 'tabular-nums',
-              }}
-            >
+            <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+              <div style={{ fontWeight: 500 }}>{c.name}</div>
+              <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>
+                {c.video != null && <span>Видео · {c.video} дена</span>}
+                {c.video != null && c.graphic != null && <span> · </span>}
+                {c.graphic != null && <span>Графика · {c.graphic} дена</span>}
+              </div>
+            </div>
+            <span style={{ color: LEVEL_TEXT[c.level], fontWeight: 600, ...tabular }}>
               {c.days} дена
             </span>
-          </div>
+          </button>
         ))}
-        {data.coverage.length === 0 && <p style={muted}>Нема активни клиенти.</p>}
+        {coverage.length === 0 && <p style={muted}>Нема активни клиенти.</p>}
       </section>
 
+      {/* Работа по статус — клик отвора Табла филтрирана по статус */}
       <section style={card}>
         <h2 style={cardTitle}>Работа по статус</h2>
         {data.byStatus
-          .filter((s) => (TASK_STATUS_META[s.status as TaskStatus] ? true : false))
+          .filter((s) => TASK_STATUS_META[s.status as TaskStatus])
           .map((s) => (
-            <div key={s.status} style={statusRow}>
-              <span style={{ flex: 1 }}>
-                {TASK_STATUS_META[s.status as TaskStatus]?.label ?? s.status}
+            <button
+              key={s.status}
+              style={statusRow}
+              onClick={() => navigate(`/tasks?status=${s.status}&tab=board`)}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--gd-surface-alt)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >
+              <div style={{ width: 150, flex: '0 0 150px', textAlign: 'left' }}>
+                <StatusBadge status={s.status} />
+              </div>
+              <div style={barTrack}>
+                <div
+                  style={{
+                    ...barFill,
+                    width: `${(s.count / maxCount) * 100}%`,
+                  }}
+                />
+              </div>
+              <span style={{ width: 32, textAlign: 'right', fontWeight: 600, ...tabular }}>
+                {s.count}
               </span>
-              <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{s.count}</span>
-            </div>
+            </button>
           ))}
         {data.byStatus.length === 0 && <p style={muted}>Нема таскови.</p>}
       </section>
+
+      {/* Аларми (B1) и Кампањи (B2) картички доаѓаат со тие модул-фази (§8.5). */}
     </div>
   );
 }
 
+const tabular: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
+const wrap: React.CSSProperties = {
+  padding: '24px 20px',
+  display: 'grid',
+  gap: 24,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
+};
 const card: React.CSSProperties = {
   background: 'var(--gd-surface)',
   border: '1px solid var(--gd-border)',
   borderRadius: 8,
   padding: 16,
 };
-const cardTitle: React.CSSProperties = { fontSize: 16, fontWeight: 600, margin: '0 0 12px' };
+const cardTitle: React.CSSProperties = {
+  fontSize: 16,
+  lineHeight: '24px',
+  fontWeight: 600,
+  margin: '0 0 12px',
+};
 const covRow: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 10,
-  padding: '8px 0',
+  width: '100%',
+  padding: '8px 4px',
+  border: 'none',
   borderBottom: '1px solid var(--gd-border)',
+  background: 'transparent',
+  cursor: 'pointer',
   fontSize: 14,
+};
+const covBar: React.CSSProperties = {
+  width: 4,
+  alignSelf: 'stretch',
+  borderRadius: 2,
+  minHeight: 32,
 };
 const statusRow: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  padding: '6px 0',
+  gap: 10,
+  width: '100%',
+  padding: '6px 4px',
+  border: 'none',
   borderBottom: '1px solid var(--gd-border)',
+  background: 'transparent',
+  cursor: 'pointer',
   fontSize: 14,
+};
+const barTrack: React.CSSProperties = {
+  flex: 1,
+  height: 6,
+  borderRadius: 9999,
+  background: 'var(--gd-surface-alt)',
+  overflow: 'hidden',
+};
+const barFill: React.CSSProperties = {
+  height: '100%',
+  background: 'var(--gd-primary)',
+  borderRadius: 9999,
 };
 const muted: React.CSSProperties = { color: 'var(--gd-ink-muted)', fontSize: 14 };
