@@ -3,6 +3,7 @@ import type { NextFunction, Request, Response, Router as ExpressRouter } from 'e
 import { env } from '../env.js';
 import { AppError } from '../lib/errors.js';
 import { generateForAllActiveClients, nextMonthKey } from '../services/slots.js';
+import { evaluateCoverageAlarms } from '../services/alarms.js';
 
 /** Cron рути — заштитени со CRON_SECRET (не JWT). Ги повикува worker-от. */
 export const cronRouter: ExpressRouter = Router();
@@ -23,5 +24,11 @@ cronRouter.post('/slots-generate', requireCronSecret, async (req, res) => {
       ? (req.body as { month: string }).month
       : nextMonthKey();
   const result = await generateForAllActiveClients(month);
+  res.json({ data: result });
+});
+
+// Евалуација на аларми за покриеност (PRD §4.13). BullMQ: дневно.
+cronRouter.post('/evaluate-alarms', requireCronSecret, async (_req, res) => {
+  const result = await evaluateCoverageAlarms();
   res.json({ data: result });
 });

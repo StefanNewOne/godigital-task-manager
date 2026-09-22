@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import type { Router as ExpressRouter } from 'express';
+import { notificationPrefsSchema } from '@gd/core';
 import { prisma } from '../db/tenantExtension.js';
 import { AppError } from '../lib/errors.js';
+import { parse } from '../lib/validate.js';
 import { requireAuth } from '../middleware/auth.js';
 import { authRouter, employeeSafeSelect } from './auth.js';
 import { clientsRouter } from './clients.js';
@@ -13,6 +15,8 @@ import { tasksRouter } from './tasks.js';
 import { taskGroupsRouter } from './taskGroups.js';
 import { overviewRouter } from './overview.js';
 import { filesRouter } from './files.js';
+import { notificationsRouter } from './notifications.js';
+import { automationRulesRouter, automationRunsRouter } from './automation.js';
 import { cronRouter } from './cron.js';
 
 export const apiRouter: ExpressRouter = Router();
@@ -28,6 +32,16 @@ apiRouter.get('/me', requireAuth, async (req, res) => {
   res.json({ data: employee });
 });
 
+// Поставки за известувања (§13: вработен може да ги исклучи потсетниците).
+apiRouter.patch('/me/notification-prefs', requireAuth, async (req, res) => {
+  const input = parse(notificationPrefsSchema, req.body);
+  await prisma.employee.update({
+    where: { id: req.auth!.sub },
+    data: { notificationPrefs: { reminders: input.reminders } },
+  });
+  res.json({ data: { reminders: input.reminders } });
+});
+
 apiRouter.use('/clients', clientsRouter);
 apiRouter.use('/clients/:id/calendar-config', calendarConfigRouter);
 apiRouter.use('/clients/:id/slots', clientSlotsRouter);
@@ -38,4 +52,7 @@ apiRouter.use('/tasks', tasksRouter);
 apiRouter.use('/task-groups', taskGroupsRouter);
 apiRouter.use('/overview', overviewRouter);
 apiRouter.use('/files', filesRouter);
+apiRouter.use('/notifications', notificationsRouter);
+apiRouter.use('/automation-rules', automationRulesRouter);
+apiRouter.use('/automation-runs', automationRunsRouter);
 apiRouter.use('/cron', cronRouter);

@@ -14,3 +14,4 @@ export * from './workflow/transitions.js';
 export * from './workflow/specials.js';
 export * from './slots/algorithm.js';
 export * from './publications.js';
+export * from './notifications.js';

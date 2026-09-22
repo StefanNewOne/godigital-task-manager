@@ -191,6 +191,21 @@ export const commentCreateSchema = z.object({
 });
 export type CommentCreateInput = z.infer<typeof commentCreateSchema>;
 
+// ── Notifications / automation (B1) ──
+export const notificationPrefsSchema = z.object({ reminders: z.boolean() });
+export type NotificationPrefsInput = z.infer<typeof notificationPrefsSchema>;
+
+export const automationRuleCreateSchema = z.object({
+  name: z.string().min(1),
+  scope: z.enum(['global', 'client']).default('global'),
+  clientId: z.string().uuid().optional(),
+  trigger: z.record(z.string(), z.unknown()).default({}),
+  conditions: z.array(z.unknown()).default([]),
+  actions: z.array(z.unknown()).default([]),
+  enabled: z.boolean().default(true),
+});
+export type AutomationRuleCreateInput = z.infer<typeof automationRuleCreateSchema>;
+
 // ── Task list филтри (A3) ──
 export const taskListQuerySchema = z.object({
   clientId: z.string().uuid().optional(),
