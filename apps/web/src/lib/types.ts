@@ -42,12 +42,21 @@ export interface TaskListItem {
   slot: { date: string; orderInDay: number; status: string } | null;
 }
 
+export interface PublicationRow {
+  id: string;
+  platform: string;
+  postType: string;
+  permalink: string | null;
+  publishedAt: string | null;
+}
+
 export interface TaskDetailData extends TaskListItem {
   brief: string | null;
   copy: string | null;
   rezId: string | null;
   kreaId: string | null;
   client: { name: string; usesMetaAds: boolean };
+  publications: PublicationRow[];
 }
 
 export interface ActivityItem {

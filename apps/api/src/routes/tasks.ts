@@ -51,7 +51,13 @@ tasksRouter.get('/:id', async (req, res) => {
   const id = (req.params as { id: string }).id;
   const task = await prisma.task.findUnique({
     where: { id },
-    include: { slot: slotSelect, client: { select: { name: true, usesMetaAds: true } } },
+    include: {
+      slot: slotSelect,
+      client: { select: { name: true, usesMetaAds: true } },
+      publications: {
+        select: { id: true, platform: true, postType: true, permalink: true, publishedAt: true },
+      },
+    },
   });
   if (!task) throw new AppError('NOT_FOUND', 'Таскот не е пронајден.', 404);
   // scope 'own' не смее да гледа туѓ таск (не открива постоење).
