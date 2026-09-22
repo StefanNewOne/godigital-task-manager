@@ -7,18 +7,47 @@ import { env } from '../env.js';
 import { AppError } from '../lib/errors.js';
 import { parse } from '../lib/validate.js';
 import { requireAuth } from '../middleware/auth.js';
+import type { FileOwnerType } from '@gd/db';
 import {
   PART_SIZE,
   abortMultipart,
   completeMultipart,
   createMultipart,
   partCount,
+  presignGet,
   presignPut,
   presignUploadPart,
 } from '../lib/storage.js';
 
 export const filesRouter: ExpressRouter = Router();
 filesRouter.use(requireAuth);
+
+const OWNER_TYPES = ['group', 'task', 'revision', 'approval', 'comment'] as const;
+
+// Листа на активни фајлови за сопственик (A6) + presigned GET за преглед/симнување.
+filesRouter.get('/', async (req, res) => {
+  const ownerType = typeof req.query.ownerType === 'string' ? req.query.ownerType : undefined;
+  const ownerId = typeof req.query.ownerId === 'string' ? req.query.ownerId : undefined;
+  if (!ownerType || !OWNER_TYPES.includes(ownerType as (typeof OWNER_TYPES)[number]) || !ownerId) {
+    throw new AppError('VALIDATION_FAILED', 'ownerType и ownerId се задолжителни.', 400);
+  }
+  const files = await prisma.fileAsset.findMany({
+    where: { ownerType: ownerType as FileOwnerType, ownerId, lifecycle: 'active' },
+    orderBy: [{ version: 'asc' }, { createdAt: 'asc' }],
+  });
+  const data = await Promise.all(
+    files.map(async (f) => ({
+      id: f.id,
+      kind: f.kind,
+      mime: f.mime,
+      size: f.size.toString(),
+      version: f.version,
+      createdAt: f.createdAt,
+      url: await presignGet(f.r2Key),
+    })),
+  );
+  res.json({ data });
+});
 
 // Presign upload (PRD §4.14): мал фајл → еднократен PUT; голем → multipart со UploadSession.
 filesRouter.post('/presign', async (req, res) => {

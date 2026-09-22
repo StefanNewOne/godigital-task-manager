@@ -144,4 +144,15 @@ export interface SlotRow {
   orderInDay: number;
   status: SlotStatus;
   monthKey: string;
+  task?: { id: string; status: string; title: string; contentType: 'video' | 'graphic' } | null;
+}
+
+export interface FileAssetRow {
+  id: string;
+  kind: string;
+  mime: string;
+  size: string;
+  version: number | null;
+  createdAt: string;
+  url: string;
 }

@@ -18,6 +18,9 @@ clientSlotsRouter.get('/', async (req, res) => {
   const slots = await prisma.publishingSlot.findMany({
     where: { clientId, ...(month ? { monthKey: month } : {}) },
     orderBy: [{ date: 'asc' }, { orderInDay: 'asc' }],
+    include: {
+      task: { select: { id: true, status: true, title: true, contentType: true } },
+    },
   });
   res.json({ data: slots });
 });
