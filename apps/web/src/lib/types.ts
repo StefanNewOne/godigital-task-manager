@@ -97,6 +97,17 @@ export interface ScenarioRow {
   clientComment: string | null;
 }
 
+export interface ContactRow {
+  id: string;
+  clientId: string;
+  name: string;
+  roleAtClient: string | null;
+  phone: string | null;
+  email: string | null;
+  isApprover: boolean;
+  archivedAt: string | null;
+}
+
 export interface ActivityItem {
   kind: 'event' | 'comment';
   at: string;
