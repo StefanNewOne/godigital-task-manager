@@ -51,6 +51,35 @@ export const statusColor = {
   otkazano: '#6B7280',
 } as const;
 
+/** Потемнет текст на беџ по статус (Handoff: контраст ≥ 4.5:1 врз tint позадина). */
+export const statusText = {
+  mrtov: '#5C6672',
+  cekaSnimanje: '#4B5563',
+  brifing: '#4B5563',
+  scenarija: '#0F766E',
+  dizajn: '#0F766E',
+  montaza: '#0F766E',
+  chekaRezija: '#6D28D9',
+  vnatresno: '#6D28D9',
+  scenKajKlient: '#B45309',
+  kajKlient: '#B45309',
+  zaObjavuvanje: '#4D7C0F',
+  objaveno: '#15803D',
+  analitika: '#BE185D',
+  zavrseno: '#15803D',
+  pauza: '#5C6672',
+  otkazano: '#4B5563',
+} as const;
+
+/** hex → rgba со дадена провидност (за tint позадини, статусни ленти). */
+export function hexAlpha(hex: string, alpha: number): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 /** Палета на бои по клиент (16 нијанси, доделени автоматски). */
 export const clientPalette = [
   '#0D9488',
@@ -103,3 +132,28 @@ export const motion = {
 export const font = {
   family: "'Inter', system-ui, sans-serif",
 } as const;
+
+/**
+ * Типографска скала (Handoff §Design Tokens). `[size, lineHeight, weight, letterSpacing?]`.
+ * Кирилица + Latin, `tabular-nums` на app shell. Без ГОЛЕМИ БУКВИ во македонски текст.
+ */
+export const type = {
+  pageTitle: { fontSize: 20, lineHeight: '28px', fontWeight: 600 },
+  screenTitleMobile: {
+    fontSize: 24,
+    lineHeight: '32px',
+    fontWeight: 600,
+    letterSpacing: '-0.01em',
+  },
+  kpiNumber: { fontSize: 28, lineHeight: '32px', fontWeight: 600, letterSpacing: '-0.02em' },
+  panelTitle: { fontSize: 18, lineHeight: '26px', fontWeight: 600 },
+  cardTitle: { fontSize: 16, lineHeight: '24px', fontWeight: 600 },
+  body: { fontSize: 14, lineHeight: '20px', fontWeight: 400 },
+  bodyStrong: { fontSize: 14, lineHeight: '20px', fontWeight: 500 },
+  secondary: { fontSize: 13, lineHeight: '18px', fontWeight: 400 },
+  label: { fontSize: 12, lineHeight: '16px', fontWeight: 500 },
+  micro: { fontSize: 9, lineHeight: '10px', fontWeight: 500, letterSpacing: '-0.01em' },
+} as const;
+
+/** Висини на контроли (Handoff): форма 36, toolbar/табела 28, мобилно 44. */
+export const control = { form: 36, toolbar: 28, mobile: 44 } as const;

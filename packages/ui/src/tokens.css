@@ -30,16 +30,74 @@
   --gd-success: #16a34a;
   --gd-success-text: #15803d;
 
+  /* статусни бои (точка) + потемнет текст на беџ */
+  --gd-st-mrtov: #9aa3af;
+  --gd-st-mrtov-text: #5c6672;
+  --gd-st-cekaSnimanje: #6b7280;
+  --gd-st-cekaSnimanje-text: #4b5563;
+  --gd-st-brifing: #6b7280;
+  --gd-st-brifing-text: #4b5563;
+  --gd-st-scenarija: #0d9488;
+  --gd-st-scenarija-text: #0f766e;
+  --gd-st-dizajn: #0d9488;
+  --gd-st-dizajn-text: #0f766e;
+  --gd-st-montaza: #0d9488;
+  --gd-st-montaza-text: #0f766e;
+  --gd-st-chekaRezija: #7c3aed;
+  --gd-st-chekaRezija-text: #6d28d9;
+  --gd-st-vnatresno: #7c3aed;
+  --gd-st-vnatresno-text: #6d28d9;
+  --gd-st-scenKajKlient: #d97706;
+  --gd-st-scenKajKlient-text: #b45309;
+  --gd-st-kajKlient: #d97706;
+  --gd-st-kajKlient-text: #b45309;
+  --gd-st-zaObjavuvanje: #65a30d;
+  --gd-st-zaObjavuvanje-text: #4d7c0f;
+  --gd-st-objaveno: #16a34a;
+  --gd-st-objaveno-text: #15803d;
+  --gd-st-analitika: #db2777;
+  --gd-st-analitika-text: #be185d;
+  --gd-st-zavrseno: #16a34a;
+  --gd-st-zavrseno-text: #15803d;
+  --gd-st-pauza: #9aa3af;
+  --gd-st-pauza-text: #5c6672;
+  --gd-st-otkazano: #6b7280;
+  --gd-st-otkazano-text: #4b5563;
+
+  /* палета на бои по клиент */
+  --gd-client-1: #0d9488;
+  --gd-client-2: #7c3aed;
+  --gd-client-3: #d97706;
+  --gd-client-4: #db2777;
+  --gd-client-5: #65a30d;
+  --gd-client-6: #0ea5e9;
+
+  /* растојанија (скала од 4) */
+  --gd-space-2: 2px;
+  --gd-space-3: 3px;
+  --gd-space-4: 4px;
+  --gd-space-6: 6px;
+  --gd-space-8: 8px;
+  --gd-space-10: 10px;
+  --gd-space-12: 12px;
+  --gd-space-16: 16px;
+  --gd-space-20: 20px;
+  --gd-space-24: 24px;
+  --gd-space-32: 32px;
+  --gd-space-48: 48px;
+
   /* радиуси */
   --gd-radius-button: 6px;
   --gd-radius-field: 8px;
   --gd-radius-badge: 4px;
   --gd-radius-card: 8px;
+  --gd-radius-pill: 9999px;
 
   /* сенки */
   --gd-shadow-popover: 0 12px 32px rgba(0, 0, 0, 0.14);
   --gd-shadow-toast: 0 12px 32px rgba(0, 0, 0, 0.24);
   --gd-shadow-card-hover: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --gd-shadow-drag: 0 8px 24px rgba(0, 0, 0, 0.16);
 
   /* димензии */
   --gd-rail: 64px;
@@ -47,6 +105,47 @@
   --gd-top-bar: 56px;
   --gd-toolbar: 48px;
   --gd-detail-panel: 480px;
+  --gd-board-column: 300px;
+  --gd-row-height: 44px;
+  --gd-row-height-compact: 32px;
 
   --gd-font: 'Inter', system-ui, sans-serif;
+}
+
+/* Движење (Handoff §Motion) — единствени две анимации; без bouncing/повторување. */
+@keyframes gd-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes gd-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.gd-slide-in {
+  animation: gd-slide-in 200ms ease-out;
+}
+
+.gd-fade-up {
+  animation: gd-fade-up 150ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gd-slide-in,
+  .gd-fade-up {
+    animation: none;
+  }
 }
