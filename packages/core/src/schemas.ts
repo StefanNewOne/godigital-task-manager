@@ -157,6 +157,42 @@ export const resumeSchema = z.object({
 });
 export type ResumeInput = z.infer<typeof resumeSchema>;
 
+// ── Сценарија (A4, PRD §4.3 капа видео) ──
+export const scenarioSplitSchema = z.object({
+  scenarios: z
+    .array(
+      z.object({
+        title: z.string().min(1, 'Насловот е задолжителен.'),
+        hook: z.string().optional(),
+        body: z.string().optional(),
+        notes: z.string().optional(),
+      }),
+    )
+    .min(1, 'Потребно е барем едно сценарио.'),
+});
+export type ScenarioSplitInput = z.infer<typeof scenarioSplitSchema>;
+
+export const scenarioOutcomesSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        scenarioId: z.string().uuid(),
+        status: z.enum(['odobreno', 'odobrenoSoIzmeni', 'otfrleno']),
+        clientComment: z.string().optional(),
+      }),
+    )
+    .min(1, 'Потребен е барем еден исход.'),
+});
+export type ScenarioOutcomesInput = z.infer<typeof scenarioOutcomesSchema>;
+
+export const scenarioUpdateSchema = z.object({
+  title: z.string().min(1).optional(),
+  hook: z.string().optional(),
+  body: z.string().optional(),
+  notes: z.string().optional(),
+});
+export type ScenarioUpdateInput = z.infer<typeof scenarioUpdateSchema>;
+
 // ── Files / uploads (A6, PRD §4.14, §I7) ──
 export const filePresignSchema = z.object({
   ownerType: z.enum(['group', 'task', 'revision', 'approval', 'comment']),

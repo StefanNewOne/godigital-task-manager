@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import type { Router as ExpressRouter } from 'express';
-import { groupTransitionSchema } from '@gd/core';
+import { groupTransitionSchema, scenarioOutcomesSchema, scenarioSplitSchema } from '@gd/core';
 import type { Prisma } from '@gd/db';
 import { prisma } from '../db/tenantExtension.js';
 import { parse } from '../lib/validate.js';
 import { requireAuth } from '../middleware/auth.js';
 import { bulkActivateGraphic, transitionTaskGroup } from '../services/workflow/groupTransition.js';
+import { setScenarioOutcomes, splitScenarios } from '../services/scenarios.js';
 
 export const taskGroupsRouter: ExpressRouter = Router();
 taskGroupsRouter.use(requireAuth);
@@ -35,4 +36,31 @@ taskGroupsRouter.post('/:id/transition', async (req, res) => {
     role: req.auth!.role,
   });
   res.json({ data: group });
+});
+
+// Сценарија на видео капа (A4).
+taskGroupsRouter.get('/:id/scenarios', async (req, res) => {
+  const id = (req.params as { id: string }).id;
+  const scenarios = await prisma.scenario.findMany({
+    where: { groupId: id },
+    orderBy: { ordinal: 'asc' },
+  });
+  res.json({ data: scenarios });
+});
+
+taskGroupsRouter.post('/:id/scenarios', async (req, res) => {
+  const id = (req.params as { id: string }).id;
+  const input = parse(scenarioSplitSchema, req.body);
+  const scenarios = await splitScenarios(id, input, { id: req.auth!.sub, role: req.auth!.role });
+  res.status(201).json({ data: scenarios });
+});
+
+taskGroupsRouter.post('/:id/scenario-outcomes', async (req, res) => {
+  const id = (req.params as { id: string }).id;
+  const input = parse(scenarioOutcomesSchema, req.body);
+  const scenarios = await setScenarioOutcomes(id, input, {
+    id: req.auth!.sub,
+    role: req.auth!.role,
+  });
+  res.json({ data: scenarios });
 });
