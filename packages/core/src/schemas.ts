@@ -72,6 +72,21 @@ export type ClientCreateInput = z.infer<typeof clientCreateSchema>;
 export const clientUpdateSchema = clientCreateSchema.partial();
 export type ClientUpdateInput = z.infer<typeof clientUpdateSchema>;
 
+// ── Client contacts (A1) ──
+export const clientContactCreateSchema = z.object({
+  name: z.string().min(1, 'Името е задолжително.'),
+  roleAtClient: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().email('Неважечки е-мејл.').optional(),
+  isApprover: z.boolean().optional(),
+});
+export type ClientContactCreateInput = z.infer<typeof clientContactCreateSchema>;
+
+export const clientContactUpdateSchema = clientContactCreateSchema
+  .partial()
+  .extend({ archived: z.boolean().optional() });
+export type ClientContactUpdateInput = z.infer<typeof clientContactUpdateSchema>;
+
 // ── CalendarConfig ──
 export const calendarConfigSchema = z.object({
   contentType: contentTypeSchema,

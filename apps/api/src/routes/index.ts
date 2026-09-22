@@ -7,6 +7,7 @@ import { parse } from '../lib/validate.js';
 import { requireAuth } from '../middleware/auth.js';
 import { authRouter, employeeSafeSelect } from './auth.js';
 import { clientsRouter } from './clients.js';
+import { clientContactsRouter, contactsRouter } from './clientContacts.js';
 import { calendarConfigRouter } from './calendarConfig.js';
 import { employeesRouter } from './employees.js';
 import { holidaysRouter } from './holidays.js';
@@ -45,6 +46,8 @@ apiRouter.patch('/me/notification-prefs', requireAuth, async (req, res) => {
 });
 
 apiRouter.use('/clients', clientsRouter);
+apiRouter.use('/clients/:id/contacts', clientContactsRouter);
+apiRouter.use('/contacts', contactsRouter);
 apiRouter.use('/clients/:id/calendar-config', calendarConfigRouter);
 apiRouter.use('/clients/:id/slots', clientSlotsRouter);
 apiRouter.use('/slots', slotsRouter);
