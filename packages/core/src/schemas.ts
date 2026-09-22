@@ -144,6 +144,19 @@ export const groupTransitionSchema = z.object({
 });
 export type GroupTransitionInput = z.infer<typeof groupTransitionSchema>;
 
+// ── Специјални преоди (A3, PRD §4.3): пауза / откажување / враќање од пауза ──
+export const pauseSchema = z.object({ reason: z.string().min(1, 'Причината е задолжителна.') });
+export type PauseInput = z.infer<typeof pauseSchema>;
+
+export const cancelSchema = z.object({ reason: z.string().min(1, 'Причината е задолжителна.') });
+export type CancelInput = z.infer<typeof cancelSchema>;
+
+export const resumeSchema = z.object({
+  newDate: z.coerce.date(),
+  orderInDay: z.number().int().min(1).max(2).optional(),
+});
+export type ResumeInput = z.infer<typeof resumeSchema>;
+
 // ── Files / uploads (A6, PRD §4.14, §I7) ──
 export const filePresignSchema = z.object({
   ownerType: z.enum(['group', 'task', 'revision', 'approval', 'comment']),

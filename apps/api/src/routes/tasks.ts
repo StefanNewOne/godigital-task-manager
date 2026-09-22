@@ -2,10 +2,13 @@ import { Router } from 'express';
 import type { Router as ExpressRouter } from 'express';
 import {
   PERMISSIONS,
+  cancelSchema,
   commentCreateSchema,
   dateChangeSchema,
   extractExternalRef,
+  pauseSchema,
   publicationCreateSchema,
+  resumeSchema,
   taskListQuerySchema,
   taskTransitionSchema,
 } from '@gd/core';
@@ -16,6 +19,7 @@ import { parse } from '../lib/validate.js';
 import { requireAuth } from '../middleware/auth.js';
 import { changeTaskDate } from '../services/slots.js';
 import { transitionTask } from '../services/workflow/transition.js';
+import { cancelTask, pauseTask, resumeTask } from '../services/workflow/special.js';
 
 export const tasksRouter: ExpressRouter = Router();
 tasksRouter.use(requireAuth);
@@ -141,5 +145,27 @@ tasksRouter.post('/:id/date-change', async (req, res) => {
   const id = (req.params as { id: string }).id;
   const input = parse(dateChangeSchema, req.body);
   const task = await changeTaskDate(id, input, { id: req.auth!.sub, role: req.auth!.role });
+  res.json({ data: task });
+});
+
+// Специјални преоди (PRD §4.3): пауза / откажување / враќање од пауза.
+tasksRouter.post('/:id/pause', async (req, res) => {
+  const id = (req.params as { id: string }).id;
+  const input = parse(pauseSchema, req.body);
+  const task = await pauseTask(id, input, { id: req.auth!.sub, role: req.auth!.role });
+  res.json({ data: task });
+});
+
+tasksRouter.post('/:id/cancel', async (req, res) => {
+  const id = (req.params as { id: string }).id;
+  const input = parse(cancelSchema, req.body);
+  const task = await cancelTask(id, input, { id: req.auth!.sub, role: req.auth!.role });
+  res.json({ data: task });
+});
+
+tasksRouter.post('/:id/resume', async (req, res) => {
+  const id = (req.params as { id: string }).id;
+  const input = parse(resumeSchema, req.body);
+  const task = await resumeTask(id, input, { id: req.auth!.sub, role: req.auth!.role });
   res.json({ data: task });
 });
