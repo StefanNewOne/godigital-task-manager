@@ -1,5 +1,6 @@
 import type React from 'react';
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ALL_STATUSES, TASK_STATUS_META, canCreate, type TaskStatus } from '@gd/core';
 import { Button } from '@gd/ui';
 import {
@@ -35,12 +36,22 @@ export function TasksScreen() {
   const allTasks = useTasks({});
   const myTasks = useTasks(me ? { assigneeId: me.id } : {});
 
-  const [tab, setTab] = useState<Tab>('my');
+  // Почетни филтри од URL (deep-link од Преглед/Клиенти): ?client=&status=&tab=
+  const [searchParams] = useSearchParams();
+  const initialTab: Tab = ((): Tab => {
+    const t = searchParams.get('tab');
+    return t === 'my' || t === 'list' || t === 'board' ? t : 'my';
+  })();
+
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [openId, setOpenId] = useState<string | null>(null);
   const [openGroupId, setOpenGroupId] = useState<string | null>(null);
-  const [clientId, setClientId] = useState('');
+  const [clientId, setClientId] = useState(() => searchParams.get('client') ?? '');
   const [months, setMonths] = useState<Set<string>>(new Set());
-  const [statuses, setStatuses] = useState<Set<string>>(new Set());
+  const [statuses, setStatuses] = useState<Set<string>>(() => {
+    const s = searchParams.get('status');
+    return s ? new Set([s]) : new Set();
+  });
   const [search, setSearch] = useState('');
   const [groupBy, setGroupBy] = useState<'client' | 'status'>('client');
   const [sortBy, setSortBy] = useState<'date' | 'client' | 'status'>('date');
