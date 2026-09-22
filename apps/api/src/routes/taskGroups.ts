@@ -3,6 +3,7 @@ import type { Router as ExpressRouter } from 'express';
 import { groupTransitionSchema, scenarioOutcomesSchema, scenarioSplitSchema } from '@gd/core';
 import type { Prisma } from '@gd/db';
 import { prisma } from '../db/tenantExtension.js';
+import { AppError } from '../lib/errors.js';
 import { parse } from '../lib/validate.js';
 import { requireAuth } from '../middleware/auth.js';
 import { bulkActivateGraphic, transitionTaskGroup } from '../services/workflow/groupTransition.js';
@@ -19,6 +20,22 @@ taskGroupsRouter.get('/', async (req, res) => {
   if (type === 'video' || type === 'graphic') where.contentType = type;
   const groups = await prisma.taskGroup.findMany({ where, orderBy: { monthKey: 'desc' } });
   res.json({ data: groups });
+});
+
+// Единечна капа за Капа панелот (read-only) + мал резиме на деца/заеднички фајлови.
+taskGroupsRouter.get('/:id', async (req, res) => {
+  const id = (req.params as { id: string }).id;
+  const group = await prisma.taskGroup.findUnique({
+    where: { id },
+    include: { client: { select: { name: true } } },
+  });
+  if (!group) throw new AppError('NOT_FOUND', 'Капа таскот не е пронајден.', 404);
+  const [totalChildren, activeChildren, sharedFiles] = await Promise.all([
+    prisma.task.count({ where: { groupId: id } }),
+    prisma.task.count({ where: { groupId: id, status: { not: 'mrtov' } } }),
+    prisma.fileAsset.count({ where: { ownerType: 'group', ownerId: id } }),
+  ]);
+  res.json({ data: { ...group, totalChildren, activeChildren, sharedFiles } });
 });
 
 // Bulk активација на графички слотови (D-3).

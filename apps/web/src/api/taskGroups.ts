@@ -1,6 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { ScenarioOutcomesInput, ScenarioSplitInput, TransitionPayload } from '@gd/core';
 import { api } from '../lib/api.js';
-import type { TaskGroupRow } from '../lib/types.js';
+import type { ScenarioRow, TaskGroupDetail, TaskGroupRow } from '../lib/types.js';
 
 export interface TaskGroupFilters {
   clientId?: string;
@@ -20,5 +21,68 @@ export function useTaskGroups(filters: TaskGroupFilters = {}) {
   return useQuery({
     queryKey: ['task-groups', filters],
     queryFn: () => api.get<TaskGroupRow[]>(`/task-groups${qs(filters)}`),
+  });
+}
+
+/** Единечна капа (за Капа панелот). */
+export function useTaskGroup(id: string | null) {
+  return useQuery({
+    queryKey: ['task-group', id],
+    queryFn: () => api.get<TaskGroupDetail>(`/task-groups/${id}`),
+    enabled: !!id,
+  });
+}
+
+/** Сценарија на капата (видео A4). */
+export function useScenarios(id: string | null) {
+  return useQuery({
+    queryKey: ['scenarios', id],
+    queryFn: () => api.get<ScenarioRow[]>(`/task-groups/${id}/scenarios`),
+    enabled: !!id,
+  });
+}
+
+function useGroupInvalidator(id: string) {
+  const qc = useQueryClient();
+  return () => {
+    void qc.invalidateQueries({ queryKey: ['task-groups'] });
+    void qc.invalidateQueries({ queryKey: ['task-group', id] });
+    void qc.invalidateQueries({ queryKey: ['scenarios', id] });
+    void qc.invalidateQueries({ queryKey: ['tasks'] });
+  };
+}
+
+export function useGroupTransition(id: string) {
+  const invalidate = useGroupInvalidator(id);
+  return useMutation({
+    mutationFn: (input: { to: string; payload?: TransitionPayload }) =>
+      api.post<TaskGroupRow>(`/task-groups/${id}/transition`, input),
+    onSuccess: invalidate,
+  });
+}
+
+export function useBulkActivate(id: string) {
+  const invalidate = useGroupInvalidator(id);
+  return useMutation({
+    mutationFn: () => api.post<{ activated: number }>(`/task-groups/${id}/activate-all`, {}),
+    onSuccess: invalidate,
+  });
+}
+
+export function useSplitScenarios(id: string) {
+  const invalidate = useGroupInvalidator(id);
+  return useMutation({
+    mutationFn: (input: ScenarioSplitInput) =>
+      api.post<ScenarioRow[]>(`/task-groups/${id}/scenarios`, input),
+    onSuccess: invalidate,
+  });
+}
+
+export function useScenarioOutcomes(id: string) {
+  const invalidate = useGroupInvalidator(id);
+  return useMutation({
+    mutationFn: (input: ScenarioOutcomesInput) =>
+      api.post<ScenarioRow[]>(`/task-groups/${id}/scenario-outcomes`, input),
+    onSuccess: invalidate,
   });
 }

@@ -86,3 +86,15 @@ export function useFileUpload(taskId: string) {
     },
   });
 }
+
+/** Прикачување фајл на капа (заеднички материјал, сценариски документ, суров материјал). */
+export function useGroupUpload(groupId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: uploadFile,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['task-group', groupId] });
+      void qc.invalidateQueries({ queryKey: ['scenarios', groupId] });
+    },
+  });
+}

@@ -73,8 +73,28 @@ export interface TaskGroupRow {
   kamId: string | null;
   shootDate: string | null;
   shootLocation: string | null;
+  scenaristNotes: string | null;
   plannedCount: number;
   scenarioDocVersion: number;
+}
+
+export interface TaskGroupDetail extends TaskGroupRow {
+  client: { name: string };
+  totalChildren: number;
+  activeChildren: number;
+  sharedFiles: number;
+}
+
+export interface ScenarioRow {
+  id: string;
+  groupId: string;
+  ordinal: number;
+  title: string;
+  hook: string | null;
+  body: string | null;
+  notes: string | null;
+  status: 'predlozeno' | 'odobreno' | 'odobrenoSoIzmeni' | 'otfrleno';
+  clientComment: string | null;
 }
 
 export interface ActivityItem {
