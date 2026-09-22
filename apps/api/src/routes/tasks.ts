@@ -41,7 +41,7 @@ tasksRouter.get('/', async (req, res) => {
 
   const tasks = await prisma.task.findMany({
     where,
-    include: { slot: slotSelect },
+    include: { slot: slotSelect, _count: { select: { comments: true, publications: true } } },
     orderBy: [{ priority: 'desc' }, { statusChangedAt: 'asc' }],
   });
   res.json({ data: tasks });
@@ -57,6 +57,7 @@ tasksRouter.get('/:id', async (req, res) => {
       publications: {
         select: { id: true, platform: true, postType: true, permalink: true, publishedAt: true },
       },
+      _count: { select: { comments: true, publications: true } },
     },
   });
   if (!task) throw new AppError('NOT_FOUND', 'Таскот не е пронајден.', 404);

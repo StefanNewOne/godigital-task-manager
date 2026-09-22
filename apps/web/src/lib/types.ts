@@ -33,13 +33,16 @@ export interface ClientRow {
 export interface TaskListItem {
   id: string;
   clientId: string;
+  groupId: string;
   contentType: 'video' | 'graphic';
   title: string;
   status: string;
   assigneeId: string | null;
   priority: string;
   version: number;
+  statusChangedAt: string;
   slot: { date: string; orderInDay: number; status: string } | null;
+  _count: { comments: number; publications: number };
 }
 
 export interface PublicationRow {
