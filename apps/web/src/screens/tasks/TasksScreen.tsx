@@ -18,6 +18,7 @@ import { useTaskGroups } from '../../api/taskGroups.js';
 import type { TaskListItem } from '../../lib/types.js';
 import { daysUntil } from '../../lib/tasksView.js';
 import { TaskDetail } from './TaskDetail.js';
+import { CapaPanel } from './CapaPanel.js';
 import { Board } from './Board.js';
 import { ListView } from './ListView.js';
 import { MyTasks } from './MyTasks.js';
@@ -36,6 +37,7 @@ export function TasksScreen() {
 
   const [tab, setTab] = useState<Tab>('my');
   const [openId, setOpenId] = useState<string | null>(null);
+  const [openGroupId, setOpenGroupId] = useState<string | null>(null);
   const [clientId, setClientId] = useState('');
   const [months, setMonths] = useState<Set<string>>(new Set());
   const [statuses, setStatuses] = useState<Set<string>>(new Set());
@@ -187,8 +189,7 @@ export function TasksScreen() {
               compact={compact}
               openId={openId}
               onOpen={setOpenId}
-              canCreateCapa={canCreateVideo || canCreateGraphic}
-              onCapa={setToast}
+              onOpenCapa={setOpenGroupId}
             />
           )}
           {tab === 'board' && (
@@ -204,6 +205,7 @@ export function TasksScreen() {
       </div>
 
       {openId && <TaskDetail taskId={openId} onClose={() => setOpenId(null)} />}
+      {openGroupId && <CapaPanel groupId={openGroupId} onClose={() => setOpenGroupId(null)} />}
       {toast && (
         <div style={toastStyle} onClick={() => setToast(null)}>
           {toast}

@@ -36,8 +36,7 @@ interface ListViewProps {
   compact: boolean;
   openId: string | null;
   onOpen: (id: string) => void;
-  canCreateCapa: boolean;
-  onCapa: (msg: string) => void;
+  onOpenCapa: (id: string) => void;
 }
 
 /** Список (Handoff §2.2): капа-лента + sticky табела со групирање и покриеност. */
@@ -207,15 +206,9 @@ function Row({
   );
 }
 
-function CapaStrip({ groups, clientById, empById, canCreateCapa, onCapa }: ListViewProps) {
-  if (groups.length === 0) {
-    if (!canCreateCapa) return null;
-    return (
-      <button style={dashedCapa} onClick={() => onCapa('Капа-креирање доаѓа со Капа панелот.')}>
-        + Нова капа
-      </button>
-    );
-  }
+function CapaStrip({ groups, clientById, empById, onOpenCapa }: ListViewProps) {
+  // D-7: капите се авто-креираат при потврда на месец — нема рачно „+ Нова капа".
+  if (groups.length === 0) return null;
   const cardsMode = groups.length > 1;
   return (
     <div style={cardsMode ? capaGrid : undefined}>
@@ -239,22 +232,9 @@ function CapaStrip({ groups, clientById, empById, canCreateCapa, onCapa }: ListV
                 · {g.plannedCount} слота
               </span>
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-                <Button
-                  variant="secondary"
-                  size="toolbar"
-                  onClick={() => onCapa('Капа панелот доаѓа наскоро.')}
-                >
+                <Button variant="secondary" size="toolbar" onClick={() => onOpenCapa(g.id)}>
                   Отвори капа
                 </Button>
-                {canCreateCapa && (
-                  <Button
-                    variant="ghost"
-                    size="toolbar"
-                    onClick={() => onCapa('Капа-креирање доаѓа со Капа панелот.')}
-                  >
-                    + Нова капа
-                  </Button>
-                )}
               </div>
             </div>
             {/* 4-чекорна прогресија */}
@@ -419,15 +399,4 @@ const stepConnector: React.CSSProperties = {
   height: 1,
   background: 'var(--gd-border)',
   margin: '0 4px',
-};
-const dashedCapa: React.CSSProperties = {
-  width: '100%',
-  padding: 12,
-  marginBottom: 16,
-  border: '1px dashed var(--gd-border)',
-  borderRadius: 8,
-  background: 'transparent',
-  color: 'var(--gd-ink-secondary)',
-  fontSize: 14,
-  cursor: 'pointer',
 };
