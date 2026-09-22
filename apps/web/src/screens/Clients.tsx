@@ -1,5 +1,9 @@
+import type React from 'react';
+import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useClients } from '../api/admin.js';
 import { useOverview } from '../api/overview.js';
+import { useTasks } from '../api/tasks.js';
 import { tableStyles as s } from '../components/table.js';
 
 const LEVEL_COLOR: Record<string, string> = {
@@ -7,12 +11,30 @@ const LEVEL_COLOR: Record<string, string> = {
   warn: 'var(--gd-warning-text)',
   danger: 'var(--gd-danger-text)',
 };
+const CHANNEL_LABEL: Record<string, string> = {
+  viber: 'Viber',
+  whatsapp: 'WhatsApp',
+  email: 'Мејл',
+};
+// Активен таск = не резервиран и не терминален.
+const INACTIVE = new Set(['mrtov', 'objaveno', 'zavrseno', 'otkazano', 'pauza']);
 
-/** Клиенти (Handoff §8): преглед по клиент со покриеност. */
+/** Клиенти (Handoff §2.8): преглед по клиент со покриеност; ред отвора Список. */
 export function Clients() {
   const { data: clients, isLoading } = useClients();
   const { data: overview } = useOverview();
+  const { data: tasks } = useTasks({});
+  const navigate = useNavigate();
+
   const cov = (id: string) => overview?.coverage.find((c) => c.clientId === id);
+  const activeCount = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const t of tasks ?? []) {
+      if (INACTIVE.has(t.status)) continue;
+      m.set(t.clientId, (m.get(t.clientId) ?? 0) + 1);
+    }
+    return m;
+  }, [tasks]);
 
   return (
     <div style={{ padding: '24px 20px' }}>
@@ -26,8 +48,8 @@ export function Clients() {
                 <th style={s.th}>Клиент</th>
                 <th style={s.th}>Видео/мес</th>
                 <th style={s.th}>Графика/мес</th>
+                <th style={s.th}>Активни таскови</th>
                 <th style={s.th}>Покриеност</th>
-                <th style={s.th}>Meta Ads</th>
                 <th style={s.th}>Канал</th>
               </tr>
             </thead>
@@ -35,33 +57,33 @@ export function Clients() {
               {clients.map((c) => {
                 const cv = cov(c.id);
                 return (
-                  <tr key={c.id}>
-                    <td style={s.td}>
-                      <span
-                        style={{
-                          display: 'inline-block',
-                          width: 8,
-                          height: 8,
-                          borderRadius: '50%',
-                          background: c.color,
-                          marginRight: 8,
-                        }}
-                      />
+                  <tr
+                    key={c.id}
+                    onClick={() => navigate(`/tasks?client=${c.id}&tab=list`)}
+                    style={clickRow}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.background = 'var(--gd-surface-alt)')
+                    }
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <td style={{ ...s.td, borderLeft: `4px solid ${c.color}` }}>
+                      <span style={dot(c.color)} />
                       {c.name}
                     </td>
-                    <td style={s.td}>{c.videosPerMonth}</td>
-                    <td style={s.td}>{c.graphicsPerMonth}</td>
+                    <td style={{ ...s.td, ...tabular }}>{c.videosPerMonth}</td>
+                    <td style={{ ...s.td, ...tabular }}>{c.graphicsPerMonth}</td>
+                    <td style={{ ...s.td, ...tabular }}>{activeCount.get(c.id) ?? 0}</td>
                     <td
                       style={{
                         ...s.td,
+                        ...tabular,
                         color: cv ? LEVEL_COLOR[cv.level] : undefined,
                         fontWeight: 600,
                       }}
                     >
                       {cv ? `${cv.days} дена` : '—'}
                     </td>
-                    <td style={s.td}>{c.usesMetaAds ? 'Да' : '—'}</td>
-                    <td style={s.td}>{c.approvalChannel}</td>
+                    <td style={s.td}>{CHANNEL_LABEL[c.approvalChannel] ?? c.approvalChannel}</td>
                   </tr>
                 );
               })}
@@ -72,3 +94,14 @@ export function Clients() {
     </div>
   );
 }
+
+const tabular: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
+const clickRow: React.CSSProperties = { cursor: 'pointer' };
+const dot = (color: string): React.CSSProperties => ({
+  display: 'inline-block',
+  width: 8,
+  height: 8,
+  borderRadius: '50%',
+  background: color,
+  marginRight: 8,
+});
