@@ -1,7 +1,13 @@
 /**
- * @gd/worker — BullMQ jobs + ffmpeg.
- * Регистрирани: slots.generate (A2, cron 0 6 20 * * Europe/Skopje) → повикува API cron endpoint.
- * Иднина: outbox.drain (A1 real-time/знаење/известувања), knowledge.index (B4), metrics.pull (B2),
+ * @gd/worker — BullMQ scheduler + jobs.
+ * Правилна архитектура: worker-от само РАСПОРЕДУВА (cron), а API-то ГИ ИЗВРШУВА со tenant
+ * контекст + CRON_SECRET. Секое правило = repeatable job што повикува API cron endpoint.
+ *
+ * Регистрирани cron jobs:
+ *   slots.generate   0 6 20 * *   → /api/cron/slots-generate     (месечни слотови)
+ *   evaluate.alarms  0 7 * * *    → /api/cron/evaluate-alarms    (аларми за покриеност, B1)
+ *
+ * Иднина: outbox.drain (real-time/знаење), knowledge.index (B4), metrics.pull (B2),
  * publication.resolve (B2), files.preview (B3), notifications.digest (B1).
  */
 import { Queue, Worker } from 'bullmq';
@@ -13,32 +19,45 @@ const CRON_SECRET = process.env.CRON_SECRET ?? 'dev-cron-secret-change-me';
 
 export const connection = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
 
-const SLOTS_QUEUE = 'slots';
-export const slotsQueue = new Queue(SLOTS_QUEUE, { connection });
-
-/** Регистрира репетитивен job за месечно генерирање слотови (идемпотентно на API страна). */
-export async function registerSchedulers(): Promise<void> {
-  await slotsQueue.add(
-    'slots.generate',
-    {},
-    {
-      repeat: { pattern: '0 6 20 * *', tz: 'Europe/Skopje' },
-      jobId: 'slots.generate.monthly',
-      removeOnComplete: true,
-      removeOnFail: 50,
-    },
-  );
+interface CronJob {
+  name: string;
+  pattern: string; // cron израз (Europe/Skopje)
+  endpoint: string;
 }
 
-export const slotsWorker = new Worker(
-  SLOTS_QUEUE,
-  async () => {
-    const res = await fetch(`${API_URL}/api/cron/slots-generate`, {
+const CRON_JOBS: CronJob[] = [
+  { name: 'slots.generate', pattern: '0 6 20 * *', endpoint: '/api/cron/slots-generate' },
+  { name: 'evaluate.alarms', pattern: '0 7 * * *', endpoint: '/api/cron/evaluate-alarms' },
+];
+
+const CRON_QUEUE = 'cron';
+export const cronQueue = new Queue(CRON_QUEUE, { connection });
+
+/** Регистрира ги сите repeatable cron jobs (идемпотентно по jobId). */
+export async function registerSchedulers(): Promise<void> {
+  for (const job of CRON_JOBS) {
+    await cronQueue.add(
+      job.name,
+      { endpoint: job.endpoint },
+      {
+        repeat: { pattern: job.pattern, tz: 'Europe/Skopje' },
+        jobId: `${job.name}.scheduler`,
+        removeOnComplete: true,
+        removeOnFail: 50,
+      },
+    );
+  }
+}
+
+export const cronWorker = new Worker<{ endpoint: string }>(
+  CRON_QUEUE,
+  async (job) => {
+    const res = await fetch(`${API_URL}${job.data.endpoint}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-cron-secret': CRON_SECRET },
       body: JSON.stringify({}),
     });
-    if (!res.ok) throw new Error(`cron slots-generate врати ${res.status}`);
+    if (!res.ok) throw new Error(`${job.data.endpoint} врати ${res.status}`);
     return res.json();
   },
   { connection },
@@ -48,7 +67,7 @@ if (process.env.NODE_ENV !== 'test') {
   registerSchedulers()
     .then(() => {
       // eslint-disable-next-line no-console
-      console.log('gd-worker: slots.generate scheduler регистриран (0 6 20 * * Europe/Skopje).');
+      console.log(`gd-worker: ${CRON_JOBS.length} cron scheduler(и) регистрирани (Europe/Skopje).`);
     })
     .catch((e) => {
       console.error('gd-worker: неуспешна регистрација на scheduler', e);
