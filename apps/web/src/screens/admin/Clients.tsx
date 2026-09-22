@@ -122,8 +122,15 @@ function ClientModal({ client, onClose }: { client?: ClientRow; onClose: () => v
 
   const pending = create.isPending || update.isPending;
   const onSubmit = (values: ClientCreateInput) => {
+    // На уредување не праќај празни опциони полиња — инаку PATCH ги презапишува
+    // постоечките вредности (пр. legalName/notes што не се во list payload-от) со празно.
+    const payload = isEdit
+      ? (Object.fromEntries(
+          Object.entries(values).filter(([, v]) => v !== '' && v !== undefined && v !== null),
+        ) as ClientCreateInput)
+      : values;
     const mut = isEdit ? update : create;
-    mut.mutate(values, {
+    mut.mutate(payload, {
       onSuccess: () => onClose(),
       onError: (e) => setToast(e instanceof ApiRequestError ? e.message : 'Грешка.'),
     });
