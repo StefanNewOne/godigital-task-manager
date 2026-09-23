@@ -33,7 +33,7 @@ import {
 } from '@gd/core';
 import { Button, tokens } from '@gd/ui';
 import { useMe } from '../../api/auth.js';
-import { useEmployees } from '../../api/admin.js';
+import { useClients, useEmployees } from '../../api/admin.js';
 import { useFileUpload } from '../../api/files.js';
 import {
   useActivity,
@@ -78,6 +78,7 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
   const { data: task } = useTask(taskId);
   const { data: activity } = useActivity(taskId);
   const { data: employees } = useEmployees();
+  const { data: clients } = useClients();
   const { data: me } = useMe();
 
   const transition = useTransition(taskId);
@@ -144,6 +145,13 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
   const owner = ownerOf(status, ct);
   const empName = (id: string | null) =>
     id ? (employees?.find((e) => e.id === id)?.name ?? '—') : 'Недоделен';
+  const assigneeEmp = task.assigneeId
+    ? employees?.find((e) => e.id === task.assigneeId)
+    : undefined;
+  const metaInitials = (name: string) => {
+    const p = name.trim().split(/\s+/);
+    return ((p[0]?.[0] ?? '') + (p[1]?.[0] ?? '')).toUpperCase();
+  };
   const terminal = isTerminal(status, task.client.usesMetaAds);
   const locked = isWorkZoneLockable(status) && !!me && me.role !== 'dir' && me.role !== owner;
 
@@ -300,11 +308,27 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
           {/* Мета */}
           <dl style={metaGrid}>
             <dt style={dt}>Клиент</dt>
-            <dd style={dd}>{task.client.name}</dd>
+            <dd style={{ ...dd, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: clients?.find((c) => c.id === task.clientId)?.color ?? '#ccc',
+                  flex: '0 0 auto',
+                }}
+              />
+              {task.client.name}
+            </dd>
             <dt style={dt}>Тип</dt>
             <dd style={dd}>{ct === 'video' ? 'Видео' : 'Графика'}</dd>
             <dt style={dt}>Доделен</dt>
-            <dd style={dd}>{empName(task.assigneeId)}</dd>
+            <dd style={{ ...dd, display: 'flex', alignItems: 'center', gap: 6 }}>
+              {assigneeEmp && (
+                <span style={metaAvatar(assigneeEmp.color)}>{metaInitials(assigneeEmp.name)}</span>
+              )}
+              {empName(task.assigneeId)}
+            </dd>
             <dt style={dt}>Датум на објава</dt>
             <dd style={dd}>
               {task.slot ? fmtDate(task.slot.date) : '—'}
@@ -337,7 +361,11 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
               </>
             )}
             <dt style={dt}>Приоритет</dt>
-            <dd style={dd}>{task.priority === 'iten' ? 'итен' : 'нормален'}</dd>
+            <dd style={dd}>
+              <span style={priorityChip(task.priority === 'iten')}>
+                {task.priority === 'iten' ? 'итен' : 'нормален'}
+              </span>
+            </dd>
           </dl>
 
           {/* Работна зона */}
@@ -418,11 +446,12 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
 
       {/* Композер за коментар */}
       <div style={composer}>
+        {me && <span style={metaAvatar(me.color)}>{metaInitials(me.name)}</span>}
         <input
           className="gd-field"
           value={wz.comment}
           onChange={(e) => set({ comment: e.target.value })}
-          placeholder="Додади коментар…"
+          placeholder="Напиши коментар"
           style={{ flex: 1 }}
         />
         <button style={iconBtn} title="Прикачи" type="button">
@@ -990,6 +1019,28 @@ const metaGrid: React.CSSProperties = {
 };
 const dt: React.CSSProperties = { color: 'var(--gd-ink-muted)', fontSize: 13 };
 const dd: React.CSSProperties = { margin: 0 };
+const metaAvatar = (bg: string): React.CSSProperties => ({
+  width: 24,
+  height: 24,
+  borderRadius: '50%',
+  background: bg,
+  color: '#fff',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: 10,
+  fontWeight: 600,
+  flex: '0 0 auto',
+});
+const priorityChip = (urgent: boolean): React.CSSProperties => ({
+  fontSize: 12,
+  fontWeight: 500,
+  padding: '1px 8px',
+  borderRadius: 9999,
+  color: urgent ? 'var(--gd-danger-text)' : 'var(--gd-ink-secondary)',
+  background: urgent ? 'rgba(220,38,38,.1)' : 'var(--gd-surface-alt)',
+  border: `1px solid ${urgent ? 'var(--gd-danger)' : 'var(--gd-border)'}`,
+});
 const linkBtn: React.CSSProperties = {
   marginLeft: 8,
   border: 'none',
