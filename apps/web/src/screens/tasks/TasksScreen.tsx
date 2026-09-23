@@ -11,6 +11,8 @@ import {
 import { Button } from '@gd/ui';
 import {
   ArrowDownUp,
+  ChevronDown,
+  ChevronLeft,
   Filter as FilterIcon,
   LayoutGrid,
   Plus,
@@ -120,6 +122,17 @@ export function TasksScreen() {
       {/* Контекст sidebar 240px */}
       {sidebarOpen && (
         <aside style={sidebar}>
+          <div style={sidebarHeader}>
+            <span>Работа</span>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              style={sidebarCollapse}
+              title="Собери"
+              aria-label="Собери го панелот"
+            >
+              <ChevronLeft size={16} />
+            </button>
+          </div>
           <SidebarGroup label="Месеци">
             {monthOptions.map((m) => (
               <label key={m} style={checkRow}>
@@ -263,18 +276,59 @@ interface ToolbarProps {
 
 function Toolbar(p: ToolbarProps) {
   const SORT_LABEL = { date: 'датум', client: 'клиент', status: 'статус' } as const;
+  const [createOpen, setCreateOpen] = useState(false);
+  // Split-копче: примарно „Ново видео" + ▼ за „Нова графика" (Handoff).
   return (
     <div style={toolbar}>
-      <div style={{ display: 'flex', gap: 8 }}>
-        {p.canCreateVideo && (
-          <Button size="toolbar" onClick={() => p.onCreate('видео')}>
-            <Plus size={14} /> Ново видео
-          </Button>
-        )}
-        {p.canCreateGraphic && (
-          <Button size="toolbar" onClick={() => p.onCreate('графика')}>
-            <Plus size={14} /> Нова графика
-          </Button>
+      <div style={{ display: 'flex', position: 'relative' }}>
+        {p.canCreateVideo ? (
+          <>
+            <Button
+              size="toolbar"
+              onClick={() => p.onCreate('видео')}
+              style={
+                p.canCreateGraphic
+                  ? { borderTopRightRadius: 0, borderBottomRightRadius: 0 }
+                  : undefined
+              }
+            >
+              <Plus size={14} /> Ново видео
+            </Button>
+            {p.canCreateGraphic && (
+              <Button
+                size="toolbar"
+                onClick={() => setCreateOpen((o) => !o)}
+                aria-label="Повеќе"
+                style={{
+                  borderTopLeftRadius: 0,
+                  borderBottomLeftRadius: 0,
+                  borderLeft: '1px solid rgba(255,255,255,.3)',
+                  padding: '0 6px',
+                }}
+              >
+                <ChevronDown size={14} />
+              </Button>
+            )}
+            {createOpen && (
+              <div style={createMenu}>
+                <button
+                  style={createMenuItem}
+                  onClick={() => {
+                    p.onCreate('графика');
+                    setCreateOpen(false);
+                  }}
+                >
+                  Нова графика
+                </button>
+              </div>
+            )}
+          </>
+        ) : (
+          p.canCreateGraphic && (
+            <Button size="toolbar" onClick={() => p.onCreate('графика')}>
+              <Plus size={14} /> Нова графика
+            </Button>
+          )
         )}
       </div>
 
@@ -413,6 +467,27 @@ const sidebar: React.CSSProperties = {
   padding: 16,
   overflow: 'auto',
 };
+const sidebarHeader: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  fontSize: 13,
+  fontWeight: 600,
+  color: 'var(--gd-ink-secondary)',
+  marginBottom: 12,
+};
+const sidebarCollapse: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 24,
+  height: 24,
+  border: 'none',
+  background: 'transparent',
+  color: 'var(--gd-ink-muted)',
+  cursor: 'pointer',
+  borderRadius: 6,
+};
 const sidebarLabel: React.CSSProperties = {
   fontSize: 12,
   fontWeight: 600,
@@ -442,6 +517,29 @@ const clientRow = (active: boolean): React.CSSProperties => ({
   cursor: 'pointer',
   textAlign: 'left',
 });
+const createMenu: React.CSSProperties = {
+  position: 'absolute',
+  top: 32,
+  left: 0,
+  minWidth: 160,
+  background: 'var(--gd-surface)',
+  border: '1px solid var(--gd-border)',
+  borderRadius: 8,
+  boxShadow: 'var(--gd-shadow-popover)',
+  zIndex: 20,
+  padding: 4,
+};
+const createMenuItem: React.CSSProperties = {
+  display: 'block',
+  width: '100%',
+  textAlign: 'left',
+  padding: '8px 10px',
+  border: 'none',
+  background: 'transparent',
+  cursor: 'pointer',
+  fontSize: 13,
+  borderRadius: 6,
+};
 const toolbar: React.CSSProperties = {
   height: 48,
   display: 'flex',
