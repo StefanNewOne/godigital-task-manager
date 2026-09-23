@@ -65,7 +65,12 @@ export function Clients() {
                     }
                     onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   >
-                    <td style={{ ...s.td, borderLeft: `4px solid ${c.color}` }}>
+                    <td
+                      style={{
+                        ...s.td,
+                        borderLeft: `4px solid ${cv ? LEVEL_COLOR[cv.level] : 'var(--gd-border)'}`,
+                      }}
+                    >
                       <span style={dot(c.color)} />
                       {c.name}
                     </td>

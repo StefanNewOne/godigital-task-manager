@@ -9,6 +9,7 @@ import {
   type TaskStatus,
 } from '@gd/core';
 import { Button } from '@gd/ui';
+import { useEmployees } from '../../api/admin.js';
 import { useFiles } from '../../api/files.js';
 import { useActivity, useAddComment, useTask, useTransition } from '../../api/tasks.js';
 import { ApiRequestError } from '../../lib/api.js';
@@ -25,6 +26,7 @@ export function CreativeViewer({ taskId, onClose }: { taskId: string; onClose: (
   const { data: task } = useTask(taskId);
   const { data: files } = useFiles('task', taskId);
   const { data: activity } = useActivity(taskId);
+  const { data: employees } = useEmployees();
   const addComment = useAddComment(taskId);
   const transition = useTransition(taskId);
 
@@ -144,12 +146,22 @@ export function CreativeViewer({ taskId, onClose }: { taskId: string; onClose: (
             {comments.length === 0 && (
               <span style={{ color: '#8A93A0', fontSize: 13 }}>Сè уште нема коментари.</span>
             )}
-            {comments.map((c, i) => (
-              <div key={i} style={{ fontSize: 13 }}>
-                <span style={{ color: '#8A93A0' }}>{c.at.slice(0, 16).replace('T', ' ')} · </span>
-                {c.text}
-              </div>
-            ))}
+            {comments.map((c, i) => {
+              const who = employees?.find((e) => e.id === c.actorId);
+              return (
+                <div key={i} style={{ display: 'flex', gap: 8, fontSize: 13 }}>
+                  <span style={cmtAvatar(who?.color ?? '#5C6672')}>
+                    {who ? initials(who.name) : '—'}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ color: '#8A93A0', fontSize: 12 }}>
+                      {who?.name ?? 'Систем'} · {c.at.slice(0, 16).replace('T', ' ')}
+                    </div>
+                    <div>{c.text}</div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
           <div
             style={{
@@ -249,9 +261,26 @@ const versionPill: React.CSSProperties = {
   fontWeight: 600,
   padding: '2px 8px',
   borderRadius: 9999,
-  background: '#262b33',
-  color: '#E2E7EB',
+  background: 'rgba(124,58,237,.22)',
+  color: '#C4B5FD',
 };
+const cmtAvatar = (bg: string): React.CSSProperties => ({
+  width: 24,
+  height: 24,
+  borderRadius: '50%',
+  background: bg,
+  color: '#fff',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: 10,
+  fontWeight: 600,
+  flex: '0 0 auto',
+});
+function initials(name: string): string {
+  const p = name.trim().split(/\s+/);
+  return ((p[0]?.[0] ?? '') + (p[1]?.[0] ?? '')).toUpperCase();
+}
 const downloadLink: React.CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
