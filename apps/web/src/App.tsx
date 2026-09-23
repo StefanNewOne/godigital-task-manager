@@ -9,7 +9,9 @@ import { Overview } from './screens/Overview.js';
 import { Placeholder } from './screens/Placeholder.js';
 import { TasksScreen } from './screens/tasks/TasksScreen.js';
 import { AdminLayout } from './screens/admin/AdminLayout.js';
+import { AdminAlarms } from './screens/admin/Alarms.js';
 import { AdminAutomations } from './screens/admin/Automations.js';
+import { AdminCalendars } from './screens/admin/Calendars.js';
 import { AdminClients } from './screens/admin/Clients.js';
 import { AdminEmployees } from './screens/admin/Employees.js';
 import { AdminPermissions } from './screens/admin/RolesPermissions.js';
@@ -38,7 +40,9 @@ export function App() {
             <Route path="clients" element={<AdminClients />} />
             <Route path="employees" element={<AdminEmployees />} />
             <Route path="permissions" element={<AdminPermissions />} />
+            <Route path="calendars" element={<AdminCalendars />} />
             <Route path="automations" element={<AdminAutomations />} />
+            <Route path="alarms" element={<AdminAlarms />} />
           </Route>
           <Route path="*" element={<Placeholder title="Ненајдена страница" />} />
         </Route>
