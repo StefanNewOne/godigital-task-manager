@@ -3,7 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import { TASK_STATUS_META, coverageLevel, type TaskStatus } from '@gd/core';
 import { tokens } from '@gd/ui';
 import { useOverview, type CoverageRow } from '../api/overview.js';
+import { useNotifications } from '../api/notifications.js';
 import { StatusBadge } from '../components/StatusBadge.js';
+
+const ALARM_LABEL: Record<string, string> = {
+  kritichen: 'Критичен',
+  alarm: 'Аларм',
+  potsetnik: 'Потсетник',
+};
+const ALARM_COLOR: Record<string, string> = {
+  kritichen: 'var(--gd-danger)',
+  alarm: 'var(--gd-warning)',
+  potsetnik: 'var(--gd-ink-muted)',
+};
 
 /** ISO → DD.MM (кратко, за „до {датум}"). */
 function shortDate(iso: string): string {
@@ -66,10 +78,12 @@ const LEVEL_TEXT: Record<CoverageRow['level'], string> = {
 /** Директорски преглед (Handoff §2.7): покриеност по клиент + работа по статус. */
 export function Overview() {
   const { data, isLoading } = useOverview();
+  const { data: alarmsData } = useNotifications();
   const navigate = useNavigate();
 
   if (isLoading) return <div style={{ padding: 24, color: 'var(--gd-ink-muted)' }}>Вчитување…</div>;
   if (!data) return null;
+  const alarms = alarmsData ?? [];
 
   const coverage = [...data.coverage].sort((a, b) => a.days - b.days); // најлошо прво
   const maxCount = Math.max(1, ...data.byStatus.map((s) => s.count));
@@ -118,6 +132,34 @@ export function Overview() {
         {coverage.length === 0 && <p style={muted}>Нема активни клиенти.</p>}
       </section>
 
+      {/* Отворени аларми (in-app известувања) */}
+      <section style={card}>
+        <h2 style={cardTitle}>
+          Отворени аларми
+          {alarms.length > 0 && <span style={countPill}>{alarms.length}</span>}
+        </h2>
+        {alarms.map((a) => (
+          <div key={a.id} style={alarmRow}>
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: ALARM_COLOR[a.level],
+                marginTop: 6,
+                flex: '0 0 auto',
+              }}
+            />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 500 }}>{a.title}</div>
+              <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>{a.body}</div>
+            </div>
+            <span style={alarmBadge(a.level)}>{ALARM_LABEL[a.level]}</span>
+          </div>
+        ))}
+        {alarms.length === 0 && <p style={muted}>Нема отворени аларми.</p>}
+      </section>
+
       {/* Работа по статус — клик отвора Табла филтрирана по статус */}
       <section style={card}>
         <h2 style={cardTitle}>Работа по статус</h2>
@@ -164,7 +206,18 @@ export function Overview() {
         {data.byStatus.length === 0 && <p style={muted}>Нема таскови.</p>}
       </section>
 
-      {/* Аларми (B1) и Кампањи (B2) картички доаѓаат со тие модул-фази (§8.5). */}
+      {/* Кампањи во тек (Meta податоци во Фаза B2) — полна ширина */}
+      <section style={{ ...card, gridColumn: '1 / -1' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h2 style={{ ...cardTitle, margin: 0 }}>Кампањи во тек</h2>
+          <button style={linkBtn} onClick={() => navigate('/analytics')}>
+            Цела аналитика ›
+          </button>
+        </div>
+        <p style={{ ...muted, marginTop: 12 }}>
+          Кампањите и метриките се вклучуваат во Фаза B2 (влечење од Meta на секои 6 часа).
+        </p>
+      </section>
     </div>
   );
 }
@@ -174,7 +227,8 @@ const wrap: React.CSSProperties = {
   padding: '24px 20px',
   display: 'grid',
   gap: 24,
-  gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
+  alignItems: 'start',
 };
 const card: React.CSSProperties = {
   background: 'var(--gd-surface)',
@@ -187,7 +241,36 @@ const cardTitle: React.CSSProperties = {
   lineHeight: '24px',
   fontWeight: 600,
   margin: '0 0 12px',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
 };
+const countPill: React.CSSProperties = {
+  fontSize: 12,
+  fontWeight: 700,
+  color: '#fff',
+  background: 'var(--gd-danger)',
+  borderRadius: 9999,
+  padding: '0 8px',
+  lineHeight: '18px',
+};
+const alarmRow: React.CSSProperties = {
+  display: 'flex',
+  gap: 8,
+  padding: '10px 0',
+  borderBottom: '1px solid var(--gd-border)',
+};
+const alarmBadge = (level: string): React.CSSProperties => ({
+  flex: '0 0 auto',
+  alignSelf: 'flex-start',
+  fontSize: 11,
+  fontWeight: 600,
+  color: ALARM_COLOR[level],
+  background: 'var(--gd-surface-alt)',
+  border: `1px solid ${ALARM_COLOR[level]}`,
+  borderRadius: 9999,
+  padding: '1px 8px',
+});
 const covRow: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
@@ -231,3 +314,11 @@ const barFill: React.CSSProperties = {
   borderRadius: 9999,
 };
 const muted: React.CSSProperties = { color: 'var(--gd-ink-muted)', fontSize: 14 };
+const linkBtn: React.CSSProperties = {
+  border: 'none',
+  background: 'transparent',
+  color: 'var(--gd-primary)',
+  fontSize: 13,
+  fontWeight: 500,
+  cursor: 'pointer',
+};
