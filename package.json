@@ -20,6 +20,7 @@
     "db:migrate": "pnpm --filter @gd/db migrate",
     "db:deploy": "pnpm --filter @gd/db exec prisma migrate deploy",
     "db:seed": "pnpm --filter @gd/db seed",
+    "db:demo": "pnpm --filter @gd/db exec tsx prisma/demo-seed.ts",
     "db:setup": "pnpm db:deploy && pnpm db:seed",
     "e2e": "playwright test",
     "e2e:report": "playwright show-report",
