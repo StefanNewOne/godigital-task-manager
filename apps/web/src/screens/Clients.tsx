@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useClients } from '../api/admin.js';
 import { useOverview } from '../api/overview.js';
 import { useTasks } from '../api/tasks.js';
+import { PeriodSidebar } from '../components/PeriodSidebar.js';
 import { tableStyles as s } from '../components/table.js';
 
 const LEVEL_COLOR: Record<string, string> = {
@@ -37,64 +38,67 @@ export function Clients() {
   }, [tasks]);
 
   return (
-    <div style={{ padding: '24px 20px' }}>
-      {isLoading && <p style={{ color: 'var(--gd-ink-muted)' }}>Вчитување…</p>}
-      {clients && (
-        <div style={s.wrap}>
-          <table style={s.table}>
-            <thead>
-              <tr>
-                <th style={s.th}>Клиент</th>
-                <th style={s.th}>Видео/мес</th>
-                <th style={s.th}>Графика/мес</th>
-                <th style={s.th}>Активни таскови</th>
-                <th style={s.th}>Покриеност</th>
-                <th style={s.th}>Канал</th>
-              </tr>
-            </thead>
-            <tbody>
-              {clients.map((c) => {
-                const cv = cov(c.id);
-                return (
-                  <tr
-                    key={c.id}
-                    onClick={() => navigate(`/tasks?client=${c.id}&tab=list`)}
-                    style={clickRow}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.background = 'var(--gd-surface-alt)')
-                    }
-                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                  >
-                    <td
-                      style={{
-                        ...s.td,
-                        borderLeft: `4px solid ${cv ? LEVEL_COLOR[cv.level] : 'var(--gd-border)'}`,
-                      }}
+    <div style={{ display: 'flex', height: '100%' }}>
+      <PeriodSidebar />
+      <div style={{ flex: 1, minWidth: 0, overflow: 'auto', padding: '24px 20px' }}>
+        {isLoading && <p style={{ color: 'var(--gd-ink-muted)' }}>Вчитување…</p>}
+        {clients && (
+          <div style={s.wrap}>
+            <table style={s.table}>
+              <thead>
+                <tr>
+                  <th style={s.th}>Клиент</th>
+                  <th style={s.th}>Видео/мес</th>
+                  <th style={s.th}>Графика/мес</th>
+                  <th style={s.th}>Активни таскови</th>
+                  <th style={s.th}>Покриеност</th>
+                  <th style={s.th}>Канал</th>
+                </tr>
+              </thead>
+              <tbody>
+                {clients.map((c) => {
+                  const cv = cov(c.id);
+                  return (
+                    <tr
+                      key={c.id}
+                      onClick={() => navigate(`/tasks?client=${c.id}&tab=list`)}
+                      style={clickRow}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.background = 'var(--gd-surface-alt)')
+                      }
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                     >
-                      <span style={dot(c.color)} />
-                      {c.name}
-                    </td>
-                    <td style={{ ...s.td, ...tabular }}>{c.videosPerMonth}</td>
-                    <td style={{ ...s.td, ...tabular }}>{c.graphicsPerMonth}</td>
-                    <td style={{ ...s.td, ...tabular }}>{activeCount.get(c.id) ?? 0}</td>
-                    <td
-                      style={{
-                        ...s.td,
-                        ...tabular,
-                        color: cv ? LEVEL_COLOR[cv.level] : undefined,
-                        fontWeight: 600,
-                      }}
-                    >
-                      {cv ? `${cv.days} дена` : '—'}
-                    </td>
-                    <td style={s.td}>{CHANNEL_LABEL[c.approvalChannel] ?? c.approvalChannel}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+                      <td
+                        style={{
+                          ...s.td,
+                          borderLeft: `4px solid ${cv ? LEVEL_COLOR[cv.level] : 'var(--gd-border)'}`,
+                        }}
+                      >
+                        <span style={dot(c.color)} />
+                        {c.name}
+                      </td>
+                      <td style={{ ...s.td, ...tabular }}>{c.videosPerMonth}</td>
+                      <td style={{ ...s.td, ...tabular }}>{c.graphicsPerMonth}</td>
+                      <td style={{ ...s.td, ...tabular }}>{activeCount.get(c.id) ?? 0}</td>
+                      <td
+                        style={{
+                          ...s.td,
+                          ...tabular,
+                          color: cv ? LEVEL_COLOR[cv.level] : undefined,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {cv ? `${cv.days} дена` : '—'}
+                      </td>
+                      <td style={s.td}>{CHANNEL_LABEL[c.approvalChannel] ?? c.approvalChannel}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

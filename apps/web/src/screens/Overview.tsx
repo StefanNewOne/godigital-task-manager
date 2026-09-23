@@ -5,6 +5,7 @@ import { TASK_STATUS_META, coverageLevel, type TaskStatus } from '@gd/core';
 import { tokens } from '@gd/ui';
 import { useOverview, type CoverageRow } from '../api/overview.js';
 import { useNotifications } from '../api/notifications.js';
+import { PeriodSidebar } from '../components/PeriodSidebar.js';
 import { StatusBadge } from '../components/StatusBadge.js';
 
 const ALARM_LABEL: Record<string, string> = {
@@ -111,149 +112,163 @@ export function Overview() {
   const maxCount = Math.max(1, ...data.byStatus.map((s) => s.count));
 
   return (
-    <div style={wrap}>
-      {/* Покриеност по клиент — клик отвора клиент во Список */}
-      <section style={card}>
-        <CardHead title="Покриеност по клиент" hint="најкритичните горе · клик отвора клиент" />
-        {coverage.map((c) => (
-          <button
-            key={c.clientId}
-            style={covRow}
-            onClick={() => navigate(`/tasks?client=${c.clientId}&tab=list`)}
-            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--gd-surface-alt)')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-          >
-            <span style={{ ...covBar, background: LEVEL_COLOR[c.level] }} />
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.color }} />
-            <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-              <div style={{ fontWeight: 500, marginBottom: 4 }}>{c.name}</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {c.video != null && (
-                  <CoverageLine
-                    label="Видео"
-                    days={c.video}
-                    quota={c.videoQuota}
-                    until={c.videoUntil}
-                  />
-                )}
-                {c.graphic != null && (
-                  <CoverageLine
-                    label="Графика"
-                    days={c.graphic}
-                    quota={c.graphicQuota}
-                    until={c.graphicUntil}
-                  />
-                )}
-              </div>
-            </div>
-            <span style={{ color: LEVEL_TEXT[c.level], fontWeight: 600, ...tabular }}>
-              {c.days} дена
-            </span>
-            <ChevronRight size={16} color="var(--gd-ink-muted)" style={{ flex: '0 0 auto' }} />
-          </button>
-        ))}
-        {coverage.length === 0 && <p style={muted}>Нема активни клиенти.</p>}
-      </section>
+    <div style={{ display: 'flex', height: '100%' }}>
+      <PeriodSidebar />
+      <div style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
+        <div style={wrap}>
+          {/* Покриеност по клиент — клик отвора клиент во Список */}
+          <section style={card}>
+            <CardHead title="Покриеност по клиент" hint="најкритичните горе · клик отвора клиент" />
+            {coverage.map((c) => (
+              <button
+                key={c.clientId}
+                style={covRow}
+                onClick={() => navigate(`/tasks?client=${c.clientId}&tab=list`)}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--gd-surface-alt)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+              >
+                <span style={{ ...covBar, background: LEVEL_COLOR[c.level] }} />
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.color }} />
+                <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                  <div style={{ fontWeight: 500, marginBottom: 4 }}>{c.name}</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {c.video != null && (
+                      <CoverageLine
+                        label="Видео"
+                        days={c.video}
+                        quota={c.videoQuota}
+                        until={c.videoUntil}
+                      />
+                    )}
+                    {c.graphic != null && (
+                      <CoverageLine
+                        label="Графика"
+                        days={c.graphic}
+                        quota={c.graphicQuota}
+                        until={c.graphicUntil}
+                      />
+                    )}
+                  </div>
+                </div>
+                <span style={{ color: LEVEL_TEXT[c.level], fontWeight: 600, ...tabular }}>
+                  {c.days} дена
+                </span>
+                <ChevronRight size={16} color="var(--gd-ink-muted)" style={{ flex: '0 0 auto' }} />
+              </button>
+            ))}
+            {coverage.length === 0 && <p style={muted}>Нема активни клиенти.</p>}
+          </section>
 
-      {/* Отворени аларми (in-app известувања) */}
-      <section style={card}>
-        <CardHead
-          title="Отворени аларми"
-          extra={alarms.length > 0 ? <span style={countPill}>{alarms.length}</span> : null}
-        />
-        {alarms.map((a) => (
-          <div key={a.id} style={alarmRow}>
-            <span
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                background: ALARM_COLOR[a.level],
-                marginTop: 6,
-                flex: '0 0 auto',
-              }}
+          {/* Отворени аларми (in-app известувања) */}
+          <section style={card}>
+            <CardHead
+              title="Отворени аларми"
+              extra={alarms.length > 0 ? <span style={countPill}>{alarms.length}</span> : null}
             />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 500 }}>{a.title}</div>
-              <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>{a.body}</div>
-            </div>
-            <div
-              style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}
-            >
-              <span style={alarmBadge(a.level)}>{ALARM_LABEL[a.level]}</span>
-              {a.clientId && (
-                <button
-                  style={alarmActionBtn}
-                  onClick={() => navigate(`/tasks?client=${a.clientId}&tab=list`)}
-                >
-                  Во таскот
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
-        {alarms.length === 0 && <p style={muted}>Нема отворени аларми.</p>}
-      </section>
-
-      {/* Работа по статус — клик отвора Табла филтрирана по статус */}
-      <section style={card}>
-        <CardHead title="Работа по статус" hint="клик отвора табла" />
-        {data.byStatus
-          .filter((s) => TASK_STATUS_META[s.status as TaskStatus])
-          .map((s) => (
-            <button
-              key={s.status}
-              style={statusRow}
-              onClick={() => navigate(`/tasks?status=${s.status}&tab=board`)}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--gd-surface-alt)')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-            >
-              <div style={{ width: 150, flex: '0 0 150px', textAlign: 'left' }}>
-                <StatusBadge status={s.status} />
-              </div>
-              <div style={barTrack}>
-                <div
+            {alarms.map((a) => (
+              <div key={a.id} style={alarmRow}>
+                <span
                   style={{
-                    ...barFill,
-                    width: `${(s.count / maxCount) * 100}%`,
-                    background:
-                      tokens.statusColor[s.status as keyof typeof tokens.statusColor] ??
-                      'var(--gd-ink-muted)',
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: ALARM_COLOR[a.level],
+                    marginTop: 6,
+                    flex: '0 0 auto',
                   }}
                 />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500 }}>{a.title}</div>
+                  <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>{a.body}</div>
+                </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end',
+                    gap: 6,
+                  }}
+                >
+                  <span style={alarmBadge(a.level)}>{ALARM_LABEL[a.level]}</span>
+                  {a.clientId && (
+                    <button
+                      style={alarmActionBtn}
+                      onClick={() => navigate(`/tasks?client=${a.clientId}&tab=list`)}
+                    >
+                      Во таскот
+                    </button>
+                  )}
+                </div>
               </div>
-              <span style={{ width: 32, textAlign: 'right', fontWeight: 600, ...tabular }}>
-                {s.count}
-              </span>
-              <span
-                style={{
-                  width: 84,
-                  textAlign: 'right',
-                  fontSize: 12,
-                  color: 'var(--gd-ink-muted)',
-                  ...tabular,
-                }}
-              >
-                {s.avgDays > 0 ? `${s.avgDays}д просек` : ''}
-              </span>
-              <ChevronRight size={16} color="var(--gd-ink-muted)" style={{ flex: '0 0 auto' }} />
-            </button>
-          ))}
-        {data.byStatus.length === 0 && <p style={muted}>Нема таскови.</p>}
-      </section>
+            ))}
+            {alarms.length === 0 && <p style={muted}>Нема отворени аларми.</p>}
+          </section>
 
-      {/* Кампањи во тек (Meta податоци во Фаза B2) — полна ширина */}
-      <section style={{ ...card, gridColumn: '1 / -1' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h2 style={{ ...cardTitle, margin: 0 }}>Кампањи во тек</h2>
-          <button style={linkBtn} onClick={() => navigate('/analytics')}>
-            Цела аналитика ›
-          </button>
+          {/* Работа по статус — клик отвора Табла филтрирана по статус */}
+          <section style={card}>
+            <CardHead title="Работа по статус" hint="клик отвора табла" />
+            {data.byStatus
+              .filter((s) => TASK_STATUS_META[s.status as TaskStatus])
+              .map((s) => (
+                <button
+                  key={s.status}
+                  style={statusRow}
+                  onClick={() => navigate(`/tasks?status=${s.status}&tab=board`)}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--gd-surface-alt)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <div style={{ width: 150, flex: '0 0 150px', textAlign: 'left' }}>
+                    <StatusBadge status={s.status} />
+                  </div>
+                  <div style={barTrack}>
+                    <div
+                      style={{
+                        ...barFill,
+                        width: `${(s.count / maxCount) * 100}%`,
+                        background:
+                          tokens.statusColor[s.status as keyof typeof tokens.statusColor] ??
+                          'var(--gd-ink-muted)',
+                      }}
+                    />
+                  </div>
+                  <span style={{ width: 32, textAlign: 'right', fontWeight: 600, ...tabular }}>
+                    {s.count}
+                  </span>
+                  <span
+                    style={{
+                      width: 84,
+                      textAlign: 'right',
+                      fontSize: 12,
+                      color: 'var(--gd-ink-muted)',
+                      ...tabular,
+                    }}
+                  >
+                    {s.avgDays > 0 ? `${s.avgDays}д просек` : ''}
+                  </span>
+                  <ChevronRight
+                    size={16}
+                    color="var(--gd-ink-muted)"
+                    style={{ flex: '0 0 auto' }}
+                  />
+                </button>
+              ))}
+            {data.byStatus.length === 0 && <p style={muted}>Нема таскови.</p>}
+          </section>
+
+          {/* Кампањи во тек (Meta податоци во Фаза B2) — полна ширина */}
+          <section style={{ ...card, gridColumn: '1 / -1' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 style={{ ...cardTitle, margin: 0 }}>Кампањи во тек</h2>
+              <button style={linkBtn} onClick={() => navigate('/analytics')}>
+                Цела аналитика ›
+              </button>
+            </div>
+            <p style={{ ...muted, marginTop: 12 }}>
+              Кампањите и метриките се вклучуваат во Фаза B2 (влечење од Meta на секои 6 часа).
+            </p>
+          </section>
         </div>
-        <p style={{ ...muted, marginTop: 12 }}>
-          Кампањите и метриките се вклучуваат во Фаза B2 (влечење од Meta на секои 6 часа).
-        </p>
-      </section>
+      </div>
     </div>
   );
 }

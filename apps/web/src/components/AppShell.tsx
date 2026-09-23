@@ -51,6 +51,13 @@ const TASK_TABS = [
   { key: 'board', label: 'Табла' },
 ] as const;
 
+// Екрани што носат 240px контекст-панел + неговото заглавие во топ-стрипот.
+const SIDEBAR_LABEL: Partial<Record<Screen, string>> = {
+  director: 'Преглед',
+  list: 'Работа',
+  clients: 'Клиенти',
+};
+
 /** Боја на аватар по улога (Handoff §Employee Avatar Colors). */
 const AVATAR_COLOR: Record<Role, string> = {
   dir: '#0866FF',
@@ -89,9 +96,10 @@ export function AppShell() {
     ? `GoDigital V.2 · ${month}`
     : (active?.title ?? active?.label ?? 'GoDigital');
 
-  // Контекст-панелот (240px) го носи Задачи екранот; заглавието „Работа ←" стои во истиот
-  // топ-стрип, порамнето над панелот (Handoff). Собирањето се води преку ?sb=0.
-  const hasSidebar = onTasks;
+  // Контекст-панелот (240px) го носи екранот; заглавието стои во истиот топ-стрип,
+  // порамнето над панелот (Handoff). Собирањето се води преку ?sb=0.
+  const sidebarLabel = active ? SIDEBAR_LABEL[active.screen] : undefined;
+  const hasSidebar = !!sidebarLabel;
   const sidebarCollapsed = searchParams.get('sb') === '0';
   const toggleSidebar = () => {
     const next = new URLSearchParams(searchParams);
@@ -148,7 +156,7 @@ export function AppShell() {
         <header style={topBar}>
           {hasSidebar && !sidebarCollapsed && (
             <div style={sidebarHeaderSeg}>
-              <span>Работа</span>
+              <span>{sidebarLabel}</span>
               <button
                 onClick={toggleSidebar}
                 style={collapseBtn}
