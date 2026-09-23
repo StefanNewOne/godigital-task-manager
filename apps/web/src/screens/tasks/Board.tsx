@@ -135,7 +135,8 @@ function Card({
   const dl = deadlineFor(task);
   const stuck = daysInStatus(task);
   const owner = ownerOf(task.status as TaskStatus, task.contentType as ContentType);
-  const assignee = task.assigneeId ? empById.get(task.assigneeId)?.name : null;
+  const assigneeEmp = task.assigneeId ? empById.get(task.assigneeId) : undefined;
+  const assignee = assigneeEmp?.name ?? null;
   const urgent = task.priority === 'iten';
   return (
     <div
@@ -153,8 +154,23 @@ function Card({
         <StatusBadge status={task.status} />
       </div>
       {owner && (
-        <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>
-          {ROLE_LABEL[owner]} · {assignee ?? 'Недоделен'}
+        <div
+          style={{
+            fontSize: 12,
+            color: 'var(--gd-ink-muted)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+        >
+          {assigneeEmp ? (
+            <span style={cardAvatar(assigneeEmp.color)}>{cardInitials(assigneeEmp.name)}</span>
+          ) : (
+            <span style={cardAvatarEmpty} />
+          )}
+          <span>
+            {ROLE_LABEL[owner]} · {assignee ?? 'Недоделен'}
+          </span>
         </div>
       )}
       <div style={cardMeta}>
@@ -187,6 +203,32 @@ const label = (s: string) => TASK_STATUS_META[s as TaskStatus]?.label ?? s;
 const dlColor = (l: string) =>
   l === 'overdue' ? 'var(--gd-danger)' : l === 'soon' ? 'var(--gd-warning)' : 'var(--gd-ink-muted)';
 const dlPrefix = (l: string) => (l === 'overdue' ? '⚠ ' : l === 'soon' ? '◷ ' : '');
+
+function cardInitials(name: string): string {
+  const p = name.trim().split(/\s+/);
+  return ((p[0]?.[0] ?? '') + (p[1]?.[0] ?? '')).toUpperCase();
+}
+const cardAvatar = (bg: string): React.CSSProperties => ({
+  width: 20,
+  height: 20,
+  borderRadius: '50%',
+  background: bg,
+  color: '#fff',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: 9,
+  fontWeight: 600,
+  flex: '0 0 auto',
+});
+const cardAvatarEmpty: React.CSSProperties = {
+  width: 20,
+  height: 20,
+  borderRadius: '50%',
+  background: 'var(--gd-surface-alt)',
+  border: '1px solid var(--gd-border)',
+  flex: '0 0 auto',
+};
 
 /** Боја на drop-целта: зелена ако преодот е дозволен, црвена ако не (D-8). */
 function dropColor(

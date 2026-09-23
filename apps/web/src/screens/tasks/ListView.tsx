@@ -150,7 +150,8 @@ function Row({
 }) {
   const reserved = task.status === 'mrtov';
   const owner = ownerOf(task.status as TaskStatus, task.contentType as ContentType);
-  const assignee = task.assigneeId ? empById.get(task.assigneeId)?.name : null;
+  const assigneeEmp = task.assigneeId ? empById.get(task.assigneeId) : undefined;
+  const assignee = assigneeEmp?.name ?? null;
   const dl = deadlineFor(task);
   const TypeIcon = task.contentType === 'video' ? Video : ImageIcon;
 
@@ -188,8 +189,24 @@ function Row({
       <div style={cell}>
         <StatusBadge status={task.status} />
       </div>
-      <div style={{ ...cell, color: 'var(--gd-ink-secondary)', fontSize: 13 }}>
-        {owner ? ROLE_LABEL[owner] : '—'} · {assignee ?? 'Недоделен'}
+      <div
+        style={{
+          ...cell,
+          color: 'var(--gd-ink-secondary)',
+          fontSize: 13,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+        }}
+      >
+        {assigneeEmp ? (
+          <span style={rowAvatar(assigneeEmp.color)}>{avatarInitials(assigneeEmp.name)}</span>
+        ) : (
+          <span style={rowAvatarEmpty} />
+        )}
+        <span style={ellipsis}>
+          {owner ? ROLE_LABEL[owner] : '—'} · {assignee ?? 'Недоделен'}
+        </span>
       </div>
       <div style={{ ...cell, fontSize: 13, color: dl ? dlColor(dl.level) : 'var(--gd-ink-muted)' }}>
         {dl ? relDate(task.slot?.date) : '—'}
@@ -293,6 +310,32 @@ function CoverageChip({ cov }: { cov: CoverageRow }) {
 
 const dlColor = (l: string) =>
   l === 'overdue' ? 'var(--gd-danger)' : l === 'soon' ? 'var(--gd-warning)' : 'var(--gd-ink-muted)';
+
+function avatarInitials(name: string): string {
+  const p = name.trim().split(/\s+/);
+  return ((p[0]?.[0] ?? '') + (p[1]?.[0] ?? '')).toUpperCase();
+}
+const rowAvatar = (bg: string): React.CSSProperties => ({
+  width: 24,
+  height: 24,
+  borderRadius: '50%',
+  background: bg,
+  color: '#fff',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: 10,
+  fontWeight: 600,
+  flex: '0 0 auto',
+});
+const rowAvatarEmpty: React.CSSProperties = {
+  width: 24,
+  height: 24,
+  borderRadius: '50%',
+  background: 'var(--gd-surface-alt)',
+  border: '1px solid var(--gd-border)',
+  flex: '0 0 auto',
+};
 
 const tableWrap: React.CSSProperties = {
   border: '1px solid var(--gd-border)',
