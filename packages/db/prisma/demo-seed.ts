@@ -46,12 +46,11 @@ const TASKS: Spec[] = [
 
 // Видео капа таскови што се прикажуваат како капа-картички (активна претпродукција).
 // [клиент, статус-на-група, сценарист?, датум-снимање?, локација?]
-const CAPAS: Array<
-  [string, TaskStatus extends never ? never : string, boolean, number | null, string | null]
-> = [
-  ['Астибо', 'snimanje', true, 27, 'Скопје, студио'],
-  ['ЛЛ Гурмет', 'scenKajKlient', true, null, null],
-  ['Ресторан ИВ', 'scenarija', true, null, null],
+// [клиент, статус-на-група, сценарист?, датум-снимање?, локација?, одобрени-сценарија (од 4)]
+const CAPAS: Array<[string, string, boolean, number | null, string | null, number]> = [
+  ['Астибо', 'snimanje', true, 27, 'Скопје, студио', 4],
+  ['ЛЛ Гурмет', 'scenKajKlient', true, null, null, 3],
+  ['Ресторан ИВ', 'scenarija', true, null, null, 0],
 ];
 
 async function main() {
@@ -100,6 +99,13 @@ async function main() {
   await prisma.publishingSlot.deleteMany({
     where: { clientId: { in: demoClientIds }, monthKey: MONTH },
   });
+  const oldGroups = await prisma.taskGroup.findMany({
+    where: { clientId: { in: demoClientIds }, monthKey: MONTH },
+    select: { id: true },
+  });
+  if (oldGroups.length) {
+    await prisma.scenario.deleteMany({ where: { groupId: { in: oldGroups.map((g) => g.id) } } });
+  }
   await prisma.taskGroup.deleteMany({
     where: { clientId: { in: demoClientIds }, monthKey: MONTH },
   });
@@ -124,6 +130,22 @@ async function main() {
         },
       });
       groupId.set(`${c.name}:${type}`, g.id);
+    }
+  }
+
+  // 3b) Сценарија за активните видео капи (за „N од 4 сценарија одобрени").
+  for (const [client, , , , , approved] of CAPAS) {
+    const gid = groupId.get(`${client}:video`);
+    if (!gid) continue;
+    for (let i = 0; i < 4; i++) {
+      await prisma.scenario.create({
+        data: {
+          groupId: gid,
+          ordinal: i + 1,
+          title: `Сценарио ${i + 1}`,
+          status: i < approved ? 'odobreno' : 'predlozeno',
+        },
+      });
     }
   }
 

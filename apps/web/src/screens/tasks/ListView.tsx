@@ -23,8 +23,6 @@ import { deadlineFor, fmtDate, relDate } from '../../lib/tasksView.js';
 import { StatusBadge } from '../../components/StatusBadge.js';
 
 const GRID = 'minmax(240px,2.2fr) 104px 190px 172px 104px 56px 60px';
-const VIDEO_STEPS: GroupStatus[] = ['podgotovka', 'scenarija', 'scenKajKlient', 'snimanje'];
-const GRAPHIC_STEPS: GroupStatus[] = ['gPodgotovka'];
 
 interface ListViewProps {
   tasks: TaskListItem[];
@@ -226,20 +224,19 @@ function Row({
 }
 
 function CapaStrip({ groups, clientById, empById, onOpenCapa }: ListViewProps) {
-  // D-7: капите се авто-креираат при потврда на месец — нема рачно „+ Нова капа".
-  if (groups.length === 0) return null;
-  const cardsMode = groups.length > 1;
+  // Само активни капи (претпродукција) се прикажуваат како картички; затворените се скриени (Handoff).
+  const active = groups.filter((g) => g.status !== 'zatvoren');
+  if (active.length === 0) return null;
+  const cardsMode = active.length > 1;
   return (
     <div style={cardsMode ? capaGrid : undefined}>
-      {groups.map((g) => {
+      {active.map((g) => {
         const client = clientById.get(g.clientId);
-        const steps = g.contentType === 'video' ? VIDEO_STEPS : GRAPHIC_STEPS;
-        const closed = g.status === 'zatvoren';
-        const activeIdx = closed ? steps.length : steps.indexOf(g.status as GroupStatus);
-        const scen = g.scenaristId ? empById.get(g.scenaristId)?.name : null;
+        const owner = g.scenaristId ? empById.get(g.scenaristId)?.name : null;
+        const total = g.scenariosTotal || g.plannedCount;
         return (
           <div key={g.id} style={capaBanner}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
               <Clapperboard size={16} color="var(--gd-primary)" />
               <strong style={{ fontSize: 14 }}>
                 {client?.name} · {g.contentType === 'video' ? 'Видео' : 'Графика'} · {g.monthKey}
@@ -247,40 +244,23 @@ function CapaStrip({ groups, clientById, empById, onOpenCapa }: ListViewProps) {
               <span style={capaChip}>
                 {GROUP_STATUS_META[g.status as GroupStatus]?.label ?? g.status}
               </span>
-              <span style={{ color: 'var(--gd-ink-muted)', fontSize: 13 }}>
-                · {g.plannedCount} слота
-              </span>
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
                 <Button variant="secondary" size="toolbar" onClick={() => onOpenCapa(g.id)}>
                   Отвори капа
                 </Button>
               </div>
             </div>
-            {/* 4-чекорна прогресија */}
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-              {steps.map((st, i) => {
-                const done = i < activeIdx;
-                const isActive = i === activeIdx;
-                return (
-                  <div
-                    key={st}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      flex: i < steps.length - 1 ? 1 : '0 0 auto',
-                    }}
-                  >
-                    <span style={stepCircle(done, isActive)}>{done ? '✓' : ''}</span>
-                    {i < steps.length - 1 && <span style={stepConnector} />}
-                  </div>
-                );
-              })}
+            <div style={{ fontSize: 13, color: 'var(--gd-ink-secondary)' }}>
+              {g.contentType === 'video'
+                ? `${g.scenariosApproved} од ${total} сценарија одобрени${owner ? ` · кај ${owner}` : ''}`
+                : `${g.plannedCount} слота во пакетот`}
             </div>
-            <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>
-              {g.shootDate ? `Снимање ${fmtDate(g.shootDate)}` : 'Снимање: не е закажано'}
-              {g.shootLocation ? ` · ${g.shootLocation}` : ''}
-              {scen ? ` · Сценарист ${scen}` : ''}
-            </div>
+            {g.shootDate && (
+              <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)', marginTop: 4 }}>
+                Снимање {fmtDate(g.shootDate)}
+                {g.shootLocation ? ` · ${g.shootLocation}` : ''}
+              </div>
+            )}
           </div>
         );
       })}
@@ -425,23 +405,4 @@ const capaChip: React.CSSProperties = {
   background: 'var(--gd-surface)',
   border: '1px solid var(--gd-border)',
   color: 'var(--gd-ink-secondary)',
-};
-const stepCircle = (done: boolean, active: boolean): React.CSSProperties => ({
-  width: 20,
-  height: 20,
-  borderRadius: '50%',
-  flex: '0 0 auto',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontSize: 11,
-  color: done || active ? '#fff' : 'var(--gd-ink-muted)',
-  background: done ? '#16A34A' : active ? 'var(--gd-primary)' : 'var(--gd-surface)',
-  border: done || active ? 'none' : '1px solid var(--gd-border)',
-});
-const stepConnector: React.CSSProperties = {
-  flex: 1,
-  height: 1,
-  background: 'var(--gd-border)',
-  margin: '0 4px',
 };

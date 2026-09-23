@@ -19,7 +19,24 @@ taskGroupsRouter.get('/', async (req, res) => {
   if (month) where.monthKey = month;
   if (type === 'video' || type === 'graphic') where.contentType = type;
   const groups = await prisma.taskGroup.findMany({ where, orderBy: { monthKey: 'desc' } });
-  res.json({ data: groups });
+  // Сценарио бројки по група (за капа-картичката „N од M сценарија одобрени").
+  const scenarios = await prisma.scenario.findMany({
+    where: { groupId: { in: groups.map((g) => g.id) } },
+    select: { groupId: true, status: true },
+  });
+  const counts = new Map<string, { total: number; approved: number }>();
+  for (const sc of scenarios) {
+    const c = counts.get(sc.groupId) ?? { total: 0, approved: 0 };
+    c.total += 1;
+    if (sc.status === 'odobreno' || sc.status === 'odobrenoSoIzmeni') c.approved += 1;
+    counts.set(sc.groupId, c);
+  }
+  const data = groups.map((g) => ({
+    ...g,
+    scenariosTotal: counts.get(g.id)?.total ?? 0,
+    scenariosApproved: counts.get(g.id)?.approved ?? 0,
+  }));
+  res.json({ data });
 });
 
 // Единечна капа за Капа панелот (read-only) + мал резиме на деца/заеднички фајлови.

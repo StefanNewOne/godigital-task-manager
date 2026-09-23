@@ -76,6 +76,8 @@ export interface TaskGroupRow {
   scenaristNotes: string | null;
   plannedCount: number;
   scenarioDocVersion: number;
+  scenariosTotal: number;
+  scenariosApproved: number;
 }
 
 export interface TaskGroupDetail extends TaskGroupRow {
