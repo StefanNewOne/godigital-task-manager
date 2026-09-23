@@ -1,6 +1,6 @@
 import type React from 'react';
 import { ChevronRight } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { TASK_STATUS_META, coverageLevel, type TaskStatus } from '@gd/core';
 import { tokens } from '@gd/ui';
 import { useOverview, type CoverageRow } from '../api/overview.js';
@@ -100,7 +100,11 @@ function CardHead({
 
 /** Директорски преглед (Handoff §2.7): покриеност по клиент + работа по статус. */
 export function Overview() {
-  const { data, isLoading } = useOverview();
+  const [searchParams] = useSearchParams();
+  const now = new Date();
+  const currentKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+  const period = searchParams.get('period') ?? currentKey;
+  const { data, isLoading } = useOverview(period);
   const { data: alarmsData } = useNotifications();
   const navigate = useNavigate();
 

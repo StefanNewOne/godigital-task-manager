@@ -6,7 +6,9 @@ import { getOverview } from '../services/overview.js';
 export const overviewRouter: ExpressRouter = Router();
 overviewRouter.use(requireAuth);
 
-overviewRouter.get('/', async (_req, res) => {
-  const data = await getOverview();
+overviewRouter.get('/', async (req, res) => {
+  const raw = req.query.month;
+  const month = typeof raw === 'string' && /^\d{4}-\d{2}$/.test(raw) ? raw : undefined;
+  const data = await getOverview(month);
   res.json({ data });
 });

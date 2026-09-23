@@ -22,6 +22,10 @@ export interface OverviewData {
   campaigns: unknown[];
 }
 
-export function useOverview() {
-  return useQuery({ queryKey: ['overview'], queryFn: () => api.get<OverviewData>('/overview') });
+export function useOverview(month?: string) {
+  return useQuery({
+    queryKey: ['overview', month ?? 'all'],
+    queryFn: () =>
+      api.get<OverviewData>(month ? `/overview?month=${encodeURIComponent(month)}` : '/overview'),
+  });
 }
