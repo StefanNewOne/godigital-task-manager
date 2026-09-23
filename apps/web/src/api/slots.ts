@@ -2,6 +2,30 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api.js';
 import type { SlotRow } from '../lib/types.js';
 
+export interface CalendarConfigRow {
+  contentType: 'video' | 'graphic';
+  weekdays: number[]; // 1=пон … 7=нед
+}
+/** Календарска конфигурација по клиент (кои денови се видео/графика). */
+export function useCalendarConfig(clientId: string | null) {
+  return useQuery({
+    queryKey: ['calendar-config', clientId],
+    queryFn: () => api.get<CalendarConfigRow[]>(`/clients/${clientId}/calendar-config`),
+    enabled: !!clientId,
+  });
+}
+
+export interface HolidayRow {
+  id: string;
+  date: string;
+  name: string;
+  scope: string;
+  clientId: string | null;
+}
+export function useHolidays() {
+  return useQuery({ queryKey: ['holidays'], queryFn: () => api.get<HolidayRow[]>('/holidays') });
+}
+
 export function useSlots(clientId: string | null, month: string) {
   return useQuery({
     queryKey: ['slots', clientId, month],

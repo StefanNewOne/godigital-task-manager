@@ -81,6 +81,17 @@ async function main() {
       });
     }
     clientId[c.name] = cl.id;
+    // Календарска конфигурација (за ден-тип совет): видео вт/пет, графика пон/сре/чет.
+    for (const [contentType, weekdays] of [
+      ['video', [2, 5]],
+      ['graphic', [1, 3, 4]],
+    ] as Array<['video' | 'graphic', number[]]>) {
+      await prisma.calendarConfig.upsert({
+        where: { clientId_contentType: { clientId: cl.id, contentType } },
+        update: { weekdays },
+        create: { clientId: cl.id, contentType, weekdays, publishTime: '12:00' },
+      });
+    }
   }
 
   // 2) Исчисти постоечки MONTH податоци за демо клиентите (идемпотентно)

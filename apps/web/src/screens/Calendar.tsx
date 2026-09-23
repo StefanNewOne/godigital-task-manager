@@ -4,7 +4,14 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { TaskStatus } from '@gd/core';
 import { Button, Modal, tokens } from '@gd/ui';
 import { useClients } from '../api/admin.js';
-import { useConfirmMonth, useGenerateSlots, usePatchSlot, useSlots } from '../api/slots.js';
+import {
+  useCalendarConfig,
+  useConfirmMonth,
+  useGenerateSlots,
+  useHolidays,
+  usePatchSlot,
+  useSlots,
+} from '../api/slots.js';
 import { useDateChange } from '../api/tasks.js';
 import { ApiRequestError } from '../lib/api.js';
 import { MONTH_LABELS, WEEKDAY_LABELS, buildMonthGrid, monthKeyOf, ymd } from '../lib/calendar.js';
@@ -67,6 +74,27 @@ export function Calendar() {
   const confirm = useConfirmMonth(activeClient ?? '', monthKey);
   const patch = usePatchSlot(activeClient ?? '', monthKey);
   const dateChange = useDateChange(dc?.taskId ?? '');
+  const { data: calConfig } = useCalendarConfig(activeClient);
+  const { data: holidays } = useHolidays();
+
+  // Ден-тип совет: празник / видео / графика (по календарската конфигурација на клиентот).
+  const holidaySet = useMemo(
+    () => new Set((holidays ?? []).map((h) => h.date.slice(0, 10))),
+    [holidays],
+  );
+  const videoDays = new Set(
+    (calConfig ?? []).find((c) => c.contentType === 'video')?.weekdays ?? [],
+  );
+  const graphicDays = new Set(
+    (calConfig ?? []).find((c) => c.contentType === 'graphic')?.weekdays ?? [],
+  );
+  const dayHint = (d: Date, key: string): string => {
+    if (holidaySet.has(key)) return 'празник';
+    const wd = d.getUTCDay() === 0 ? 7 : d.getUTCDay();
+    if (videoDays.has(wd)) return 'видео';
+    if (graphicDays.has(wd)) return 'графика';
+    return '';
+  };
 
   const grid = useMemo(() => buildMonthGrid(year, month0), [year, month0]);
   const visible = (slots ?? []).filter((s) => typeFilter === 'all' || s.contentType === typeFilter);
@@ -221,7 +249,12 @@ export function Calendar() {
                       cell.date.getUTCDay() === 0 || cell.date.getUTCDay() === 6,
                     )}
                   >
-                    <div style={dayNum(isToday, isPast)}>{cell.date.getUTCDate()}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={dayNum(isToday, isPast)}>{cell.date.getUTCDate()}</div>
+                      {cell.inMonth && dayHint(cell.date, cell.key) && (
+                        <span style={dayHintStyle}>{dayHint(cell.date, cell.key)}</span>
+                      )}
+                    </div>
                     {(byDay.get(cell.key) ?? []).map((s) => {
                       const draggable = s.status === 'reserved' && !!s.task;
                       return (
@@ -505,6 +538,11 @@ const dayNum = (isToday: boolean, isPast: boolean): React.CSSProperties => ({
   background: isToday ? 'var(--gd-success)' : 'transparent',
   fontVariantNumeric: 'tabular-nums',
 });
+const dayHintStyle: React.CSSProperties = {
+  fontSize: 11,
+  color: 'var(--gd-ink-muted)',
+  marginBottom: 4,
+};
 const slotBar = (s: SlotRow): React.CSSProperties => {
   const base: React.CSSProperties = {
     display: 'block',
