@@ -1,6 +1,7 @@
 import type React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TASK_STATUS_META, type TaskStatus } from '@gd/core';
+import { tokens } from '@gd/ui';
 import { useOverview, type CoverageRow } from '../api/overview.js';
 import { StatusBadge } from '../components/StatusBadge.js';
 
@@ -78,6 +79,9 @@ export function Overview() {
                   style={{
                     ...barFill,
                     width: `${(s.count / maxCount) * 100}%`,
+                    background:
+                      tokens.statusColor[s.status as keyof typeof tokens.statusColor] ??
+                      'var(--gd-ink-muted)',
                   }}
                 />
               </div>

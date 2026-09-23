@@ -28,7 +28,7 @@ const LEGEND: Array<{ label: string; color: string; dashed?: boolean; prefix?: s
   { label: 'Монтажа/Дизајн', color: tokens.statusColor.montaza },
   { label: 'Одобрување', color: tokens.statusColor.vnatresno },
   { label: 'Кај клиент', color: tokens.statusColor.kajKlient },
-  { label: 'Објавено', color: tokens.statusColor.objaveno, prefix: '✓' },
+  { label: 'Објавено', color: tokens.statusColor.mrtov, prefix: '✓' },
   { label: 'Аналитика', color: tokens.statusColor.analitika, prefix: '◔' },
   { label: 'Празен слот', color: 'var(--gd-danger)', dashed: true },
 ];
@@ -215,7 +215,11 @@ export function Calendar() {
                       setReason('');
                       setDrag(null);
                     }}
-                    style={dayCell(cell.inMonth, isSel)}
+                    style={dayCell(
+                      cell.inMonth,
+                      isSel,
+                      cell.date.getUTCDay() === 0 || cell.date.getUTCDay() === 6,
+                    )}
                   >
                     <div style={dayNum(isToday, isPast)}>{cell.date.getUTCDate()}</div>
                     {(byDay.get(cell.key) ?? []).map((s) => {
@@ -472,7 +476,7 @@ const weekdayHead: React.CSSProperties = {
   background: 'var(--gd-surface-alt)',
   borderBottom: '1px solid var(--gd-border)',
 };
-const dayCell = (inMonth: boolean, selected: boolean): React.CSSProperties => ({
+const dayCell = (inMonth: boolean, selected: boolean, weekend = false): React.CSSProperties => ({
   minHeight: 96,
   padding: 6,
   textAlign: 'left',
@@ -481,7 +485,7 @@ const dayCell = (inMonth: boolean, selected: boolean): React.CSSProperties => ({
   borderBottom: '1px solid var(--gd-border)',
   background: selected
     ? 'var(--gd-primary-tint)'
-    : inMonth
+    : inMonth && !weekend
       ? 'var(--gd-surface)'
       : 'var(--gd-surface-pad)',
   opacity: inMonth ? 1 : 0.5,

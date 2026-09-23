@@ -174,9 +174,9 @@ function Card({
             <Paperclip size={12} /> {task._count.publications}
           </span>
         )}
-        <span>v{task.version}</span>
+        {task.version > 1 && <span>v.{task.version}</span>}
         {stuck > 3 && !['objaveno', 'zavrseno', 'otkazano', 'pauza'].includes(task.status) && (
-          <span style={{ color: 'var(--gd-warning)' }}>◷ {stuck} дена</span>
+          <span style={{ color: 'var(--gd-warning)' }}>◷ {stuck} дена во статус</span>
         )}
       </div>
     </div>

@@ -38,7 +38,6 @@ export function Clients() {
 
   return (
     <div style={{ padding: '24px 20px' }}>
-      <h1 style={s.h1}>Клиенти</h1>
       {isLoading && <p style={{ color: 'var(--gd-ink-muted)' }}>Вчитување…</p>}
       {clients && (
         <div style={s.wrap}>

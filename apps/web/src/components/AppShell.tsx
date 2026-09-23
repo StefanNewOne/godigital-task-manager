@@ -15,10 +15,29 @@ import { Button } from '@gd/ui';
 import { useLogout, useMe } from '../api/auth.js';
 import { NotificationsBell } from './NotificationsBell.js';
 
-const NAV: Array<{ screen: Screen; icon: LucideIcon; label: string; path: string }> = [
-  { screen: 'director', icon: LayoutDashboard, label: 'Преглед', path: '/' },
+// `label` = кратка ознака во rail-от; `title` = наслов во топ-лентата (Handoff).
+const NAV: Array<{
+  screen: Screen;
+  icon: LucideIcon;
+  label: string;
+  title?: string;
+  path: string;
+}> = [
+  {
+    screen: 'director',
+    icon: LayoutDashboard,
+    label: 'Преглед',
+    title: 'Директорски преглед',
+    path: '/',
+  },
   { screen: 'list', icon: ListChecks, label: 'Задачи', path: '/tasks' },
-  { screen: 'calendar', icon: CalendarIcon, label: 'Календар', path: '/calendar' },
+  {
+    screen: 'calendar',
+    icon: CalendarIcon,
+    label: 'Календар',
+    title: 'Календар на објави',
+    path: '/calendar',
+  },
   { screen: 'clients', icon: Building2, label: 'Клиенти', path: '/clients' },
   { screen: 'analytics', icon: BarChart3, label: 'Аналитика', path: '/analytics' },
   { screen: 'admin', icon: Settings, label: 'Админ', path: '/admin' },
@@ -100,7 +119,7 @@ export function AppShell() {
         {/* Топ лента 56px — наслов по контекст + акции */}
         <header style={topBar}>
           <h1 style={{ fontSize: 18, lineHeight: '26px', fontWeight: 600, margin: 0 }}>
-            {active?.label ?? 'GoDigital'}
+            {active?.title ?? active?.label ?? 'GoDigital'}
           </h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <NotificationsBell />

@@ -22,7 +22,7 @@ import type { ClientRow, EmployeeRow, TaskGroupRow, TaskListItem } from '../../l
 import { deadlineFor, fmtDate, relDate } from '../../lib/tasksView.js';
 import { StatusBadge } from '../../components/StatusBadge.js';
 
-const GRID = 'minmax(240px,2.2fr) 120px 190px 172px 110px 56px 64px';
+const GRID = 'minmax(240px,2.2fr) 104px 190px 172px 104px 56px 60px';
 const VIDEO_STEPS: GroupStatus[] = ['podgotovka', 'scenarija', 'scenKajKlient', 'snimanje'];
 const GRAPHIC_STEPS: GroupStatus[] = ['gPodgotovka'];
 
@@ -68,7 +68,7 @@ export function ListView(props: ListViewProps) {
                 'Датум на објава',
                 'Статус',
                 'Улога и доделен',
-                'Рок',
+                'Датум',
                 'Верзија',
                 'Прилози',
               ].map((h) => (
@@ -194,7 +194,9 @@ function Row({
       <div style={{ ...cell, fontSize: 13, color: dl ? dlColor(dl.level) : 'var(--gd-ink-muted)' }}>
         {dl ? relDate(task.slot?.date) : '—'}
       </div>
-      <div style={{ ...cell, fontVariantNumeric: 'tabular-nums' }}>v{task.version}</div>
+      <div style={{ ...cell, fontVariantNumeric: 'tabular-nums' }}>
+        {task.version > 1 ? `v.${task.version}` : ''}
+      </div>
       <div style={{ ...cell, color: 'var(--gd-ink-muted)' }}>
         {task._count.publications > 0 && (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
