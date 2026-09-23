@@ -3,8 +3,11 @@ import { render, screen } from '@testing-library/react';
 import { Analytics } from './Analytics.js';
 
 describe('Analytics', () => {
-  it('прикажува празна состојба до Фаза B2 (насловот е во топ-лентата)', () => {
+  it('прикажува KPI картички и распоред по Handoff', () => {
     render(<Analytics />);
-    expect(screen.getByText(/Фаза B2/)).toBeTruthy();
+    expect(screen.getByText('Досег')).toBeTruthy();
+    expect(screen.getByText('Органски наспроти платено')).toBeTruthy();
+    expect(screen.getByText('Кампањи во тек')).toBeTruthy();
+    expect(screen.getByText('Топ објави по ангажман')).toBeTruthy();
   });
 });
