@@ -34,7 +34,7 @@ import {
 import { Button, tokens } from '@gd/ui';
 import { useMe } from '../../api/auth.js';
 import { useClients, useEmployees } from '../../api/admin.js';
-import { useFileUpload } from '../../api/files.js';
+import { useFileUpload, useFiles } from '../../api/files.js';
 import {
   useActivity,
   useAddComment,
@@ -79,6 +79,7 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
   const { data: activity } = useActivity(taskId);
   const { data: employees } = useEmployees();
   const { data: clients } = useClients();
+  const { data: files } = useFiles('task', taskId);
   const { data: me } = useMe();
 
   const transition = useTransition(taskId);
@@ -143,6 +144,9 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
   const status = task.status as TaskStatus;
   const ct = task.contentType as ContentType;
   const owner = ownerOf(status, ct);
+  const creativeVersions = (files ?? []).filter((f) =>
+    ['final', 'graphic', 'preview'].includes(f.kind),
+  );
   const empName = (id: string | null) =>
     id ? (employees?.find((e) => e.id === id)?.name ?? '—') : 'Недоделен';
   const assigneeEmp = task.assigneeId
@@ -422,6 +426,20 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
             openState={open.creative}
             onToggle={() => setOpen((o) => ({ ...o, creative: !o.creative }))}
           >
+            {creativeVersions.length > 0 && (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                {creativeVersions.map((f) => (
+                  <button
+                    key={f.id}
+                    style={thumbBtn}
+                    onClick={() => setViewer(true)}
+                    title={f.kind}
+                  >
+                    v.{f.version ?? 1}
+                  </button>
+                ))}
+              </div>
+            )}
             <Button variant="secondary" size="form" onClick={() => setViewer(true)}>
               Отвори преглед на креатива
             </Button>
@@ -1055,6 +1073,17 @@ const priorityChip = (urgent: boolean): React.CSSProperties => ({
   background: urgent ? 'rgba(220,38,38,.1)' : 'var(--gd-surface-alt)',
   border: `1px solid ${urgent ? 'var(--gd-danger)' : 'var(--gd-border)'}`,
 });
+const thumbBtn: React.CSSProperties = {
+  width: 72,
+  height: 64,
+  borderRadius: 6,
+  border: '1px solid var(--gd-border)',
+  background: 'var(--gd-surface-alt)',
+  color: 'var(--gd-ink-secondary)',
+  fontSize: 12,
+  fontWeight: 600,
+  cursor: 'pointer',
+};
 const linkBtn: React.CSSProperties = {
   marginLeft: 8,
   border: 'none',
