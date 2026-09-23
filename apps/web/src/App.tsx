@@ -1,4 +1,6 @@
+import type { ReactElement } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { PERMISSIONS, type Role, type Screen } from '@gd/core';
 import { useMe } from './api/auth.js';
 import { AppShell } from './components/AppShell.js';
 import { Analytics } from './screens/Analytics.js';
@@ -16,6 +18,39 @@ import { AdminClients } from './screens/admin/Clients.js';
 import { AdminEmployees } from './screens/admin/Employees.js';
 import { AdminPermissions } from './screens/admin/RolesPermissions.js';
 
+/** Екран → рута (за пренасочување кон дозволен екран). */
+const SCREEN_PATH: Record<Screen, string> = {
+  director: '/',
+  list: '/tasks',
+  calendar: '/calendar',
+  clients: '/clients',
+  analytics: '/analytics',
+  admin: '/admin',
+};
+
+/** Почетна рута по улога = првиот екран во `nav` (Директор → Преглед, друг → неговиот прв екран). */
+function homePath(role: Role): string {
+  const first = PERMISSIONS[role].nav[0];
+  return first ? SCREEN_PATH[first] : '/tasks';
+}
+
+/**
+ * Ролна порта на ниво на рута (И4): ако улогата го нема екранот во `nav`, пренасочи кон нејзиниот
+ * почетен екран. Скривањето на иконата не е доволно — рутата мора да одбие пристап по URL.
+ */
+function Guard({
+  screen,
+  role,
+  children,
+}: {
+  screen: Screen;
+  role: Role;
+  children: ReactElement;
+}): ReactElement {
+  if (!PERMISSIONS[role].nav.includes(screen)) return <Navigate to={homePath(role)} replace />;
+  return children;
+}
+
 export function App() {
   const { data: me, isLoading, isError } = useMe();
 
@@ -30,12 +65,54 @@ export function App() {
     <BrowserRouter>
       <Routes>
         <Route element={<AppShell />}>
-          <Route index element={<Overview />} />
-          <Route path="tasks" element={<TasksScreen />} />
-          <Route path="calendar" element={<Calendar />} />
-          <Route path="clients" element={<Clients />} />
-          <Route path="analytics" element={<Analytics />} />
-          <Route path="admin" element={<AdminLayout />}>
+          <Route
+            index
+            element={
+              <Guard screen="director" role={me.role}>
+                <Overview />
+              </Guard>
+            }
+          />
+          <Route
+            path="tasks"
+            element={
+              <Guard screen="list" role={me.role}>
+                <TasksScreen />
+              </Guard>
+            }
+          />
+          <Route
+            path="calendar"
+            element={
+              <Guard screen="calendar" role={me.role}>
+                <Calendar />
+              </Guard>
+            }
+          />
+          <Route
+            path="clients"
+            element={
+              <Guard screen="clients" role={me.role}>
+                <Clients />
+              </Guard>
+            }
+          />
+          <Route
+            path="analytics"
+            element={
+              <Guard screen="analytics" role={me.role}>
+                <Analytics />
+              </Guard>
+            }
+          />
+          <Route
+            path="admin"
+            element={
+              <Guard screen="admin" role={me.role}>
+                <AdminLayout />
+              </Guard>
+            }
+          >
             <Route index element={<Navigate to="/admin/clients" replace />} />
             <Route path="clients" element={<AdminClients />} />
             <Route path="employees" element={<AdminEmployees />} />
