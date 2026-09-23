@@ -12,7 +12,6 @@ import { Button } from '@gd/ui';
 import {
   ArrowDownUp,
   ChevronDown,
-  ChevronLeft,
   Filter as FilterIcon,
   LayoutGrid,
   Plus,
@@ -43,10 +42,17 @@ export function TasksScreen() {
   const allTasks = useTasks({});
   const myTasks = useTasks(me ? { assigneeId: me.id } : {});
 
-  // Табот е во топ-лентата (AppShell) и се води преку URL ?tab=; тука само го читаме.
-  const [searchParams] = useSearchParams();
+  // Табот и собирањето на панелот се во топ-лентата (AppShell), водени преку URL.
+  const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
   const tab: Tab = tabParam === 'list' || tabParam === 'board' ? tabParam : 'my';
+  const sidebarOpen = searchParams.get('sb') !== '0';
+  const toggleSidebar = () => {
+    const next = new URLSearchParams(searchParams);
+    if (sidebarOpen) next.set('sb', '0');
+    else next.delete('sb');
+    setSearchParams(next);
+  };
   const [openId, setOpenId] = useState<string | null>(null);
   const [openGroupId, setOpenGroupId] = useState<string | null>(null);
   const [clientId, setClientId] = useState(() => searchParams.get('client') ?? '');
@@ -59,7 +65,6 @@ export function TasksScreen() {
   const [groupBy, setGroupBy] = useState<'client' | 'status'>('client');
   const [sortBy, setSortBy] = useState<'date' | 'client' | 'status'>('date');
   const [compact, setCompact] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [filterOpen, setFilterOpen] = useState(false);
 
   const clientById = useMemo(() => new Map((clients ?? []).map((c) => [c.id, c])), [clients]);
@@ -122,17 +127,6 @@ export function TasksScreen() {
       {/* Контекст sidebar 240px */}
       {sidebarOpen && (
         <aside style={sidebar}>
-          <div style={sidebarHeader}>
-            <span>Работа</span>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              style={sidebarCollapse}
-              title="Собери"
-              aria-label="Собери го панелот"
-            >
-              <ChevronLeft size={16} />
-            </button>
-          </div>
           <SidebarGroup label="Месеци">
             {monthOptions.map((m) => (
               <label key={m} style={checkRow}>
@@ -189,7 +183,7 @@ export function TasksScreen() {
           onCompact={() => setCompact((c) => !c)}
           filterOpen={filterOpen}
           onToggleFilter={() => setFilterOpen((f) => !f)}
-          onToggleSidebar={() => setSidebarOpen((s) => !s)}
+          onToggleSidebar={toggleSidebar}
           search={search}
           onSearch={setSearch}
           months={months}
@@ -466,27 +460,6 @@ const sidebar: React.CSSProperties = {
   background: 'var(--gd-surface)',
   padding: 16,
   overflow: 'auto',
-};
-const sidebarHeader: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  fontSize: 13,
-  fontWeight: 600,
-  color: 'var(--gd-ink-secondary)',
-  marginBottom: 12,
-};
-const sidebarCollapse: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: 24,
-  height: 24,
-  border: 'none',
-  background: 'transparent',
-  color: 'var(--gd-ink-muted)',
-  cursor: 'pointer',
-  borderRadius: 6,
 };
 const sidebarLabel: React.CSSProperties = {
   fontSize: 12,

@@ -4,6 +4,8 @@ import {
   BarChart3,
   Building2,
   Calendar as CalendarIcon,
+  ChevronLeft,
+  ChevronRight,
   LayoutDashboard,
   ListChecks,
   LogOut,
@@ -87,6 +89,17 @@ export function AppShell() {
     ? `GoDigital V.2 · ${month}`
     : (active?.title ?? active?.label ?? 'GoDigital');
 
+  // Контекст-панелот (240px) го носи Задачи екранот; заглавието „Работа ←" стои во истиот
+  // топ-стрип, порамнето над панелот (Handoff). Собирањето се води преку ?sb=0.
+  const hasSidebar = onTasks;
+  const sidebarCollapsed = searchParams.get('sb') === '0';
+  const toggleSidebar = () => {
+    const next = new URLSearchParams(searchParams);
+    if (sidebarCollapsed) next.delete('sb');
+    else next.set('sb', '0');
+    setSearchParams(next);
+  };
+
   const setTab = (key: string) => {
     const next = new URLSearchParams(searchParams);
     next.set('tab', key);
@@ -131,26 +144,51 @@ export function AppShell() {
       </nav>
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        {/* Топ лента 56px — наслов/бренд + табови (Задачи) + Аларми */}
+        {/* Топ стрип 56px — [панел-заглавие 240px][бренд + табови ··· Аларми] */}
         <header style={topBar}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 24, minWidth: 0 }}>
-            <h1 style={brandTitle}>{title}</h1>
-            {onTasks && (
-              <div style={{ display: 'flex', gap: 4 }}>
-                {TASK_TABS.map((t) => (
-                  <button
-                    key={t.key}
-                    onClick={() => setTab(t.key)}
-                    style={tabBtn(currentTab === t.key)}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <NotificationsBell />
+          {hasSidebar && !sidebarCollapsed && (
+            <div style={sidebarHeaderSeg}>
+              <span>Работа</span>
+              <button
+                onClick={toggleSidebar}
+                style={collapseBtn}
+                title="Собери"
+                aria-label="Собери го панелот"
+              >
+                <ChevronLeft size={16} aria-hidden />
+              </button>
+            </div>
+          )}
+          <div style={topBarMain}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 24, minWidth: 0 }}>
+              {hasSidebar && sidebarCollapsed && (
+                <button
+                  onClick={toggleSidebar}
+                  style={collapseBtn}
+                  title="Отвори"
+                  aria-label="Отвори го панелот"
+                >
+                  <ChevronRight size={16} aria-hidden />
+                </button>
+              )}
+              <h1 style={brandTitle}>{title}</h1>
+              {onTasks && (
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {TASK_TABS.map((t) => (
+                    <button
+                      key={t.key}
+                      onClick={() => setTab(t.key)}
+                      style={tabBtn(currentTab === t.key)}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <NotificationsBell />
+            </div>
           </div>
         </header>
 
@@ -203,9 +241,42 @@ const topBar: React.CSSProperties = {
   background: 'var(--gd-surface)',
   borderBottom: '1px solid var(--gd-border)',
   display: 'flex',
+  alignItems: 'stretch',
+};
+
+const sidebarHeaderSeg: React.CSSProperties = {
+  width: 240,
+  flex: '0 0 240px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: '0 12px 0 16px',
+  borderRight: '1px solid var(--gd-border)',
+  fontSize: 13,
+  fontWeight: 600,
+  color: 'var(--gd-ink-secondary)',
+};
+
+const topBarMain: React.CSSProperties = {
+  flex: 1,
+  minWidth: 0,
+  display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
   padding: '0 20px',
+};
+
+const collapseBtn: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 24,
+  height: 24,
+  border: 'none',
+  background: 'transparent',
+  color: 'var(--gd-ink-muted)',
+  cursor: 'pointer',
+  borderRadius: 6,
 };
 
 const brandTitle: React.CSSProperties = {
