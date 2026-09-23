@@ -196,6 +196,11 @@ export function AppShell() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <NotificationsBell />
+              {me && PERMISSIONS[me.role].nav.includes('admin') && (
+                <NavLink to="/admin" style={topBarLink}>
+                  Админ
+                </NavLink>
+              )}
             </div>
           </div>
         </header>
@@ -274,6 +279,19 @@ const topBarMain: React.CSSProperties = {
   padding: '0 20px',
 };
 
+const topBarLink: React.CSSProperties = {
+  height: 32,
+  padding: '0 12px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  border: '1px solid var(--gd-border)',
+  borderRadius: 8,
+  fontSize: 13,
+  fontWeight: 500,
+  color: 'var(--gd-ink)',
+  textDecoration: 'none',
+  background: 'var(--gd-surface)',
+};
 const collapseBtn: React.CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
