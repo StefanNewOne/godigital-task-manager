@@ -5,11 +5,11 @@ import type { Prisma } from '@gd/db';
 import { prisma } from '../db/tenantExtension.js';
 import { AppError } from '../lib/errors.js';
 import { parse } from '../lib/validate.js';
-import { requireAuth, requireRole } from '../middleware/auth.js';
+import { requireAuth, requireRole, requireScreen } from '../middleware/auth.js';
 
-// /automation-rules
+// /automation-rules — Админ конфигурација: само улоги со екран „admin" во nav (defense in depth).
 export const automationRulesRouter: ExpressRouter = Router();
-automationRulesRouter.use(requireAuth);
+automationRulesRouter.use(requireAuth, requireScreen('admin'));
 
 automationRulesRouter.get('/', async (_req, res) => {
   const rules = await prisma.automationRule.findMany({ orderBy: { createdAt: 'asc' } });
@@ -45,9 +45,9 @@ automationRulesRouter.post('/:id/toggle', requireRole('dir'), async (req, res) =
   res.json({ data: updated });
 });
 
-// /automation-runs
+// /automation-runs — Админ конфигурација: само улоги со екран „admin" во nav.
 export const automationRunsRouter: ExpressRouter = Router();
-automationRunsRouter.use(requireAuth);
+automationRunsRouter.use(requireAuth, requireScreen('admin'));
 
 automationRunsRouter.get('/', async (_req, res) => {
   const runs = await prisma.automationRun.findMany({ orderBy: { ranAt: 'desc' }, take: 100 });

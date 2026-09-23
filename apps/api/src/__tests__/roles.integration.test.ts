@@ -144,6 +144,21 @@ describe('мулти-ролна RBAC проверка (сите 9 улоги)', 
     }
   });
 
+  it('GET /api/automation-rules + /api/automation-runs: само екран „admin" (само Директор)', async () => {
+    for (const path of ['/api/automation-rules', '/api/automation-runs']) {
+      for (const a of ACCOUNTS) {
+        const s = sessions.get(a.role)!;
+        const r = await request(app).get(path).set('Authorization', `Bearer ${s.token}`);
+        if (PERMISSIONS[a.role].nav.includes('admin')) {
+          expect(r.status, `${a.role} → ${path}`).toBe(200);
+        } else {
+          expect(r.status, `${a.role} не смее да чита ${path}`).toBe(403);
+          expect(r.body.code).toBe('FORBIDDEN_ROLE');
+        }
+      }
+    }
+  });
+
   it('неавтентициран пристап до заштитени рути → 401', async () => {
     for (const path of ['/api/me', '/api/tasks', '/api/clients']) {
       const r = await request(app).get(path);

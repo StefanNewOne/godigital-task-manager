@@ -86,6 +86,12 @@ const TOP_POSTS = [
 export function Analytics() {
   return (
     <div style={{ padding: '24px 20px 48px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Чесен маркер: ова се демонстративни бројки додека Meta интеграцијата (Фаза B2) не влезе. */}
+      <div style={demoBanner} role="note">
+        Демонстративни податоци — реалните метрики се влечат од Meta во Фаза B2. Распоредот е
+        финален.
+      </div>
+
       {/* KPI картички */}
       <div style={kpiGrid}>
         {KPIS.map((k) => (
@@ -256,6 +262,15 @@ function Split({ color, title, lines }: { color: string; title: string; lines: s
   );
 }
 
+const demoBanner: React.CSSProperties = {
+  background: 'var(--gd-warning-tint, #FEF3C7)',
+  border: '1px solid var(--gd-warning, #D97706)',
+  color: 'var(--gd-warning-text, #92400E)',
+  borderRadius: 8,
+  padding: '10px 14px',
+  fontSize: 13,
+  fontWeight: 500,
+};
 const kpiGrid: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
