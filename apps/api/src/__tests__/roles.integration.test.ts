@@ -131,6 +131,19 @@ describe('мулти-ролна RBAC проверка (сите 9 улоги)', 
     }
   });
 
+  it('GET /api/overview: само улоги со екран „director" во nav (defense in depth)', async () => {
+    for (const a of ACCOUNTS) {
+      const s = sessions.get(a.role)!;
+      const r = await request(app).get('/api/overview').set('Authorization', `Bearer ${s.token}`);
+      if (PERMISSIONS[a.role].nav.includes('director')) {
+        expect(r.status, `${a.role} треба да гледа преглед`).toBe(200);
+      } else {
+        expect(r.status, `${a.role} не смее да гледа преглед`).toBe(403);
+        expect(r.body.code).toBe('FORBIDDEN_ROLE');
+      }
+    }
+  });
+
   it('неавтентициран пристап до заштитени рути → 401', async () => {
     for (const path of ['/api/me', '/api/tasks', '/api/clients']) {
       const r = await request(app).get(path);

@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import type { Role } from '@gd/core';
+import { PERMISSIONS, type Role, type Screen } from '@gd/core';
 import { requestContext } from '../db/context.js';
 import { AppError } from '../lib/errors.js';
 import { verifyAccessToken } from '../lib/auth.js';
@@ -44,6 +44,24 @@ export function requireRole(...roles: Role[]) {
     }
     if (!roles.includes(req.auth.role)) {
       next(new AppError('FORBIDDEN_ROLE', 'Немате дозвола за оваа операција.', 403));
+      return;
+    }
+    next();
+  };
+}
+
+/**
+ * Дозволува само улоги што го носат екранот во `nav` (иста табела `PERMISSIONS` како UI Guard-от) —
+ * defense in depth (CLAUDE.md §9.1): серверот не се потпира на скривање на иконата во UI.
+ */
+export function requireScreen(screen: Screen) {
+  return (req: Request, _res: Response, next: NextFunction): void => {
+    if (!req.auth) {
+      next(new AppError('UNAUTHENTICATED', 'Не сте најавени.', 401));
+      return;
+    }
+    if (!PERMISSIONS[req.auth.role].nav.includes(screen)) {
+      next(new AppError('FORBIDDEN_ROLE', 'Немате дозвола за овој екран.', 403));
       return;
     }
     next();
