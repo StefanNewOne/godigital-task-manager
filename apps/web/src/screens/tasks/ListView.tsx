@@ -8,7 +8,6 @@ import {
   type GroupStatus,
   type TaskStatus,
 } from '@gd/core';
-import { Button } from '@gd/ui';
 import {
   ChevronDown,
   ChevronRight,
@@ -223,47 +222,68 @@ function Row({
   );
 }
 
+const CAPA_MONTHS = [
+  'Јануари',
+  'Февруари',
+  'Март',
+  'Април',
+  'Мај',
+  'Јуни',
+  'Јули',
+  'Август',
+  'Септември',
+  'Октомври',
+  'Ноември',
+  'Декември',
+];
+
 function CapaStrip({ groups, clientById, empById, onOpenCapa }: ListViewProps) {
   // Само активни капи (претпродукција) се прикажуваат како картички; затворените се скриени (Handoff).
   const active = groups.filter((g) => g.status !== 'zatvoren');
   if (active.length === 0) return null;
-  const cardsMode = active.length > 1;
   return (
-    <div style={cardsMode ? capaGrid : undefined}>
-      {active.map((g) => {
-        const client = clientById.get(g.clientId);
-        const owner = g.scenaristId ? empById.get(g.scenaristId)?.name : null;
-        const total = g.scenariosTotal || g.plannedCount;
-        return (
-          <div key={g.id} style={capaBanner}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <Clapperboard size={16} color="var(--gd-primary)" />
-              <strong style={{ fontSize: 14 }}>
-                {client?.name} · {g.contentType === 'video' ? 'Видео' : 'Графика'} · {g.monthKey}
-              </strong>
-              <span style={capaChip}>
-                {GROUP_STATUS_META[g.status as GroupStatus]?.label ?? g.status}
-              </span>
-              <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-                <Button variant="secondary" size="toolbar" onClick={() => onOpenCapa(g.id)}>
-                  Отвори капа
-                </Button>
+    <div style={{ marginBottom: 16 }}>
+      <div style={capaStripHead}>Капа таскови · {active.length}</div>
+      <div style={active.length > 1 ? capaGrid : undefined}>
+        {active.map((g) => {
+          const client = clientById.get(g.clientId);
+          const meta = GROUP_STATUS_META[g.status as GroupStatus];
+          const ownerId =
+            meta?.owner === 'kam' ? g.kamId : meta?.owner === 'rez' ? g.rezId : g.scenaristId;
+          const ownerName = ownerId ? empById.get(ownerId)?.name : null;
+          const total = g.scenariosTotal || g.plannedCount;
+          const [yy, mm] = g.monthKey.split('-');
+          const monthLabel = `${CAPA_MONTHS[Number(mm) - 1] ?? mm} ${yy}`;
+          return (
+            <button key={g.id} style={capaBanner} onClick={() => onOpenCapa(g.id)}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Clapperboard size={16} color="var(--gd-primary)" />
+                <span
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: client?.color ?? '#ccc',
+                    flex: '0 0 auto',
+                  }}
+                />
+                <strong style={{ fontSize: 14 }}>{client?.name}</strong>
               </div>
-            </div>
-            <div style={{ fontSize: 13, color: 'var(--gd-ink-secondary)' }}>
-              {g.contentType === 'video'
-                ? `${g.scenariosApproved} од ${total} сценарија одобрени${owner ? ` · кај ${owner}` : ''}`
-                : `${g.plannedCount} слота во пакетот`}
-            </div>
-            {g.shootDate && (
-              <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)', marginTop: 4 }}>
-                Снимање {fmtDate(g.shootDate)}
-                {g.shootLocation ? ` · ${g.shootLocation}` : ''}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '6px 0' }}>
+                <span style={{ fontSize: 13, color: 'var(--gd-ink-secondary)' }}>
+                  {g.contentType === 'video' ? 'Видео' : 'Графика'} · {monthLabel}
+                </span>
+                <span style={capaChip}>{meta?.label ?? g.status}</span>
               </div>
-            )}
-          </div>
-        );
-      })}
+              <div style={{ fontSize: 13, color: 'var(--gd-ink-secondary)' }}>
+                {g.contentType === 'video'
+                  ? `${g.scenariosApproved} од ${total} сценарија одобрени${ownerName ? ` · кај ${ownerName}` : ''}`
+                  : `${g.plannedCount} слота во пакетот`}
+              </div>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -384,18 +404,27 @@ const ellipsis: React.CSSProperties = {
   textOverflow: 'ellipsis',
   whiteSpace: 'nowrap',
 };
+const capaStripHead: React.CSSProperties = {
+  fontSize: 13,
+  fontWeight: 600,
+  color: 'var(--gd-ink-secondary)',
+  marginBottom: 8,
+};
 const capaGrid: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
   gap: 12,
-  marginBottom: 16,
 };
 const capaBanner: React.CSSProperties = {
+  display: 'block',
+  width: '100%',
+  textAlign: 'left',
   border: '1px solid var(--gd-primary-border)',
   background: 'var(--gd-primary-wash)',
   borderRadius: 8,
   padding: 16,
   marginBottom: 16,
+  cursor: 'pointer',
 };
 const capaChip: React.CSSProperties = {
   fontSize: 12,

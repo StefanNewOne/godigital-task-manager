@@ -135,7 +135,10 @@ async function main() {
           monthKey: MONTH,
           status,
           plannedCount: type === 'video' ? c.video : c.graphic,
-          scenaristId: capa && capa[2] ? scenId : null,
+          // „кај {име}" = сопственикот на тековниот капа-статус (scen/rez/kam).
+          scenaristId: capa ? scenId : null,
+          rezId: capa ? byRole.rez : null,
+          kamId: capa ? byRole.kam : null,
           shootDate: capa && capa[3] ? new Date(Date.UTC(YEAR, M0, capa[3])) : null,
           shootLocation: capa ? (capa[4] ?? null) : null,
         },
