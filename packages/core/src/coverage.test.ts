@@ -4,6 +4,7 @@ import {
   clientCoverage,
   coverageLevel,
   plannedCoverage,
+  plannedUntil,
   readyCoverage,
 } from './coverage.js';
 
@@ -32,6 +33,17 @@ describe('coverage', () => {
   it('plannedCoverage = 0 кога сè е во минато или нема', () => {
     expect(plannedCoverage([], today)).toBe(0);
     expect(plannedCoverage([{ status: 'objaveno', publishDate: d(2026, 8, 10) }], today)).toBe(0);
+  });
+
+  it('plannedUntil = најдоцниот испланиран датум (не floored), null ако нема', () => {
+    const tasks: CoverageTask[] = [
+      { status: 'dizajn', publishDate: d(2026, 8, 30) },
+      { status: 'mrtov', publishDate: d(2026, 9, 15) }, // се игнорира
+      { status: 'objaveno', publishDate: d(2026, 8, 25) },
+    ];
+    expect(plannedUntil(tasks)).toEqual(d(2026, 8, 30));
+    expect(plannedUntil([])).toBeNull();
+    expect(plannedUntil([{ status: 'mrtov', publishDate: d(2026, 9, 15) }])).toBeNull();
   });
 
   it('readyCoverage брои само За објавување или подоцна', () => {

@@ -56,6 +56,14 @@ export function plannedCoverage(tasks: CoverageTask[], today: Date): number {
 }
 
 /**
+ * Најдоцен испланиран публикациски датум (истиот опсег како `plannedCoverage`), или `null`.
+ * За приказ „покриено до {датум}" во Прегледот. Не се floor-ира — може да е во минато.
+ */
+export function plannedUntil(tasks: CoverageTask[]): Date | null {
+  return maxPublishDate(tasks, (s) => !EXCLUDED_FROM_PLANNED.has(s));
+}
+
+/**
  * Готова покриеност: најдоцен датум меѓу тасковите во „За објавување" или подоцна.
  * Информативен втор индикатор во Преглед („готово до {датум}"). НЕ се floor-ира.
  */

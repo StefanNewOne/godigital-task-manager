@@ -1,9 +1,56 @@
 import type React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TASK_STATUS_META, type TaskStatus } from '@gd/core';
+import { TASK_STATUS_META, coverageLevel, type TaskStatus } from '@gd/core';
 import { tokens } from '@gd/ui';
 import { useOverview, type CoverageRow } from '../api/overview.js';
 import { StatusBadge } from '../components/StatusBadge.js';
+
+/** ISO → DD.MM (кратко, за „до {датум}"). */
+function shortDate(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getUTCDate()).padStart(2, '0')}.${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+/** Една линија на покриеност по тип: лента (дена/30) + „до {датум}". */
+function CoverageLine({
+  label,
+  days,
+  quota,
+  until,
+}: {
+  label: string;
+  days: number;
+  quota: number;
+  until: string | null;
+}) {
+  const level = coverageLevel(days);
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+      <span style={{ width: 92, color: 'var(--gd-ink-muted)' }}>
+        {label} · {quota}/мес
+      </span>
+      <div
+        style={{
+          flex: '0 0 72px',
+          height: 4,
+          borderRadius: 9999,
+          background: 'var(--gd-surface-alt)',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            height: '100%',
+            width: `${Math.min(days / 30, 1) * 100}%`,
+            background: LEVEL_COLOR[level],
+          }}
+        />
+      </div>
+      <span style={{ color: LEVEL_TEXT[level], fontWeight: 600, ...tabular }}>{days} дена</span>
+      {until && <span style={{ color: 'var(--gd-ink-muted)' }}>· до {shortDate(until)}</span>}
+    </div>
+  );
+}
 
 const LEVEL_COLOR: Record<CoverageRow['level'], string> = {
   ok: 'var(--gd-success)',
@@ -43,11 +90,24 @@ export function Overview() {
             <span style={{ ...covBar, background: LEVEL_COLOR[c.level] }} />
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.color }} />
             <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-              <div style={{ fontWeight: 500 }}>{c.name}</div>
-              <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>
-                {c.video != null && <span>Видео · {c.video} дена</span>}
-                {c.video != null && c.graphic != null && <span> · </span>}
-                {c.graphic != null && <span>Графика · {c.graphic} дена</span>}
+              <div style={{ fontWeight: 500, marginBottom: 4 }}>{c.name}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {c.video != null && (
+                  <CoverageLine
+                    label="Видео"
+                    days={c.video}
+                    quota={c.videoQuota}
+                    until={c.videoUntil}
+                  />
+                )}
+                {c.graphic != null && (
+                  <CoverageLine
+                    label="Графика"
+                    days={c.graphic}
+                    quota={c.graphicQuota}
+                    until={c.graphicUntil}
+                  />
+                )}
               </div>
             </div>
             <span style={{ color: LEVEL_TEXT[c.level], fontWeight: 600, ...tabular }}>
@@ -87,6 +147,17 @@ export function Overview() {
               </div>
               <span style={{ width: 32, textAlign: 'right', fontWeight: 600, ...tabular }}>
                 {s.count}
+              </span>
+              <span
+                style={{
+                  width: 84,
+                  textAlign: 'right',
+                  fontSize: 12,
+                  color: 'var(--gd-ink-muted)',
+                  ...tabular,
+                }}
+              >
+                {s.avgDays > 0 ? `◷ ${s.avgDays}д просек` : ''}
               </span>
             </button>
           ))}

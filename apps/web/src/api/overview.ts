@@ -7,13 +7,17 @@ export interface CoverageRow {
   color: string;
   video: number | null;
   graphic: number | null;
+  videoQuota: number;
+  graphicQuota: number;
+  videoUntil: string | null;
+  graphicUntil: string | null;
   days: number;
   level: 'ok' | 'warn' | 'danger';
 }
 
 export interface OverviewData {
   coverage: CoverageRow[];
-  byStatus: Array<{ status: string; count: number }>;
+  byStatus: Array<{ status: string; count: number; avgDays: number }>;
   alarms: unknown[];
   campaigns: unknown[];
 }

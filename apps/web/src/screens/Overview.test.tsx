@@ -13,6 +13,10 @@ const DATA: OverviewData = {
       color: '#f00',
       video: 12,
       graphic: 8,
+      videoQuota: 4,
+      graphicQuota: 8,
+      videoUntil: '2026-10-05T00:00:00.000Z',
+      graphicUntil: '2026-10-01T00:00:00.000Z',
       days: 12,
       level: 'warn',
     },
@@ -22,11 +26,15 @@ const DATA: OverviewData = {
       color: '#0f0',
       video: 3,
       graphic: null,
+      videoQuota: 2,
+      graphicQuota: 0,
+      videoUntil: '2026-09-26T00:00:00.000Z',
+      graphicUntil: null,
       days: 3,
       level: 'danger',
     },
   ],
-  byStatus: [{ status: 'dizajn', count: 4 }],
+  byStatus: [{ status: 'dizajn', count: 4, avgDays: 3 }],
   alarms: [],
   campaigns: [],
 };
@@ -40,10 +48,13 @@ describe('Overview', () => {
 
     expect(await screen.findByText('Клиент Еден')).toBeTruthy();
     expect(screen.getByText('Клиент Два')).toBeTruthy();
-    expect(screen.getByText('12 дена')).toBeTruthy();
-    // статус беџ од TASK_STATUS_META
+    // „12 дена" се појавува и во видео-линијата и во вкупната покриеност на c1.
+    expect(screen.getAllByText('12 дена').length).toBeGreaterThan(0);
+    expect(screen.getByText(/Видео · 4\/мес/)).toBeTruthy();
+    // статус беџ од TASK_STATUS_META + просек денови
     expect(screen.getByText(TASK_STATUS_META.dizajn.label)).toBeTruthy();
     expect(screen.getByText('4')).toBeTruthy();
+    expect(screen.getByText(/3д просек/)).toBeTruthy();
   });
 
   it('најлошата покриеност е прва (сортирано по денови растечки)', async () => {
