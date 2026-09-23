@@ -29,13 +29,29 @@ const VIEW_SECTIONS: Record<View, UrgencyBucket[]> = {
 
 interface MyTasksProps {
   tasks: TaskListItem[];
+  capaCount: number;
   clientById: Map<string, ClientRow>;
   openId: string | null;
   onOpen: (id: string) => void;
 }
 
+/** Македонски плурал (CLAUDE §4): 1 задача / N задачи. */
+function taskWord(n: number): string {
+  return n === 1 ? 'задача' : 'задачи';
+}
+/** 1 капа таск / 2–4 капа таска / N капа таскови. */
+function capaWord(n: number): string {
+  const m = n % 10;
+  if (n === 1) return 'капа таск';
+  if (m >= 2 && m <= 4 && (n < 12 || n > 14)) return 'капа таска';
+  return 'капа таскови';
+}
+function lateWord(n: number): string {
+  return n === 1 ? 'доцна' : 'доцни';
+}
+
 /** Мои задачи (Handoff §2.1): секции по итност + прегледи Сите мои / Доцни / Оваа недела. */
-export function MyTasks({ tasks, clientById, openId, onOpen }: MyTasksProps) {
+export function MyTasks({ tasks, capaCount, clientById, openId, onOpen }: MyTasksProps) {
   const [view, setView] = useState<View>('all');
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const overdue = tasks.filter((t) => bucketOf(t) === 'overdue').length;
@@ -52,7 +68,8 @@ export function MyTasks({ tasks, clientById, openId, onOpen }: MyTasksProps) {
   return (
     <div style={{ maxWidth: 900 }}>
       <p style={{ fontSize: 14, color: 'var(--gd-ink-secondary)', margin: '0 0 12px' }}>
-        Имаш {tasks.length} задачи, {overdue} доцни.
+        Имаш {tasks.length} {taskWord(tasks.length)}
+        {capaCount > 0 && ` и ${capaCount} ${capaWord(capaCount)}`}, {overdue} {lateWord(overdue)}.
       </p>
 
       <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>

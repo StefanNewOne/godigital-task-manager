@@ -1,7 +1,13 @@
 import type React from 'react';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ALL_STATUSES, TASK_STATUS_META, canCreate, type TaskStatus } from '@gd/core';
+import {
+  ALL_STATUSES,
+  GROUP_STATUS_META,
+  TASK_STATUS_META,
+  canCreate,
+  type TaskStatus,
+} from '@gd/core';
 import { Button } from '@gd/ui';
 import {
   ArrowDownUp,
@@ -105,6 +111,15 @@ export function TasksScreen() {
     month: months.size === 1 ? [...months][0] : undefined,
   });
 
+  // Отворени капи што ги носи мојата улога (за резимето во „Мои задачи").
+  const myCapaCount = me
+    ? (groupsQ.data ?? []).filter(
+        (g) =>
+          g.status !== 'zatvoren' &&
+          GROUP_STATUS_META[g.status as keyof typeof GROUP_STATUS_META]?.owner === me.role,
+      ).length
+    : 0;
+
   return (
     <div style={{ display: 'flex', height: '100%' }}>
       {/* Контекст sidebar 240px */}
@@ -187,7 +202,13 @@ export function TasksScreen() {
 
         <main style={{ flex: 1, overflow: 'auto', padding: '20px' }}>
           {tab === 'my' && (
-            <MyTasks tasks={filtered} clientById={clientById} openId={openId} onOpen={setOpenId} />
+            <MyTasks
+              tasks={filtered}
+              capaCount={myCapaCount}
+              clientById={clientById}
+              openId={openId}
+              onOpen={setOpenId}
+            />
           )}
           {tab === 'list' && (
             <ListView
