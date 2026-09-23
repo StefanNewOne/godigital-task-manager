@@ -85,6 +85,10 @@
 | TD-4 | Tenant extension не пресретнува `findUnique`/`update`/`delete` (unique-where по id)       | Инјектирање tenantId во unique-where би паднало во Prisma; денес е еден тенант, id е глобален uuid                                                                                                                               | При активација на мулти-тенант: замени со `findFirst`/`updateMany` со tenant-guard, или post-fetch проверка на `tenantId`                                                 | Низок денес, критичен при мулти-тенант                  |
 | TD-5 | Append-only (EventLog/MetricSnapshot/Revision/Approval) не е спроведено со DB привилегии  | Dev користи единствен сопственички DB role; REVOKE нема ефект врз сопственикот                                                                                                                                                   | Во deployment фаза: двоуложен setup (app role ≠ owner), откоментирај го REVOKE во init миграцијата                                                                        | Среден (заштитата денес е само на код ниво)             |
 
+**TD-6 — `turbo` паѓа со `spawn UNKNOWN` (errno -4094) на локалната машина.** `pnpm test/lint/typecheck/build` од root не работат. Причина: Node **26.7** е понов од поддршката на turbo 2.11.2 (линкувањето на `@turbo/windows-64` е исправно, но native spawn под Node 26 враќа UNKNOWN). Поправка: пинирај Node на 22 LTS (`.nvmrc`/`engines`) локално, или надгради turbo кога излезе Node-26-компатибилна верзија. Заобиколување засега: тргај по пакет со `pnpm --filter <pkg> <script>`. Ризик: низок (само локална ергономија; per-package и CI работат).
+
+**TD-7 — `packages/core` е на 99.41% (vitest gate е 90/85/90/90, не 100 како во CLAUDE §13).** Дел од непокриеното се дефанзивни `?? null` гранки во `publications.ts` (недостижни без unreachable код) + неколку линии во `metrics.ts`/`coverage.ts`. Поправка: покриј ги достижните линии; за дефанзивните гранки одлучи `/* c8 ignore */` + крени gate на 100, или задржи 85 branch со образложение. Ризик: низок.
+
 ---
 
 ## 6. Hotfix / Improvement бројач
