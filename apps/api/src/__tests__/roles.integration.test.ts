@@ -80,6 +80,28 @@ describe('мулти-ролна RBAC проверка (сите 9 улоги)', 
     }
   });
 
+  it('GET /api/task-groups почитува опсег: own гледа само капи каде е вклучен', async () => {
+    for (const a of ACCOUNTS) {
+      const s = sessions.get(a.role)!;
+      const r = await request(app)
+        .get('/api/task-groups')
+        .set('Authorization', `Bearer ${s.token}`);
+      expect(r.status, `task-groups за ${a.role}`).toBe(200);
+      const groups = r.body.data as Array<{
+        scenaristId: string | null;
+        rezId: string | null;
+        kamId: string | null;
+      }>;
+      if (PERMISSIONS[a.role].scope === 'own') {
+        // Секоја видлива капа мора да го вклучува вработениот како scenarist/rez/kam.
+        expect(
+          groups.every((g) => [g.scenaristId, g.rezId, g.kamId].includes(s.employeeId)),
+          `${a.role} (own) не смее да гледа туѓи капи`,
+        ).toBe(true);
+      }
+    }
+  });
+
   it('POST /api/clients: само Директор поминува ролната порта', async () => {
     for (const a of ACCOUNTS) {
       const s = sessions.get(a.role)!;

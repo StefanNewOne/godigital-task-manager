@@ -1,6 +1,11 @@
 import { Router } from 'express';
 import type { Router as ExpressRouter } from 'express';
-import { groupTransitionSchema, scenarioOutcomesSchema, scenarioSplitSchema } from '@gd/core';
+import {
+  PERMISSIONS,
+  groupTransitionSchema,
+  scenarioOutcomesSchema,
+  scenarioSplitSchema,
+} from '@gd/core';
 import type { Prisma } from '@gd/db';
 import { prisma } from '../db/tenantExtension.js';
 import { AppError } from '../lib/errors.js';
@@ -18,6 +23,10 @@ taskGroupsRouter.get('/', async (req, res) => {
   if (clientId) where.clientId = clientId;
   if (month) where.monthKey = month;
   if (type === 'video' || type === 'graphic') where.contentType = type;
+  // Опсег (И4): own-scope роли гледаат само капи каде се вклучени (scenarist/rez/kam).
+  if (PERMISSIONS[req.auth!.role].scope === 'own') {
+    where.OR = [{ scenaristId: req.auth!.sub }, { rezId: req.auth!.sub }, { kamId: req.auth!.sub }];
+  }
   const groups = await prisma.taskGroup.findMany({ where, orderBy: { monthKey: 'desc' } });
   // Сценарио бројки по група (за капа-картичката „N од M сценарија одобрени").
   const scenarios = await prisma.scenario.findMany({
@@ -47,6 +56,13 @@ taskGroupsRouter.get('/:id', async (req, res) => {
     include: { client: { select: { name: true } } },
   });
   if (!group) throw new AppError('NOT_FOUND', 'Капа таскот не е пронајден.', 404);
+  // own-scope смее да ја отвори само капата каде е вклучен (не открива постоење на туѓа).
+  if (
+    PERMISSIONS[req.auth!.role].scope === 'own' &&
+    ![group.scenaristId, group.rezId, group.kamId].includes(req.auth!.sub)
+  ) {
+    throw new AppError('NOT_FOUND', 'Капа таскот не е пронајден.', 404);
+  }
   const [totalChildren, activeChildren, sharedFiles] = await Promise.all([
     prisma.task.count({ where: { groupId: id } }),
     prisma.task.count({ where: { groupId: id, status: { not: 'mrtov' } } }),
