@@ -1,7 +1,8 @@
 import type React from 'react';
 import { useState } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
-import type { ClientRow, TaskListItem } from '../../lib/types.js';
+import { ChevronDown, ChevronRight, Clapperboard } from 'lucide-react';
+import { GROUP_STATUS_META } from '@gd/core';
+import type { ClientRow, TaskGroupRow, TaskListItem } from '../../lib/types.js';
 import {
   bucketOf,
   deadlineFor,
@@ -29,10 +30,11 @@ const VIEW_SECTIONS: Record<View, UrgencyBucket[]> = {
 
 interface MyTasksProps {
   tasks: TaskListItem[];
-  capaCount: number;
+  capas: TaskGroupRow[];
   clientById: Map<string, ClientRow>;
   openId: string | null;
   onOpen: (id: string) => void;
+  onOpenCapa: (id: string) => void;
 }
 
 /** Македонски плурал (CLAUDE §4): 1 задача / N задачи. */
@@ -51,10 +53,11 @@ function lateWord(n: number): string {
 }
 
 /** Мои задачи (Handoff §2.1): секции по итност + прегледи Сите мои / Доцни / Оваа недела. */
-export function MyTasks({ tasks, capaCount, clientById, openId, onOpen }: MyTasksProps) {
+export function MyTasks({ tasks, capas, clientById, openId, onOpen, onOpenCapa }: MyTasksProps) {
   const [view, setView] = useState<View>('all');
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const overdue = tasks.filter((t) => bucketOf(t) === 'overdue').length;
+  const capaCount = capas.length;
 
   const byBucket = (b: UrgencyBucket) => tasks.filter((t) => bucketOf(t) === b);
   const visibleSections = SECTIONS.filter((s) => VIEW_SECTIONS[view].includes(s.key));
@@ -80,7 +83,46 @@ export function MyTasks({ tasks, capaCount, clientById, openId, onOpen }: MyTask
         ))}
       </div>
 
-      {tasks.length === 0 && (
+      {view === 'all' && capas.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ ...sectionHeader, cursor: 'default' }}>
+            <Clapperboard size={14} />
+            <span>Мои капи</span>
+            <span style={{ color: 'var(--gd-ink-muted)', fontWeight: 400 }}>· {capas.length}</span>
+          </div>
+          <div style={card}>
+            {capas.map((g) => {
+              const client = clientById.get(g.clientId);
+              const label =
+                GROUP_STATUS_META[g.status as keyof typeof GROUP_STATUS_META]?.label ?? g.status;
+              const typeLabel = g.contentType === 'video' ? 'Видео' : 'Графика';
+              return (
+                <button key={g.id} onClick={() => onOpenCapa(g.id)} style={row(false)}>
+                  <span
+                    style={{
+                      width: 3,
+                      height: 24,
+                      borderRadius: 2,
+                      background: client?.color ?? '#ccc',
+                      flex: '0 0 auto',
+                    }}
+                  />
+                  <span style={rowTitle}>{client?.name ?? 'Клиент'}</span>
+                  <span style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>{typeLabel}</span>
+                  <span style={capaChip}>{label}</span>
+                  {g.contentType === 'video' && g.scenariosTotal > 0 && (
+                    <span style={rowDate}>
+                      {g.scenariosApproved}/{g.scenariosTotal} сцен.
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {tasks.length === 0 && capas.length === 0 && (
         <p style={{ color: 'var(--gd-ink-muted)' }}>Нема задачи за тебе во моментот.</p>
       )}
 
@@ -208,4 +250,13 @@ const rowDate: React.CSSProperties = {
   color: 'var(--gd-ink-muted)',
   fontSize: 13,
   fontVariantNumeric: 'tabular-nums',
+};
+const capaChip: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 600,
+  color: 'var(--gd-ink-secondary)',
+  background: 'var(--gd-surface-alt)',
+  border: '1px solid var(--gd-border)',
+  borderRadius: 9999,
+  padding: '1px 8px',
 };

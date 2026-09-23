@@ -133,14 +133,15 @@ export function TasksScreen() {
     month: months.size === 1 ? [...months][0] : undefined,
   });
 
-  // Отворени капи што ги носи мојата улога (за резимето во „Мои задачи").
-  const myCapaCount = me
+  // Отворени капи што ги носи мојата улога (кликливи во „Мои задачи").
+  // Опсегот е веќе спроведен серверски (own гледа само своите капи), тука филтрираме по статус.
+  const myCapas = me
     ? (groupsQ.data ?? []).filter(
         (g) =>
           g.status !== 'zatvoren' &&
           GROUP_STATUS_META[g.status as keyof typeof GROUP_STATUS_META]?.owner === me.role,
-      ).length
-    : 0;
+      )
+    : [];
 
   return (
     <div style={{ display: 'flex', height: '100%' }}>
@@ -217,10 +218,11 @@ export function TasksScreen() {
           {tab === 'my' && (
             <MyTasks
               tasks={filtered}
-              capaCount={myCapaCount}
+              capas={myCapas}
               clientById={clientById}
               openId={openId}
               onOpen={setOpenId}
+              onOpenCapa={setOpenGroupId}
             />
           )}
           {tab === 'list' && (
