@@ -33,6 +33,25 @@ import { MyTasks } from './MyTasks.js';
 
 type Tab = 'my' | 'list' | 'board';
 const monthOf = (iso: string | null | undefined) => (iso ? iso.slice(0, 7) : null);
+const MK_MONTHS = [
+  'Јануари',
+  'Февруари',
+  'Март',
+  'Април',
+  'Мај',
+  'Јуни',
+  'Јули',
+  'Август',
+  'Септември',
+  'Октомври',
+  'Ноември',
+  'Декември',
+];
+/** „2026-09" → „Септември 2026" (како во Преглед и прототипот). */
+const fmtMonth = (mk: string) => {
+  const [y, m] = mk.split('-');
+  return `${MK_MONTHS[Number(m) - 1] ?? m} ${y}`;
+};
 
 export function TasksScreen() {
   const { data: me } = useMe();
@@ -135,7 +154,7 @@ export function TasksScreen() {
                   checked={months.has(m)}
                   onChange={() => setMonths((s) => toggle(s, m))}
                 />
-                {m}
+                {fmtMonth(m)}
                 <span style={{ marginLeft: 'auto', color: 'var(--gd-ink-muted)' }}>
                   {(allTasks.data ?? []).filter((t) => monthOf(t.slot?.date) === m).length}
                 </span>
@@ -359,7 +378,7 @@ function Toolbar(p: ToolbarProps) {
                     checked={p.months.has(m)}
                     onChange={() => p.setMonths((s) => toggle(s, m))}
                   />
-                  {m}
+                  {fmtMonth(m)}
                 </label>
               ))}
               <div style={{ ...popTitle, marginTop: 8 }}>Статус</div>

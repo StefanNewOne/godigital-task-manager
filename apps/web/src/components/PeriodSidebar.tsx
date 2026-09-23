@@ -4,31 +4,39 @@ import { MONTH_LABELS } from '../lib/calendar.js';
 
 /**
  * 240px контекст-панел „Периоди" за Преглед/Клиенти (Handoff §7/§8).
- * Заглавието стои во топ-стрипот (AppShell); собирањето се води преку ?sb=0.
+ * Изборот се води преку ?period=YYYY-MM (default: тековниот месец). Кликлив.
  */
 export function PeriodSidebar() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   if (searchParams.get('sb') === '0') return null;
 
   const now = new Date();
-  const y = now.getUTCFullYear();
-  const m = now.getUTCMonth();
+  const currentKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+  const selected = searchParams.get('period') ?? currentKey;
+
   const periods = [0, -1, 1].map((delta) => {
-    const d = new Date(Date.UTC(y, m + delta, 1));
-    return {
-      key: `${d.getUTCFullYear()}-${d.getUTCMonth()}`,
-      label: `${MONTH_LABELS[d.getUTCMonth()]} ${d.getUTCFullYear()}`,
-      active: delta === 0,
-    };
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + delta, 1));
+    const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+    return { key, label: `${MONTH_LABELS[d.getUTCMonth()]} ${d.getUTCFullYear()}` };
   });
+
+  const pick = (key: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('period', key);
+    setSearchParams(next);
+  };
 
   return (
     <aside style={sidebar}>
       <div style={groupLabel}>Периоди</div>
       {periods.map((p) => (
-        <div key={p.key} style={p.active ? activeRow : row}>
+        <button
+          key={p.key}
+          style={p.key === selected ? activeRow : row}
+          onClick={() => pick(p.key)}
+        >
           {p.label}
-        </div>
+        </button>
       ))}
     </aside>
   );
@@ -49,11 +57,16 @@ const groupLabel: React.CSSProperties = {
   marginBottom: 8,
 };
 const row: React.CSSProperties = {
+  display: 'block',
+  width: '100%',
+  textAlign: 'left',
   padding: '8px 10px',
   borderRadius: 6,
   fontSize: 14,
+  border: 'none',
+  background: 'transparent',
   color: 'var(--gd-ink)',
-  cursor: 'default',
+  cursor: 'pointer',
 };
 const activeRow: React.CSSProperties = {
   ...row,
