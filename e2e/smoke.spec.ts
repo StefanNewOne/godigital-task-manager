@@ -27,7 +27,9 @@ test.describe('Најава и навигација', () => {
     await login(page);
 
     await page.getByRole('link', { name: 'Клиенти' }).click();
-    await expect(page.getByRole('main').getByRole('heading', { name: 'Клиенти' })).toBeVisible();
+    await expect(page).toHaveURL(/\/clients/);
+    // Насловот „Клиенти" е во топ-лентата; содржината ја потврдуваме преку колоната.
+    await expect(page.getByRole('columnheader', { name: 'Покриеност' })).toBeVisible();
 
     await page.getByRole('link', { name: 'Календар' }).click();
     await expect(page).toHaveURL(/\/calendar/);
