@@ -38,8 +38,7 @@ export function AdminClients() {
 
   return (
     <div>
-      <div style={headerRow}>
-        <h1 style={h1}>Клиенти</h1>
+      <div style={{ ...headerRow, justifyContent: 'flex-end' }}>
         <Button variant="primary" size="form" onClick={() => setCreating(true)}>
           + Нов клиент
         </Button>
@@ -348,7 +347,6 @@ const headerRow: React.CSSProperties = {
   justifyContent: 'space-between',
   marginBottom: 20,
 };
-const h1: React.CSSProperties = { fontSize: 20, fontWeight: 600, margin: 0 };
 const grid: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',

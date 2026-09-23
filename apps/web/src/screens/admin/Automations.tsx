@@ -23,7 +23,6 @@ import { tableStyles as s } from '../../components/table.js';
 export function AdminAutomations() {
   return (
     <div>
-      <h1 style={s.h1}>Автоматизации · тек на статуси</h1>
       <p style={{ color: 'var(--gd-ink-muted)', fontSize: 13, marginTop: -8, marginBottom: 20 }}>
         Читливо. Секој статус го носи точно една улога; преодот се пушта само кога задолжителниот
         внес е даден. Изворот е матрицата на преоди во <code>@gd/core</code>.

@@ -22,8 +22,7 @@ export function AdminEmployees() {
 
   return (
     <div>
-      <div style={headerRow}>
-        <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>Вработени и улоги</h1>
+      <div style={{ ...headerRow, justifyContent: 'flex-end' }}>
         <Button variant="primary" size="form" onClick={() => setCreating(true)}>
           + Нов вработен
         </Button>

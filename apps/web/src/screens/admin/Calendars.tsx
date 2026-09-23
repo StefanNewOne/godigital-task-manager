@@ -10,7 +10,6 @@ export function AdminCalendars() {
 
   return (
     <div>
-      <h1 style={s.h1}>Календари</h1>
       <div
         style={{
           background: 'var(--gd-primary-tint)',

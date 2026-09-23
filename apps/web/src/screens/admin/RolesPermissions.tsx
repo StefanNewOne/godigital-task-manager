@@ -13,8 +13,7 @@ const SCREEN_LABEL: Record<Screen, string> = {
 export function AdminPermissions() {
   return (
     <div>
-      <h1 style={s.h1}>Улоги и дозволи</h1>
-      <p style={{ color: 'var(--gd-ink-muted)', fontSize: 13, marginTop: -8, marginBottom: 16 }}>
+      <p style={{ color: 'var(--gd-ink-muted)', fontSize: 13, marginTop: 0, marginBottom: 16 }}>
         Читливо (извор: <code>@gd/core/permissions</code>). П = гледа екран · Ч = чита само свои.
       </p>
       <div style={s.wrap}>

@@ -8,7 +8,6 @@ export function AdminAlarms() {
 
   return (
     <div>
-      <h1 style={s.h1}>Аларми</h1>
       <p style={{ color: 'var(--gd-ink-muted)', fontSize: 13, marginTop: -8, marginBottom: 16 }}>
         Системските правила (PRD §13) со вклучување/исклучување. Rule Builder форма доаѓа во Фаза
         B1.
