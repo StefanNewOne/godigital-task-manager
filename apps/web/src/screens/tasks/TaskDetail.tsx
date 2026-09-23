@@ -397,10 +397,24 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
           {/* Секции */}
           <Section
             title="Контекст"
+            badge="брифинг · сценарио · заеднички"
             openState={open.context}
             onToggle={() => setOpen((o) => ({ ...o, context: !o.context }))}
           >
-            <p style={sectionText}>{task.brief || 'Нема брифинг/сценарио внес.'}</p>
+            {task.brief ? (
+              <div style={ctxRow}>
+                <div style={{ flex: 1, minWidth: 0 }}>{task.brief}</div>
+                <span style={ctxTag}>брифинг</span>
+              </div>
+            ) : (
+              <p style={sectionText}>Нема внес во контекстот.</p>
+            )}
+            {task.copy && (
+              <div style={ctxRow}>
+                <div style={{ flex: 1, minWidth: 0 }}>{task.copy}</div>
+                <span style={ctxTag}>копи</span>
+              </div>
+            )}
           </Section>
           <Section
             title="Креатива"
@@ -1104,6 +1118,26 @@ const sectionText: React.CSSProperties = {
   lineHeight: '18px',
   color: 'var(--gd-ink-secondary)',
   margin: 0,
+};
+const ctxRow: React.CSSProperties = {
+  display: 'flex',
+  gap: 8,
+  alignItems: 'flex-start',
+  padding: '8px 0',
+  borderBottom: '1px solid var(--gd-border)',
+  fontSize: 13,
+  lineHeight: '18px',
+  color: 'var(--gd-ink-secondary)',
+};
+const ctxTag: React.CSSProperties = {
+  flex: '0 0 auto',
+  fontSize: 11,
+  fontWeight: 500,
+  color: 'var(--gd-ink-muted)',
+  background: 'var(--gd-surface-alt)',
+  border: '1px solid var(--gd-border)',
+  borderRadius: 9999,
+  padding: '1px 8px',
 };
 const sectionHead: React.CSSProperties = {
   display: 'flex',

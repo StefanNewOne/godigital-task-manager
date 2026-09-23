@@ -42,6 +42,7 @@ interface FlowRow {
   input: string;
   deadline: string;
   next: string;
+  back: string;
 }
 
 function FlowTable({ title, rows }: { title: string; rows: FlowRow[] }) {
@@ -57,6 +58,7 @@ function FlowTable({ title, rows }: { title: string; rows: FlowRow[] }) {
               <th style={s.th}>Што мора да се внесе</th>
               <th style={s.th}>Внатрешен рок</th>
               <th style={s.th}>Следен статус</th>
+              <th style={s.th}>Враќање</th>
             </tr>
           </thead>
           <tbody>
@@ -69,6 +71,7 @@ function FlowTable({ title, rows }: { title: string; rows: FlowRow[] }) {
                 </td>
                 <td style={{ ...s.td, fontSize: 13 }}>{r.deadline}</td>
                 <td style={{ ...s.td, color: 'var(--gd-ink-secondary)' }}>{r.next}</td>
+                <td style={{ ...s.td, color: 'var(--gd-warning-text)', fontSize: 13 }}>{r.back}</td>
               </tr>
             ))}
           </tbody>
@@ -122,12 +125,20 @@ function taskRows(type: ContentType): FlowRow[] {
         flow.indexOf(t.to) > i,
     );
     const lead = DEFAULT_TASK_LEAD_DAYS[type][status];
+    const back = TASK_TRANSITIONS.find(
+      (t) =>
+        t.from === status &&
+        (t.contentType === 'both' || t.contentType === type) &&
+        flow.indexOf(t.to) >= 0 &&
+        flow.indexOf(t.to) < i,
+    );
     return {
       status: TASK_STATUS_META[status].label,
       owner: fwd?.actor === 'system' ? 'систем (автоматски)' : ownerLabel(ownerOf(status, type)),
       input: fwd ? describeGuards(fwd.guards) : '—',
       deadline: taskDeadlineText(lead),
       next: fwd ? TASK_STATUS_META[fwd.to].label : '— (терминал)',
+      back: back ? `↩ ${TASK_STATUS_META[back.to].label}` : '—',
     };
   });
 }
@@ -140,6 +151,13 @@ function groupRows(type: ContentType): FlowRow[] {
     );
     const owner = GROUP_STATUS_META[status].owner;
     const lead = DEFAULT_GROUP_LEAD_DAYS[status];
+    const back = GROUP_TRANSITIONS.find(
+      (t) =>
+        t.from === status &&
+        t.contentType === type &&
+        flow.indexOf(t.to) >= 0 &&
+        flow.indexOf(t.to) < i,
+    );
     return {
       status: GROUP_STATUS_META[status].label,
       owner:
@@ -147,6 +165,7 @@ function groupRows(type: ContentType): FlowRow[] {
       input: fwd ? describeGuards(fwd.guards) : '—',
       deadline: capaDeadlineText(lead),
       next: fwd ? GROUP_STATUS_META[fwd.to].label : '— (затворена)',
+      back: back ? `↩ ${GROUP_STATUS_META[back.to].label}` : '—',
     };
   });
 }
