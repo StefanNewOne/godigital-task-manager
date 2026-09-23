@@ -17,13 +17,34 @@ export class ApiRequestError extends Error {
   }
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+/**
+ * Освежување на access токенот преку refresh cookie (httpOnly, scoped /api/auth).
+ * Дедупликуван: паралелни 401-и делат еден refresh повик.
+ */
+let refreshPromise: Promise<boolean> | null = null;
+function tryRefresh(): Promise<boolean> {
+  if (!refreshPromise) {
+    refreshPromise = fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' })
+      .then((r) => r.ok)
+      .catch(() => false);
+    void refreshPromise.finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+}
+
+async function request<T>(method: string, path: string, body?: unknown, retry = true): Promise<T> {
   const res = await fetch(`/api${path}`, {
     method,
     credentials: 'include',
     headers: body ? { 'Content-Type': 'application/json' } : undefined,
     body: body ? JSON.stringify(body) : undefined,
   });
+  // Истечен access токен → тивко освежи еднаш и повтори (без јамка на самите auth рути).
+  if (res.status === 401 && retry && path !== '/auth/refresh' && path !== '/auth/login') {
+    if (await tryRefresh()) return request<T>(method, path, body, false);
+  }
   const json = (await res.json().catch(() => null)) as { data?: T } & Partial<ApiError>;
   if (!res.ok) {
     throw new ApiRequestError(
