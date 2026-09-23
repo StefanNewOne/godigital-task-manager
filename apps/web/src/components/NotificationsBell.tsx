@@ -1,5 +1,6 @@
 import type React from 'react';
 import { useState } from 'react';
+import { Modal } from '@gd/ui';
 import { useMarkRead, useNotifications } from '../api/notifications.js';
 
 const LEVEL_COLOR: Record<string, string> = {
@@ -8,7 +9,7 @@ const LEVEL_COLOR: Record<string, string> = {
   potsetnik: 'var(--gd-ink-muted)',
 };
 
-/** Ѕвонче за известувања со број непрочитани + паѓачки панел (Handoff §11). */
+/** „Аларми" копче со број непрочитани + модал со известувањата (Handoff §11). */
 export function NotificationsBell() {
   const { data } = useNotifications();
   const markRead = useMarkRead();
@@ -16,46 +17,40 @@ export function NotificationsBell() {
   const items = data ?? [];
 
   return (
-    <div style={{ position: 'relative' }}>
-      <button onClick={() => setOpen((o) => !o)} style={bellBtn} title="Аларми">
+    <>
+      <button onClick={() => setOpen(true)} style={bellBtn} title="Аларми">
         Аларми
         {items.length > 0 && <span style={badge}>{items.length}</span>}
       </button>
-      {open && (
-        <div style={panel}>
-          <div style={panelHead}>Известувања</div>
-          {items.length === 0 && (
-            <div style={{ padding: 16, color: 'var(--gd-ink-muted)', fontSize: 13 }}>
-              Сè е во ред.
+      <Modal open={open} onClose={() => setOpen(false)} title="Аларми" width={420}>
+        {items.length === 0 && (
+          <div style={{ padding: '8px 0', color: 'var(--gd-ink-muted)', fontSize: 13 }}>
+            Сè е во ред — нема отворени аларми.
+          </div>
+        )}
+        {items.map((n) => (
+          <div key={n.id} style={item}>
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                background: LEVEL_COLOR[n.level],
+                marginTop: 6,
+                flex: '0 0 auto',
+              }}
+            />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 500 }}>{n.title}</div>
+              <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>{n.body}</div>
             </div>
-          )}
-          {items.map((n) => (
-            <div key={n.id} style={item}>
-              <span
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  background: LEVEL_COLOR[n.level],
-                  marginTop: 6,
-                }}
-              />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 500 }}>{n.title}</div>
-                <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>{n.body}</div>
-              </div>
-              <button
-                onClick={() => markRead.mutate(n.id)}
-                style={readBtn}
-                title="Означи прочитано"
-              >
-                ✓
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+            <button onClick={() => markRead.mutate(n.id)} style={readBtn} title="Означи прочитано">
+              ✓
+            </button>
+          </div>
+        ))}
+      </Modal>
+    </>
   );
 }
 
@@ -82,26 +77,6 @@ const badge: React.CSSProperties = {
   borderRadius: 9999,
   padding: '1px 6px',
   lineHeight: '14px',
-};
-const panel: React.CSSProperties = {
-  position: 'absolute',
-  top: 32,
-  right: 0,
-  width: 320,
-  maxHeight: 400,
-  overflowY: 'auto',
-  background: 'var(--gd-surface)',
-  border: '1px solid var(--gd-border)',
-  borderRadius: 8,
-  boxShadow: 'var(--gd-shadow-popover)',
-  zIndex: 10,
-};
-const panelHead: React.CSSProperties = {
-  padding: '10px 12px',
-  fontSize: 12,
-  fontWeight: 600,
-  color: 'var(--gd-ink-muted)',
-  borderBottom: '1px solid var(--gd-border)',
 };
 const item: React.CSSProperties = {
   display: 'flex',
