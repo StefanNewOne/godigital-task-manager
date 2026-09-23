@@ -7,6 +7,7 @@ import { env } from '../env.js';
 import { AppError } from '../lib/errors.js';
 import { parse } from '../lib/validate.js';
 import { requireAuth } from '../middleware/auth.js';
+import { assertFileOwnerAccess } from '../services/fileAccess.js';
 import type { FileOwnerType } from '@gd/db';
 import {
   PART_SIZE,
@@ -31,6 +32,7 @@ filesRouter.get('/', async (req, res) => {
   if (!ownerType || !OWNER_TYPES.includes(ownerType as (typeof OWNER_TYPES)[number]) || !ownerId) {
     throw new AppError('VALIDATION_FAILED', 'ownerType и ownerId се задолжителни.', 400);
   }
+  await assertFileOwnerAccess(ownerType as FileOwnerType, ownerId, req.auth!, 'read');
   const files = await prisma.fileAsset.findMany({
     where: { ownerType: ownerType as FileOwnerType, ownerId, lifecycle: 'active' },
     orderBy: [{ version: 'asc' }, { createdAt: 'asc' }],
@@ -52,6 +54,7 @@ filesRouter.get('/', async (req, res) => {
 // Presign upload (PRD §4.14): мал фајл → еднократен PUT; голем → multipart со UploadSession.
 filesRouter.post('/presign', async (req, res) => {
   const input = parse(filePresignSchema, req.body);
+  await assertFileOwnerAccess(input.ownerType, input.ownerId, req.auth!, 'write');
   const fileId = randomUUID();
   const key = `${env.DEFAULT_TENANT_ID}/${input.ownerType}/${input.ownerId}/${fileId}`;
 
@@ -98,6 +101,7 @@ filesRouter.post('/:id/complete', async (req, res) => {
   const { parts } = parse(fileCompleteSchema, req.body);
   const file = await prisma.fileAsset.findUnique({ where: { id } });
   if (!file) throw new AppError('NOT_FOUND', 'Фајлот не е пронајден.', 404);
+  await assertFileOwnerAccess(file.ownerType, file.ownerId, req.auth!, 'write');
   const session = await prisma.uploadSession.findFirst({
     where: { fileAssetId: id, status: 'open' },
   });
@@ -112,6 +116,7 @@ filesRouter.post('/:id/abort', async (req, res) => {
   const id = (req.params as { id: string }).id;
   const file = await prisma.fileAsset.findUnique({ where: { id } });
   if (!file) throw new AppError('NOT_FOUND', 'Фајлот не е пронајден.', 404);
+  await assertFileOwnerAccess(file.ownerType, file.ownerId, req.auth!, 'write');
   const session = await prisma.uploadSession.findFirst({
     where: { fileAssetId: id, status: 'open' },
   });
