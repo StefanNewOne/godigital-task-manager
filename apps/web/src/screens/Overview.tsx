@@ -1,4 +1,5 @@
 import type React from 'react';
+import { ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { TASK_STATUS_META, coverageLevel, type TaskStatus } from '@gd/core';
 import { tokens } from '@gd/ui';
@@ -148,6 +149,7 @@ export function Overview() {
             <span style={{ color: LEVEL_TEXT[c.level], fontWeight: 600, ...tabular }}>
               {c.days} дена
             </span>
+            <ChevronRight size={16} color="var(--gd-ink-muted)" style={{ flex: '0 0 auto' }} />
           </button>
         ))}
         {coverage.length === 0 && <p style={muted}>Нема активни клиенти.</p>}
@@ -232,8 +234,9 @@ export function Overview() {
                   ...tabular,
                 }}
               >
-                {s.avgDays > 0 ? `◷ ${s.avgDays}д просек` : ''}
+                {s.avgDays > 0 ? `${s.avgDays}д просек` : ''}
               </span>
+              <ChevronRight size={16} color="var(--gd-ink-muted)" style={{ flex: '0 0 auto' }} />
             </button>
           ))}
         {data.byStatus.length === 0 && <p style={muted}>Нема таскови.</p>}

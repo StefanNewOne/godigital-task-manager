@@ -203,7 +203,7 @@ export function AppShell() {
 const rail: React.CSSProperties = {
   width: 64,
   flex: '0 0 64px',
-  background: 'var(--gd-surface)',
+  background: 'var(--gd-surface-alt)',
   borderRight: '1px solid var(--gd-border)',
   display: 'flex',
   flexDirection: 'column',
