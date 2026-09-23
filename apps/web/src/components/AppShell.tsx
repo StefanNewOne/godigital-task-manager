@@ -1,5 +1,5 @@
 import type React from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom';
 import {
   BarChart3,
   Building2,
@@ -11,8 +11,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { PERMISSIONS, type Role, type Screen } from '@gd/core';
-import { Button } from '@gd/ui';
 import { useLogout, useMe } from '../api/auth.js';
+import { MONTH_LABELS } from '../lib/calendar.js';
 import { NotificationsBell } from './NotificationsBell.js';
 
 // `label` = кратка ознака во rail-от; `title` = наслов во топ-лентата (Handoff).
@@ -43,6 +43,12 @@ const NAV: Array<{
   { screen: 'admin', icon: Settings, label: 'Админ', path: '/admin' },
 ];
 
+const TASK_TABS = [
+  { key: 'my', label: 'Мои задачи' },
+  { key: 'list', label: 'Список' },
+  { key: 'board', label: 'Табла' },
+] as const;
+
 /** Боја на аватар по улога (Handoff §Employee Avatar Colors). */
 const AVATAR_COLOR: Record<Role, string> = {
   dir: '#0866FF',
@@ -56,18 +62,6 @@ const AVATAR_COLOR: Record<Role, string> = {
   ana: '#DC2626',
 };
 
-const ROLE_SHORT: Record<Role, string> = {
-  dir: 'Директор',
-  rez: 'Режисер',
-  scen: 'Сценарист',
-  kam: 'Камерман',
-  mon: 'Монтажер',
-  krea: 'Гр. креатор',
-  diz: 'Гр. дизајнер',
-  am: 'Акаунт мен.',
-  ana: 'Аналитичар',
-};
-
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
   return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase();
@@ -77,12 +71,27 @@ export function AppShell() {
   const { data: me } = useMe();
   const logout = useLogout();
   const loc = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const visible = me ? NAV.filter((n) => PERMISSIONS[me.role].nav.includes(n.screen)) : [];
   const active =
     [...visible]
       .sort((a, b) => b.path.length - a.path.length)
       .find((n) => (n.path === '/' ? loc.pathname === '/' : loc.pathname.startsWith(n.path))) ??
     visible[0];
+
+  const onTasks = loc.pathname.startsWith('/tasks');
+  const currentTab = searchParams.get('tab') ?? 'my';
+  const month = MONTH_LABELS[new Date().getUTCMonth()];
+  const title = onTasks
+    ? `GoDigital V.2 · ${month}`
+    : (active?.title ?? active?.label ?? 'GoDigital');
+
+  const setTab = (key: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', key);
+    setSearchParams(next);
+  };
 
   return (
     <div style={{ display: 'flex', height: '100vh' }}>
@@ -100,49 +109,48 @@ export function AppShell() {
               end={n.path === '/'}
             >
               <Icon size={20} strokeWidth={2} aria-hidden />
-              <span
-                style={{
-                  fontSize: 9,
-                  lineHeight: '10px',
-                  fontWeight: 500,
-                  letterSpacing: '-0.01em',
-                }}
-              >
-                {n.label}
-              </span>
+              <span style={railLabel}>{n.label}</span>
             </NavLink>
           );
         })}
-      </nav>
-
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        {/* Топ лента 56px — наслов по контекст + акции */}
-        <header style={topBar}>
-          <h1 style={{ fontSize: 18, lineHeight: '26px', fontWeight: 600, margin: 0 }}>
-            {active?.title ?? active?.label ?? 'GoDigital'}
-          </h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <NotificationsBell />
-            {me && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={avatar(AVATAR_COLOR[me.role])}>{initials(me.name)}</span>
-                <div style={{ lineHeight: 1.2 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500 }}>{me.name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>
-                    {ROLE_SHORT[me.role]}
-                  </div>
-                </div>
-              </div>
-            )}
-            <Button
-              variant="ghost"
-              size="toolbar"
+        {me && (
+          <div style={railBottom}>
+            <span style={avatar(AVATAR_COLOR[me.role])} title={me.name}>
+              {initials(me.name)}
+            </span>
+            <button
               onClick={() => logout.mutate()}
+              style={railLogout}
               title="Одјава"
               aria-label="Одјава"
             >
               <LogOut size={16} aria-hidden />
-            </Button>
+            </button>
+          </div>
+        )}
+      </nav>
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        {/* Топ лента 56px — наслов/бренд + табови (Задачи) + Аларми */}
+        <header style={topBar}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 24, minWidth: 0 }}>
+            <h1 style={brandTitle}>{title}</h1>
+            {onTasks && (
+              <div style={{ display: 'flex', gap: 4 }}>
+                {TASK_TABS.map((t) => (
+                  <button
+                    key={t.key}
+                    onClick={() => setTab(t.key)}
+                    style={tabBtn(currentTab === t.key)}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <NotificationsBell />
           </div>
         </header>
 
@@ -164,6 +172,15 @@ const rail: React.CSSProperties = {
   alignItems: 'center',
   padding: '12px 0',
   gap: 4,
+};
+
+const railBottom: React.CSSProperties = {
+  marginTop: 'auto',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: 6,
+  paddingTop: 8,
 };
 
 const logo: React.CSSProperties = {
@@ -191,6 +208,26 @@ const topBar: React.CSSProperties = {
   padding: '0 20px',
 };
 
+const brandTitle: React.CSSProperties = {
+  fontSize: 18,
+  lineHeight: '26px',
+  fontWeight: 600,
+  margin: 0,
+  whiteSpace: 'nowrap',
+};
+
+const tabBtn = (activeTab: boolean): React.CSSProperties => ({
+  border: 'none',
+  background: 'transparent',
+  cursor: 'pointer',
+  fontSize: 14,
+  fontWeight: activeTab ? 600 : 500,
+  color: activeTab ? 'var(--gd-primary)' : 'var(--gd-ink-secondary)',
+  padding: '0 4px',
+  height: 56,
+  borderBottom: activeTab ? '2px solid var(--gd-primary)' : '2px solid transparent',
+});
+
 const railLink = ({ isActive }: { isActive: boolean }): React.CSSProperties => ({
   width: 48,
   height: 48,
@@ -204,6 +241,26 @@ const railLink = ({ isActive }: { isActive: boolean }): React.CSSProperties => (
   color: isActive ? 'var(--gd-primary-hover)' : 'var(--gd-ink-secondary)',
   background: isActive ? 'var(--gd-primary-tint)' : 'transparent',
 });
+
+const railLabel: React.CSSProperties = {
+  fontSize: 9,
+  lineHeight: '10px',
+  fontWeight: 500,
+  letterSpacing: '-0.01em',
+};
+
+const railLogout: React.CSSProperties = {
+  width: 32,
+  height: 32,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  border: 'none',
+  background: 'transparent',
+  color: 'var(--gd-ink-muted)',
+  cursor: 'pointer',
+  borderRadius: 8,
+};
 
 const avatar = (bg: string): React.CSSProperties => ({
   width: 32,

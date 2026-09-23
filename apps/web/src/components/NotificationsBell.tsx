@@ -17,8 +17,8 @@ export function NotificationsBell() {
 
   return (
     <div style={{ position: 'relative' }}>
-      <button onClick={() => setOpen((o) => !o)} style={bellBtn} title="Известувања">
-        🔔
+      <button onClick={() => setOpen((o) => !o)} style={bellBtn} title="Аларми">
+        Аларми
         {items.length > 0 && <span style={badge}>{items.length}</span>}
       </button>
       {open && (
@@ -61,21 +61,27 @@ export function NotificationsBell() {
 
 const bellBtn: React.CSSProperties = {
   position: 'relative',
-  border: 'none',
-  background: 'transparent',
+  border: '1px solid var(--gd-border)',
+  background: 'var(--gd-surface)',
+  color: 'var(--gd-ink)',
   cursor: 'pointer',
-  fontSize: 16,
+  fontSize: 13,
+  fontWeight: 500,
+  height: 32,
+  padding: '0 12px',
+  borderRadius: 8,
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 6,
 };
 const badge: React.CSSProperties = {
-  position: 'absolute',
-  top: -4,
-  right: -6,
   background: 'var(--gd-danger)',
   color: '#fff',
   fontSize: 10,
   fontWeight: 700,
   borderRadius: 9999,
-  padding: '1px 5px',
+  padding: '1px 6px',
+  lineHeight: '14px',
 };
 const panel: React.CSSProperties = {
   position: 'absolute',

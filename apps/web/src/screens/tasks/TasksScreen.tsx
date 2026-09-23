@@ -31,7 +31,6 @@ import { ListView } from './ListView.js';
 import { MyTasks } from './MyTasks.js';
 
 type Tab = 'my' | 'list' | 'board';
-const TAB_LABEL: Record<Tab, string> = { my: 'Мои задачи', list: 'Список', board: 'Табла' };
 const monthOf = (iso: string | null | undefined) => (iso ? iso.slice(0, 7) : null);
 
 export function TasksScreen() {
@@ -42,14 +41,10 @@ export function TasksScreen() {
   const allTasks = useTasks({});
   const myTasks = useTasks(me ? { assigneeId: me.id } : {});
 
-  // Почетни филтри од URL (deep-link од Преглед/Клиенти): ?client=&status=&tab=
+  // Табот е во топ-лентата (AppShell) и се води преку URL ?tab=; тука само го читаме.
   const [searchParams] = useSearchParams();
-  const initialTab: Tab = ((): Tab => {
-    const t = searchParams.get('tab');
-    return t === 'my' || t === 'list' || t === 'board' ? t : 'my';
-  })();
-
-  const [tab, setTab] = useState<Tab>(initialTab);
+  const tabParam = searchParams.get('tab');
+  const tab: Tab = tabParam === 'list' || tabParam === 'board' ? tabParam : 'my';
   const [openId, setOpenId] = useState<string | null>(null);
   const [openGroupId, setOpenGroupId] = useState<string | null>(null);
   const [clientId, setClientId] = useState(() => searchParams.get('client') ?? '');
@@ -162,15 +157,6 @@ export function TasksScreen() {
       )}
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        {/* Табови */}
-        <div style={tabBar}>
-          {(['my', 'list', 'board'] as Tab[]).map((t) => (
-            <button key={t} onClick={() => setTab(t)} style={tabBtn(tab === t)}>
-              {TAB_LABEL[t]}
-            </button>
-          ))}
-        </div>
-
         {/* Toolbar 48px */}
         <Toolbar
           canCreateVideo={canCreateVideo}
@@ -455,23 +441,6 @@ const clientRow = (active: boolean): React.CSSProperties => ({
   fontSize: 13,
   cursor: 'pointer',
   textAlign: 'left',
-});
-const tabBar: React.CSSProperties = {
-  display: 'flex',
-  gap: 16,
-  padding: '0 20px',
-  borderBottom: '1px solid var(--gd-border)',
-  background: 'var(--gd-surface)',
-};
-const tabBtn = (active: boolean): React.CSSProperties => ({
-  padding: '12px 4px',
-  border: 'none',
-  background: 'transparent',
-  borderBottom: active ? '2px solid var(--gd-primary)' : '2px solid transparent',
-  color: active ? 'var(--gd-ink)' : 'var(--gd-ink-muted)',
-  fontSize: 14,
-  fontWeight: 500,
-  cursor: 'pointer',
 });
 const toolbar: React.CSSProperties = {
   height: 48,
