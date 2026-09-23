@@ -142,11 +142,11 @@ export function Calendar() {
           <span key={l.label} style={legendItem}>
             <span
               style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                background: l.dashed ? 'transparent' : l.color,
-                border: l.dashed ? `1px dashed ${l.color}` : 'none',
+                width: 10,
+                height: 10,
+                borderRadius: 2,
+                background: l.dashed ? 'transparent' : tokens.hexAlpha(l.color, 0.14),
+                border: `1px ${l.dashed ? 'dashed' : 'solid'} ${l.color}`,
               }}
             />
             {l.prefix ? `${l.prefix} ` : ''}

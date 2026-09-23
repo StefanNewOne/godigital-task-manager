@@ -75,6 +75,27 @@ const LEVEL_TEXT: Record<CoverageRow['level'], string> = {
   danger: 'var(--gd-danger-text)',
 };
 
+/** Заглавие на картичка: наслов лево + муабет-совет десно (Handoff §7). */
+function CardHead({
+  title,
+  hint,
+  extra,
+}: {
+  title: string;
+  hint?: string;
+  extra?: React.ReactNode;
+}) {
+  return (
+    <div style={cardHeadRow}>
+      <h2 style={cardTitle}>
+        {title}
+        {extra}
+      </h2>
+      {hint && <span style={cardHint}>{hint}</span>}
+    </div>
+  );
+}
+
 /** Директорски преглед (Handoff §2.7): покриеност по клиент + работа по статус. */
 export function Overview() {
   const { data, isLoading } = useOverview();
@@ -92,7 +113,7 @@ export function Overview() {
     <div style={wrap}>
       {/* Покриеност по клиент — клик отвора клиент во Список */}
       <section style={card}>
-        <h2 style={cardTitle}>Покриеност по клиент</h2>
+        <CardHead title="Покриеност по клиент" hint="најкритичните горе · клик отвора клиент" />
         {coverage.map((c) => (
           <button
             key={c.clientId}
@@ -134,10 +155,10 @@ export function Overview() {
 
       {/* Отворени аларми (in-app известувања) */}
       <section style={card}>
-        <h2 style={cardTitle}>
-          Отворени аларми
-          {alarms.length > 0 && <span style={countPill}>{alarms.length}</span>}
-        </h2>
+        <CardHead
+          title="Отворени аларми"
+          extra={alarms.length > 0 ? <span style={countPill}>{alarms.length}</span> : null}
+        />
         {alarms.map((a) => (
           <div key={a.id} style={alarmRow}>
             <span
@@ -154,7 +175,19 @@ export function Overview() {
               <div style={{ fontSize: 13, fontWeight: 500 }}>{a.title}</div>
               <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>{a.body}</div>
             </div>
-            <span style={alarmBadge(a.level)}>{ALARM_LABEL[a.level]}</span>
+            <div
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}
+            >
+              <span style={alarmBadge(a.level)}>{ALARM_LABEL[a.level]}</span>
+              {a.clientId && (
+                <button
+                  style={alarmActionBtn}
+                  onClick={() => navigate(`/tasks?client=${a.clientId}&tab=list`)}
+                >
+                  Во таскот
+                </button>
+              )}
+            </div>
           </div>
         ))}
         {alarms.length === 0 && <p style={muted}>Нема отворени аларми.</p>}
@@ -162,7 +195,7 @@ export function Overview() {
 
       {/* Работа по статус — клик отвора Табла филтрирана по статус */}
       <section style={card}>
-        <h2 style={cardTitle}>Работа по статус</h2>
+        <CardHead title="Работа по статус" hint="клик отвора табла" />
         {data.byStatus
           .filter((s) => TASK_STATUS_META[s.status as TaskStatus])
           .map((s) => (
@@ -224,11 +257,24 @@ export function Overview() {
 
 const tabular: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
 const wrap: React.CSSProperties = {
-  padding: '24px 20px',
+  padding: '24px 20px 48px',
   display: 'grid',
-  gap: 24,
-  gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
+  gap: 16,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
   alignItems: 'start',
+  maxWidth: 1560,
+};
+const cardHeadRow: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  marginBottom: 12,
+};
+const cardHint: React.CSSProperties = {
+  fontSize: 12,
+  color: 'var(--gd-ink-muted)',
+  flex: '0 0 auto',
 };
 const card: React.CSSProperties = {
   background: 'var(--gd-surface)',
@@ -240,7 +286,7 @@ const cardTitle: React.CSSProperties = {
   fontSize: 16,
   lineHeight: '24px',
   fontWeight: 600,
-  margin: '0 0 12px',
+  margin: 0,
   display: 'flex',
   alignItems: 'center',
   gap: 8,
@@ -259,6 +305,18 @@ const alarmRow: React.CSSProperties = {
   gap: 8,
   padding: '10px 0',
   borderBottom: '1px solid var(--gd-border)',
+};
+const alarmActionBtn: React.CSSProperties = {
+  border: '1px solid var(--gd-border)',
+  background: 'var(--gd-surface)',
+  color: 'var(--gd-ink-secondary)',
+  fontSize: 12,
+  fontWeight: 500,
+  height: 24,
+  padding: '0 8px',
+  borderRadius: 6,
+  cursor: 'pointer',
+  whiteSpace: 'nowrap',
 };
 const alarmBadge = (level: string): React.CSSProperties => ({
   flex: '0 0 auto',
