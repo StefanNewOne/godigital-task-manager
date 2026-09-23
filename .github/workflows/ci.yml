@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Тест-само вредности (не се вистински секрети — само за ефемерните CI сервиси).
+env:
+  DATABASE_URL: postgresql://gd:gd@localhost:5432/godigital?schema=public
+  REDIS_URL: redis://localhost:6379
+  JWT_ACCESS_SECRET: ci-access-secret-not-real-0123456789
+  JWT_REFRESH_SECRET: ci-refresh-secret-not-real-0123456789
+  R2_ENDPOINT: http://localhost:9000
+
+jobs:
+  # Gate 1: lint → typecheck → build + core/web unit + api integration тестови.
+  checks:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: gd
+          POSTGRES_PASSWORD: gd
+          POSTGRES_DB: godigital
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U gd -d godigital"
+          --health-interval 5s --health-timeout 5s --health-retries 15
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Prisma generate
+        run: pnpm run db:generate
+      - name: Lint
+        run: pnpm run lint
+      - name: Typecheck
+        run: pnpm run typecheck
+      - name: Build
+        run: pnpm run build
+      - name: Migrate + seed
+        run: pnpm run db:setup
+      - name: Unit tests (core + web)
+        run: pnpm run test
+      - name: API integration tests
+        run: pnpm --filter @gd/api test:integration
+
+  # End-to-end (Playwright chromium) против жив api+web + seeded база.
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: gd
+          POSTGRES_PASSWORD: gd
+          POSTGRES_DB: godigital
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U gd -d godigital"
+          --health-interval 5s --health-timeout 5s --health-retries 15
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Prisma generate
+        run: pnpm run db:generate
+      - name: Migrate + seed
+        run: pnpm run db:setup
+      # playwright.config.ts ја чита .env.local за env на api webServer-от.
+      - name: Write .env.local for webServers
+        run: |
+          cat > .env.local <<EOF
+          DATABASE_URL=${DATABASE_URL}
+          REDIS_URL=${REDIS_URL}
+          JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+          JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+          R2_ENDPOINT=${R2_ENDPOINT}
+          WEB_ORIGIN=http://localhost:5173
+          API_PORT=3001
+          EOF
+      - name: Install Playwright chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: E2E tests
+        run: pnpm run e2e
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
