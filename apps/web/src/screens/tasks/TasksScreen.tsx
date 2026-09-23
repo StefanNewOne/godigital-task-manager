@@ -81,7 +81,8 @@ export function TasksScreen() {
     return s ? new Set([s]) : new Set();
   });
   const [search, setSearch] = useState('');
-  const [groupBy, setGroupBy] = useState<'client' | 'status'>('client');
+  // Таблата е Kanban по статус (drag меѓу статуси). „по клиент" е опција преку копчето.
+  const [groupBy, setGroupBy] = useState<'client' | 'status'>('status');
   const [sortBy, setSortBy] = useState<'date' | 'client' | 'status'>('date');
   const [compact, setCompact] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);

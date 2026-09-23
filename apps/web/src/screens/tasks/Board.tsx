@@ -70,9 +70,18 @@ export function Board({ tasks, clientById, empById, groupBy, onOpen }: BoardProp
           key={col.key}
           onDragOver={(e) => {
             e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
             setOver(col.key);
           }}
-          onDrop={() => groupBy === 'status' && drop(col.key as TaskStatus)}
+          onDrop={() => {
+            if (groupBy === 'status') {
+              drop(col.key as TaskStatus);
+            } else if (drag) {
+              setToast('Групирај „по статус" за да менуваш статус со влечење.');
+              setDrag(null);
+              setOver(null);
+            }
+          }}
           style={column(
             over === col.key && groupBy === 'status',
             dropColor(drag, col.key, groupBy),
@@ -141,7 +150,12 @@ function Card({
   return (
     <div
       draggable
-      onDragStart={onDragStart}
+      onDragStart={(e) => {
+        // setData/effectAllowed се потребни за да стартува HTML5 DnD доследно низ прелистувачи.
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', task.id);
+        onDragStart();
+      }}
       onDragEnd={onDragEnd}
       onClick={() => onOpen(task.id)}
       style={{ ...cardStyle, opacity: dragging ? 0.4 : 1 }}
