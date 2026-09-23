@@ -189,6 +189,22 @@ describe('A3 transition engine', () => {
     expect(r.body.data.status).toBe('analitika');
   });
 
+  it('zaObjavuvanje→objaveno без копи и линк → GUARD_FAILED (§18 A6)', async () => {
+    // Таск во „За објавување" без copy и без публикација — не смее да помине во Објавено.
+    const id = await mkTask('zaObjavuvanje', 'graphic', graphicGroupId);
+    const r = await request(app)
+      .post(`/api/tasks/${id}/transition`)
+      .set(bearer('am'))
+      .send({ to: 'objaveno', payload: {} });
+    expect(r.status).toBe(400);
+    expect(r.body.code).toBe('GUARD_FAILED');
+    expect(r.body.details.missing).toContain('copy');
+    expect(r.body.details.missing).toContain('publication');
+    // Статусот останува непроменет.
+    const after = await db.task.findUnique({ where: { id } });
+    expect(after?.status).toBe('zaObjavuvanje');
+  });
+
   it('Директор може наместо друга улога со причина (D-5)', async () => {
     const id = await mkTask('brifing', 'graphic', graphicGroupId, { kreaId: empId.krea });
     const noReason = await request(app)
