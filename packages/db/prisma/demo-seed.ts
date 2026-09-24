@@ -53,6 +53,121 @@ const CAPAS: Array<[string, string, boolean, number | null, string | null, numbe
   ['Ресторан ИВ', 'scenarija', true, null, null, 0],
 ];
 
+// Објавени постови со метрики (извор за екранот Аналитика §9).
+// [клиент, тип, наслов, ден, платформа, тип-пост, платено?, досег, импресии, прегледи, ангажман, ctr%]
+type Platform = 'ig' | 'fb' | 'tiktok';
+type Post = 'reel' | 'post' | 'story' | 'carousel';
+const PUBLISHED: Array<
+  [
+    string,
+    ContentType,
+    string,
+    number,
+    Platform,
+    Post,
+    boolean,
+    number,
+    number,
+    number,
+    number,
+    number,
+  ]
+> = [
+  [
+    'Ресторан ИВ',
+    'video',
+    'Ресторан ИВ V-9-1',
+    3,
+    'ig',
+    'reel',
+    true,
+    42000,
+    78000,
+    31000,
+    3800,
+    1.9,
+  ],
+  [
+    'Ресторан ИВ',
+    'graphic',
+    'Ресторан ИВ G-9-2',
+    5,
+    'ig',
+    'carousel',
+    false,
+    12000,
+    18000,
+    0,
+    1400,
+    1.2,
+  ],
+  [
+    'Дарма Дома',
+    'video',
+    'Дарма Дома V-9-1',
+    4,
+    'ig',
+    'reel',
+    true,
+    55000,
+    96000,
+    40000,
+    5200,
+    2.1,
+  ],
+  ['Астибо', 'graphic', 'Астибо G-9-1', 6, 'fb', 'post', false, 9000, 15000, 0, 900, 0.8],
+  ['Астибо', 'video', 'Астибо V-9-2', 8, 'ig', 'reel', false, 21000, 33000, 15000, 2100, 1.5],
+  [
+    'Алекс Дизајн',
+    'graphic',
+    'Алекс Дизајн G-9-1',
+    7,
+    'ig',
+    'post',
+    true,
+    17000,
+    29000,
+    0,
+    1900,
+    1.6,
+  ],
+  [
+    'ЛЛ Гурмет',
+    'video',
+    'ЛЛ Гурмет V-9-1',
+    9,
+    'tiktok',
+    'reel',
+    false,
+    33000,
+    51000,
+    27000,
+    4100,
+    2.4,
+  ],
+  [
+    'Голд Хотел',
+    'graphic',
+    'Голд Хотел G-9-1',
+    10,
+    'ig',
+    'carousel',
+    false,
+    7000,
+    11000,
+    0,
+    650,
+    0.9,
+  ],
+];
+
+// Кампањи (платени промоции). [клиент, име, буџет, потрошено, cpr, досег, наслов-на-платена-објава]
+const CAMPAIGNS: Array<[string, string, number, number, number, number, string]> = [
+  ['Ресторан ИВ', 'Есенско мени', 600, 480, 0.0126, 90000, 'Ресторан ИВ V-9-1'],
+  ['Дарма Дома', 'Бренд подигање', 500, 420, 0.0105, 78000, 'Дарма Дома V-9-1'],
+  ['Алекс Дизајн', 'Промо недела', 300, 240, 0.0141, 34000, 'Алекс Дизајн G-9-1'],
+];
+
 async function main() {
   const emps = await prisma.employee.findMany();
   const byRole: Record<string, string> = {};
@@ -102,10 +217,33 @@ async function main() {
   });
   const oldIds = oldTasks.map((t) => t.id);
   if (oldIds.length) {
+    const oldPubs = await prisma.publication.findMany({
+      where: { taskId: { in: oldIds } },
+      select: { id: true },
+    });
+    const oldPubIds = oldPubs.map((p) => p.id);
+    if (oldPubIds.length) {
+      await prisma.metricSnapshot.deleteMany({ where: { publicationId: { in: oldPubIds } } });
+      await prisma.promotion.deleteMany({ where: { publicationId: { in: oldPubIds } } });
+    }
     await prisma.publication.deleteMany({ where: { taskId: { in: oldIds } } });
     await prisma.revision.deleteMany({ where: { taskId: { in: oldIds } } });
     await prisma.comment.deleteMany({ where: { taskId: { in: oldIds } } });
     await prisma.task.deleteMany({ where: { id: { in: oldIds } } });
+  }
+  // Демо кампањи за месецот (+ нивните метрики/промоции).
+  const oldCamps = await prisma.campaign.findMany({
+    where: {
+      clientId: { in: demoClientIds },
+      periodFrom: { gte: new Date(Date.UTC(YEAR, M0, 1)), lt: new Date(Date.UTC(YEAR, M0 + 1, 1)) },
+    },
+    select: { id: true },
+  });
+  if (oldCamps.length) {
+    const campIds = oldCamps.map((c) => c.id);
+    await prisma.metricSnapshot.deleteMany({ where: { campaignId: { in: campIds } } });
+    await prisma.promotion.deleteMany({ where: { campaignId: { in: campIds } } });
+    await prisma.campaign.deleteMany({ where: { id: { in: campIds } } });
   }
   await prisma.publishingSlot.deleteMany({
     where: { clientId: { in: demoClientIds }, monthKey: MONTH },
@@ -199,11 +337,119 @@ async function main() {
     });
   }
 
+  // 5) Објавени постови + публикации + метрики (извор за Аналитика).
+  const pubIdByTitle = new Map<string, string>();
+  for (const [
+    client,
+    type,
+    title,
+    day,
+    platform,
+    postType,
+    ,
+    reach,
+    impressions,
+    views,
+    engagement,
+    ctr,
+  ] of PUBLISHED) {
+    const cid = clientId[client]!;
+    const okey = `${client}:${type}:${day}`;
+    const order = (orderByKey.get(okey) ?? 0) + 1;
+    orderByKey.set(okey, order);
+    const date = new Date(Date.UTC(YEAR, M0, day));
+    const slot = await prisma.publishingSlot.create({
+      data: {
+        clientId: cid,
+        contentType: type,
+        monthKey: MONTH,
+        date,
+        orderInDay: order,
+        status: 'used',
+      },
+    });
+    const task = await prisma.task.create({
+      data: {
+        groupId: groupId.get(`${client}:${type}`)!,
+        clientId: cid,
+        contentType: type,
+        title,
+        status: 'objaveno' as never,
+        priority: 'normalen' as Priority,
+        version: 1,
+        slotId: slot.id,
+        copy: 'Демо копи текст.',
+        statusChangedAt: date,
+      },
+    });
+    const pub = await prisma.publication.create({
+      data: {
+        taskId: task.id,
+        platform,
+        postType,
+        publishedAt: date,
+        permalink: `https://instagram.com/p/demo-${type}-${day}`,
+        resolveStatus: 'resolved',
+      },
+    });
+    pubIdByTitle.set(title, pub.id);
+    await prisma.metricSnapshot.create({
+      data: {
+        publicationId: pub.id,
+        capturedAt: date,
+        raw: {},
+        reach,
+        impressions,
+        views,
+        engagement,
+        ctr,
+      },
+    });
+  }
+
+  // 6) Кампањи + метрики + платени промоции.
+  for (const [client, name, budget, spend, cpr, reach, pubTitle] of CAMPAIGNS) {
+    const camp = await prisma.campaign.create({
+      data: {
+        clientId: clientId[client]!,
+        name,
+        objective: 'reach',
+        budget,
+        periodFrom: new Date(Date.UTC(YEAR, M0, 1)),
+        periodTo: new Date(Date.UTC(YEAR, M0, 30)),
+        status: 'active',
+        analystId: byRole.ana ?? null,
+      },
+    });
+    await prisma.metricSnapshot.create({
+      data: {
+        campaignId: camp.id,
+        capturedAt: new Date(Date.UTC(YEAR, M0, 28)),
+        raw: {},
+        spend,
+        cpr,
+        reach,
+      },
+    });
+    const pid = pubIdByTitle.get(pubTitle);
+    if (pid) {
+      await prisma.promotion.create({
+        data: {
+          publicationId: pid,
+          decision: 'paid',
+          campaignId: camp.id,
+          decidedById: byRole.ana ?? null,
+        },
+      });
+    }
+  }
+
   const total = await prisma.task.count({
     where: { clientId: { in: demoClientIds }, group: { monthKey: MONTH } },
   });
   console.log(
-    `демо готово: ${CLIENTS.length} клиенти, ${total} таска, ${CAPAS.length} активни капи за ${MONTH}.`,
+    `демо готово: ${CLIENTS.length} клиенти, ${total} таска, ${CAPAS.length} активни капи, ` +
+      `${PUBLISHED.length} објави + ${CAMPAIGNS.length} кампањи за ${MONTH}.`,
   );
 }
 
