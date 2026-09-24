@@ -8,6 +8,7 @@ import { AppError } from '../lib/errors.js';
 import { parse } from '../lib/validate.js';
 import { requireAuth } from '../middleware/auth.js';
 import { assertFileOwnerAccess } from '../services/fileAccess.js';
+import { generatePreview } from '../services/previews.js';
 import { transitionTaskGroup } from '../services/workflow/groupTransition.js';
 import type { FileKind, FileOwnerType } from '@gd/db';
 import type { Role } from '@gd/core';
@@ -136,9 +137,21 @@ filesRouter.post('/:id/complete', async (req, res) => {
   await completeMultipart(file.r2Key, session.r2UploadId, parts);
   await prisma.uploadSession.update({ where: { id: session.id }, data: { status: 'completed' } });
 
+  // Преглед (B3): видео/слика → генерирај preview (best-effort, не го паѓа завршувањето).
+  await generatePreview(file.id).catch(() => null);
   // #7: качување суров материјал на капа во „snimanje" ја затвора автоматски (матрица note).
   await maybeCloseCapaOnRaw(file.ownerType, file.ownerId, file.kind, req.auth!);
   res.json({ data: file });
+});
+
+// Рачно/пост-single-PUT тригер за преглед (idempotent). Frontend го повикува по single upload.
+filesRouter.post('/:id/preview', async (req, res) => {
+  const id = (req.params as { id: string }).id;
+  const file = await prisma.fileAsset.findUnique({ where: { id } });
+  if (!file) throw new AppError('NOT_FOUND', 'Фајлот не е пронајден.', 404);
+  await assertFileOwnerAccess(file.ownerType, file.ownerId, req.auth!, 'write');
+  const preview = await generatePreview(id);
+  res.json({ data: { previewId: preview?.id ?? null } });
 });
 
 filesRouter.post('/:id/abort', async (req, res) => {

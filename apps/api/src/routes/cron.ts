@@ -6,7 +6,7 @@ import { generateForAllActiveClients, nextMonthKey } from '../services/slots.js'
 import { evaluateCoverageAlarms } from '../services/alarms.js';
 import { generateDailyDigest } from '../services/digest.js';
 import { pullMetrics, resolvePublications } from '../services/meta/metrics.js';
-import { runStorageCleanup } from '../services/storage.js';
+import { evaluateStorageQuota, runStorageCleanup } from '../services/storage.js';
 
 /** Cron рути — заштитени со CRON_SECRET (не JWT). Ги повикува worker-от. */
 export const cronRouter: ExpressRouter = Router();
@@ -53,5 +53,11 @@ cronRouter.post('/metrics-pull', requireCronSecret, async (_req, res) => {
 // Сторидж cleanup (PRD §4, B3): бриши истечен суров материјал. BullMQ: дневно.
 cronRouter.post('/storage-cleanup', requireCronSecret, async (_req, res) => {
   const result = await runStorageCleanup();
+  res.json({ data: result });
+});
+
+// Квота аларм (B3): вкупен сторидж наспроти прагот → критично до Директор. BullMQ: дневно.
+cronRouter.post('/storage-quota', requireCronSecret, async (_req, res) => {
+  const result = await evaluateStorageQuota();
   res.json({ data: result });
 });

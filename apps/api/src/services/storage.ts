@@ -1,5 +1,9 @@
 import { prisma } from '../db/tenantExtension.js';
+import { env } from '../env.js';
 import { deleteObject } from '../lib/storage.js';
+import { createNotification } from './notifications.js';
+
+const BYTES_PER_GB = 1024 ** 3;
 
 /**
  * Cleanup на суров материјал (B3, PRD §4): групи чиј `rawDeleteAt` е поминат и што НЕ се
@@ -62,4 +66,33 @@ export async function archiveLocally(groupId: string, path: string) {
     where: { id: groupId },
     data: { localArchivePath: path, rawDeleteAt: null },
   });
+}
+
+/**
+ * Квота аларм (B3): вкупен активен сторидж наспроти `STORAGE_QUOTA_GB`. Над прагот → критично
+ * известување до Директор(ите), дедуп по ден. (Денес tenant-вкупно — по клиент е идно.)
+ */
+export async function evaluateStorageQuota() {
+  const agg = await prisma.fileAsset.aggregate({
+    _sum: { size: true },
+    where: { lifecycle: 'active' },
+  });
+  const bytes = agg._sum.size ?? BigInt(0);
+  const usedGb = Math.round((Number(bytes) / BYTES_PER_GB) * 10) / 10;
+  const quotaBytes = BigInt(Math.round(env.STORAGE_QUOTA_GB * BYTES_PER_GB));
+  if (bytes <= quotaBytes) return { created: 0, usedGb };
+
+  const directors = await prisma.employee.findMany({ where: { role: 'dir', active: true } });
+  let created = 0;
+  for (const d of directors) {
+    const n = await createNotification({
+      recipientId: d.id,
+      level: 'kritichen',
+      eventKey: 'storage_quota',
+      title: 'Сторидж квота надмината',
+      body: `Искористени ${usedGb} GB од ${env.STORAGE_QUOTA_GB} GB — потребно е чистење или локална архива.`,
+    });
+    if (n) created++;
+  }
+  return { created, usedGb };
 }

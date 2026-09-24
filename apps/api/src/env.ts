@@ -36,6 +36,10 @@ const schema = z.object({
   // Meta Graph API (B2). Без токен → детерминистички stub адаптер (dev/тест). Никогаш на frontend.
   META_SYSTEM_TOKEN: z.string().optional(),
   META_GRAPH_VERSION: z.string().default('v21.0'),
+  // Прегледи (B3). Без ffmpeg бинар → stub генератор (dev/тест).
+  FFMPEG_PATH: z.string().optional(),
+  // Квота на сторидж по клиент (GB) за аларм; висок default за да не алармира без потреба.
+  STORAGE_QUOTA_GB: z.coerce.number().default(500),
 });
 
 export type Env = z.infer<typeof schema>;

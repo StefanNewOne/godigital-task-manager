@@ -98,4 +98,42 @@ describe('A6 files presign + авторизација', () => {
     expect(r.status).toBe(400);
     expect(r.body.code).toBe('VALIDATION_FAILED');
   });
+
+  // B3.2 — прегледи (stub генератор)
+  it('преглед се генерира за слика и се врзува previewFileId', async () => {
+    const pres = await request(app).post('/api/files/presign').set(auth(dirToken)).send({
+      ownerType: 'task',
+      ownerId: dizajnTaskId,
+      kind: 'graphic',
+      mime: 'image/png',
+      size: 4096,
+    });
+    const fileId = pres.body.data.fileId as string;
+
+    const r = await request(app).post(`/api/files/${fileId}/preview`).set(auth(dirToken));
+    expect(r.status).toBe(200);
+    expect(r.body.data.previewId).toBeTruthy();
+
+    const src = await db.fileAsset.findUnique({ where: { id: fileId } });
+    expect(src!.previewFileId).toBe(r.body.data.previewId);
+    const preview = await db.fileAsset.findUnique({ where: { id: r.body.data.previewId } });
+    expect(preview!.kind).toBe('preview');
+  });
+
+  it('нема преглед за не-медиа фајл (pdf)', async () => {
+    const src = await db.fileAsset.create({
+      data: {
+        ownerType: 'task',
+        ownerId: dizajnTaskId,
+        kind: 'briefRef',
+        r2Key: `test/pdf/${randomUUID()}.pdf`,
+        size: BigInt(2048),
+        mime: 'application/pdf',
+        lifecycle: 'active',
+      },
+    });
+    const r = await request(app).post(`/api/files/${src.id}/preview`).set(auth(dirToken));
+    expect(r.status).toBe(200);
+    expect(r.body.data.previewId).toBeNull();
+  });
 });

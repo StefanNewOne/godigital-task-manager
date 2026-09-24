@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { PrismaClient } from '@gd/db';
@@ -44,6 +45,7 @@ beforeAll(async () => {
   dirToken = await login('aleks@godigital.mk');
   monToken = await login('dejan@godigital.mk');
   for (const m of MONTHS) await cleanupMonth(db, m);
+  await db.fileAsset.deleteMany({ where: { r2Key: { startsWith: 'test/big/' } } });
   clientId = (await db.client.findFirst({ where: { status: 'aktiven', archivedAt: null } }))!.id;
 });
 
@@ -106,5 +108,35 @@ describe('B3.1 storage lifecycle', () => {
       .post(`/api/task-groups/${groupId}/storage/extend`)
       .set(bearer(monToken));
     expect(r.status).toBe(403);
+  });
+
+  it('квота аларм се создава кога вкупниот сторидж го надминува прагот', async () => {
+    await db.notification.deleteMany({ where: { eventKey: 'storage_quota' } });
+    const big = await db.fileAsset.create({
+      data: {
+        ownerType: 'task',
+        ownerId: randomUUID(),
+        kind: 'raw',
+        r2Key: `test/big/${randomUUID()}.mp4`,
+        size: BigInt(600) * BigInt(1024) ** BigInt(3), // 600 GB > default праг 500 GB
+        mime: 'video/mp4',
+        lifecycle: 'active',
+      },
+    });
+    try {
+      const r = await request(app)
+        .post('/api/cron/storage-quota')
+        .set('x-cron-secret', env.CRON_SECRET)
+        .send({});
+      expect(r.status).toBe(200);
+      expect(r.body.data.created).toBeGreaterThan(0);
+      const dir = await db.employee.findFirst({ where: { role: 'dir', active: true } });
+      const notif = await db.notification.findFirst({
+        where: { recipientId: dir!.id, eventKey: 'storage_quota' },
+      });
+      expect(notif!.level).toBe('kritichen');
+    } finally {
+      await db.fileAsset.delete({ where: { id: big.id } });
+    }
   });
 });
