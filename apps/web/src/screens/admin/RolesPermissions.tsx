@@ -14,7 +14,7 @@ export function AdminPermissions() {
   return (
     <div>
       <p style={{ color: 'var(--gd-ink-muted)', fontSize: 13, marginTop: 0, marginBottom: 16 }}>
-        Читливо (извор: <code>@gd/core/permissions</code>). П = гледа екран · Ч = чита само свои.
+        П = пишува · Ч = чита · — = нема пристап.
       </p>
       <div style={s.wrap}>
         <table style={s.table}>
