@@ -16,6 +16,7 @@ import { PERMISSIONS, type Role, type Screen } from '@gd/core';
 import { useLogout, useMe } from '../api/auth.js';
 import { MONTH_LABELS } from '../lib/calendar.js';
 import { NotificationsBell } from './NotificationsBell.js';
+import { KritichenModal } from './KritichenModal.js';
 
 // `label` = кратка ознака во rail-от; `title` = наслов во топ-лентата (Handoff).
 const NAV: Array<{
@@ -209,6 +210,7 @@ export function AppShell() {
           <Outlet />
         </main>
       </div>
+      <KritichenModal />
     </div>
   );
 }
