@@ -60,8 +60,8 @@
 | H6  | Поставки за известувања по вработен                              | B1   | ✅ РЕШЕНО (2026-09-24) — `screens/Settings.tsx`; toggle за потсетници (alarm/kritичен задолжителни); `/me` враќа `notificationPrefs`, `/me/notification-prefs` PATCH; влез преку аватар |
 | H7  | Сторидж акции (продолжи +30 дена, локална архива)                | B3   | ⬜                                                                                                                                                                                      |
 | H8  | Прикачување суров материјал на десктоп (multipart, продолжување) | A4   | ✅ presigned multipart + `UploadSession`                                                                                                                                                |
-| H9  | Аналитичар — форма за кампања                                    | B2   | ⬜                                                                                                                                                                                      |
-| H10 | Извештај по клиент и месец                                       | B2   | ⬜ табела + CSV                                                                                                                                                                         |
+| H9  | Аналитичар — форма за кампања                                    | B2   | ✅ `CampaignsManager.tsx` (create/edit) + Campaign CRUD                                                                                                                                 |
+| H10 | Извештај по клиент и месец                                       | B2   | ✅ `ReportModal.tsx` + `/reports/clients(.csv)` (табела + CSV)                                                                                                                          |
 
 ---
 

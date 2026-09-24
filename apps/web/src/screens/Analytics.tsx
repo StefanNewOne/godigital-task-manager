@@ -4,6 +4,7 @@ import { Button } from '@gd/ui';
 import { useMe } from '../api/auth.js';
 import { useAnalytics, type AnalyticsCampaign, type AnalyticsPost } from '../api/analytics.js';
 import { CampaignsManager } from './CampaignsManager.js';
+import { ReportModal } from './ReportModal.js';
 
 /**
  * Аналитика (Handoff §9). Распоредот е финален; бројките доаѓаат од `/analytics` (B2),
@@ -34,10 +35,17 @@ export function Analytics() {
   const { data, isLoading } = useAnalytics(month);
   const { data: me } = useMe();
   const [managing, setManaging] = useState(false);
+  const [reporting, setReporting] = useState(false);
   const canManage = me?.role === 'ana' || me?.role === 'dir';
+  const canReport = me?.role === 'ana' || me?.role === 'dir' || me?.role === 'am';
 
   const header = (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
+      {canReport && (
+        <Button variant="secondary" size="form" onClick={() => setReporting(true)}>
+          Извештај
+        </Button>
+      )}
       {canManage && (
         <Button variant="secondary" size="form" onClick={() => setManaging(true)}>
           Кампањи
@@ -45,14 +53,19 @@ export function Analytics() {
       )}
     </div>
   );
-  const campaignsModal = managing ? <CampaignsManager onClose={() => setManaging(false)} /> : null;
+  const modals = (
+    <>
+      {managing && <CampaignsManager onClose={() => setManaging(false)} />}
+      {reporting && <ReportModal month={month} onClose={() => setReporting(false)} />}
+    </>
+  );
 
   if (isLoading) {
     return (
       <div style={{ padding: '24px 20px 48px', display: 'flex', flexDirection: 'column', gap: 16 }}>
         {header}
         <div style={{ color: 'var(--gd-ink-muted)' }}>Вчитување…</div>
-        {campaignsModal}
+        {modals}
       </div>
     );
   }
@@ -65,7 +78,7 @@ export function Analytics() {
           Сè уште нема снимени метрики за овој месец. Метриките се влечат автоматски од Meta по
           објавување (на секои 6 часа).
         </div>
-        {campaignsModal}
+        {modals}
       </div>
     );
   }
@@ -173,7 +186,7 @@ export function Analytics() {
           ))}
         </div>
       </section>
-      {campaignsModal}
+      {modals}
     </div>
   );
 }
