@@ -123,6 +123,8 @@ export interface NotificationRow {
   eventKey: string;
   title: string;
   body: string;
+  taskId: string | null;
+  groupId: string | null;
   clientId: string | null;
   readAt: string | null;
   createdAt: string;

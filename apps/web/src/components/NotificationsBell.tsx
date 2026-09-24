@@ -1,7 +1,9 @@
 import type React from 'react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Modal } from '@gd/ui';
 import { useMarkRead, useNotifications } from '../api/notifications.js';
+import type { NotificationRow } from '../lib/types.js';
 
 const LEVEL_COLOR: Record<string, string> = {
   kritichen: 'var(--gd-danger)',
@@ -9,12 +11,29 @@ const LEVEL_COLOR: Record<string, string> = {
   potsetnik: 'var(--gd-ink-muted)',
 };
 
+/** Каде води известувањето: конкретен таск/капа, инаку филтриран список по клиент. */
+export function notificationTarget(
+  n: Pick<NotificationRow, 'taskId' | 'groupId' | 'clientId'>,
+): string {
+  if (n.taskId) return `/tasks?task=${n.taskId}`;
+  if (n.groupId) return `/tasks?capa=${n.groupId}`;
+  if (n.clientId) return `/tasks?client=${n.clientId}&tab=list`;
+  return '/tasks';
+}
+
 /** „Аларми" копче со број непрочитани + модал со известувањата (Handoff §11). */
 export function NotificationsBell() {
   const { data } = useNotifications();
   const markRead = useMarkRead();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const items = data ?? [];
+
+  const openNotification = (n: NotificationRow) => {
+    markRead.mutate(n.id);
+    setOpen(false);
+    navigate(notificationTarget(n));
+  };
 
   return (
     <>
@@ -40,10 +59,10 @@ export function NotificationsBell() {
                 flex: '0 0 auto',
               }}
             />
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <button onClick={() => openNotification(n)} style={itemBody} title="Отвори">
               <div style={{ fontSize: 13, fontWeight: 500 }}>{n.title}</div>
               <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>{n.body}</div>
-            </div>
+            </button>
             <button onClick={() => markRead.mutate(n.id)} style={readBtn} title="Означи прочитано">
               ✓
             </button>
@@ -83,6 +102,15 @@ const item: React.CSSProperties = {
   gap: 8,
   padding: '10px 12px',
   borderBottom: '1px solid var(--gd-border)',
+};
+const itemBody: React.CSSProperties = {
+  flex: 1,
+  minWidth: 0,
+  textAlign: 'left',
+  border: 'none',
+  background: 'transparent',
+  cursor: 'pointer',
+  padding: 0,
 };
 const readBtn: React.CSSProperties = {
   border: '1px solid var(--gd-border)',

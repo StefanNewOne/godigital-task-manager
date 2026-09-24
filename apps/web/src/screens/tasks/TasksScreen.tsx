@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   ALL_STATUSES,
@@ -74,6 +74,19 @@ export function TasksScreen() {
   };
   const [openId, setOpenId] = useState<string | null>(null);
   const [openGroupId, setOpenGroupId] = useState<string | null>(null);
+
+  // Отвори таск/капа од известување (?task / ?capa), па исчисти го param-от за да не се повтори.
+  useEffect(() => {
+    const t = searchParams.get('task');
+    const c = searchParams.get('capa');
+    if (!t && !c) return;
+    if (t) setOpenId(t);
+    if (c) setOpenGroupId(c);
+    const next = new URLSearchParams(searchParams);
+    next.delete('task');
+    next.delete('capa');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
   const [clientId, setClientId] = useState(() => searchParams.get('client') ?? '');
   const [months, setMonths] = useState<Set<string>>(new Set());
   const [statuses, setStatuses] = useState<Set<string>>(() => {

@@ -96,6 +96,12 @@ describe('A3 — целиот графички тек', () => {
     expect(r2.body.data.status).toBe('dizajn');
     expect(r2.body.data.assigneeId).toBe(empId.diz);
 
+    // E_NOTIFY (#1): дизајнерот доби in-app известување дека има нова задача.
+    const dizNotif = await db.notification.findFirst({
+      where: { recipientId: empId.diz, taskId: id, eventKey: 'task_new' },
+    });
+    expect(dizNotif, 'дизајнерот треба да добие известување за нова задача').toBeTruthy();
+
     // 3) dizajn → vnatresno (diz: бара прикачена графика)
     await db.fileAsset.create({
       data: {

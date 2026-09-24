@@ -12,6 +12,7 @@ import { AppError } from '../../lib/errors.js';
 import { recordEvent } from '../../lib/events.js';
 import { runTaskGuards, missingMessage } from './guards.js';
 import { resolveAssignee, runTaskEffects } from './effects.js';
+import { createNotification } from '../notifications.js';
 
 const label = (s: string) => TASK_STATUS_META[s as TaskStatus]?.label ?? s;
 
@@ -49,8 +50,8 @@ export async function transitionTask(
     throw new AppError('GUARD_FAILED', missingMessage(['reason']), 400, { missing: ['reason'] });
   }
 
-  return prisma.$transaction(async (tx) => {
-    const ctx = { tx, task, payload, actorId: actor.id, actorRole: actor.role };
+  const { updated, notifications } = await prisma.$transaction(async (tx) => {
+    const ctx = { tx, task, to, payload, actorId: actor.id, actorRole: actor.role };
 
     const g = await runTaskGuards(rule.guards, ctx);
     if (!g.ok) {
@@ -89,6 +90,13 @@ export async function transitionTask(
       narrative: `${ROLE_LABEL[actor.role]}${onBehalfNote} го премести таскот „${task.title}" од ${label(task.status)} во ${label(finalStatus)}.`,
     });
 
-    return tx.task.findUnique({ where: { id: task.id } });
+    const updated = await tx.task.findUnique({ where: { id: task.id } });
+    return { updated, notifications: eff.notifications };
   });
+
+  // Известувања по commit — не смеат да го паднат преодот (best-effort).
+  for (const n of notifications) {
+    await createNotification(n).catch(() => undefined);
+  }
+  return updated;
 }

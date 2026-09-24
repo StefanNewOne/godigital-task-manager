@@ -4,7 +4,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { TASK_STATUS_META, coverageLevel, type TaskStatus } from '@gd/core';
 import { tokens } from '@gd/ui';
 import { useOverview, type CoverageRow } from '../api/overview.js';
-import { useNotifications } from '../api/notifications.js';
+import { useMarkRead, useNotifications } from '../api/notifications.js';
+import { notificationTarget } from '../components/NotificationsBell.js';
 import { PeriodSidebar } from '../components/PeriodSidebar.js';
 import { StatusBadge } from '../components/StatusBadge.js';
 
@@ -106,6 +107,7 @@ export function Overview() {
   const period = searchParams.get('period') ?? currentKey;
   const { data, isLoading } = useOverview(period);
   const { data: alarmsData } = useNotifications();
+  const markRead = useMarkRead();
   const navigate = useNavigate();
 
   if (isLoading) return <div style={{ padding: 24, color: 'var(--gd-ink-muted)' }}>Вчитување…</div>;
@@ -194,12 +196,15 @@ export function Overview() {
                   }}
                 >
                   <span style={alarmBadge(a.level)}>{ALARM_LABEL[a.level]}</span>
-                  {a.clientId && (
+                  {(a.taskId || a.groupId || a.clientId) && (
                     <button
                       style={alarmActionBtn}
-                      onClick={() => navigate(`/tasks?client=${a.clientId}&tab=list`)}
+                      onClick={() => {
+                        markRead.mutate(a.id);
+                        navigate(notificationTarget(a));
+                      }}
                     >
-                      Во таскот
+                      {a.taskId ? 'Во таскот' : a.groupId ? 'Во капата' : 'Во таскот'}
                     </button>
                   )}
                 </div>

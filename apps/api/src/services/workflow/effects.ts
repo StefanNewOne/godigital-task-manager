@@ -1,11 +1,13 @@
 import type { ApprovalOutcome, ApprovalType, Client, Prisma, RevisionSource, Task } from '@gd/db';
-import type { Role, TransitionPayload } from '@gd/core';
+import { TASK_STATUS_META, type Role, type TaskStatus, type TransitionPayload } from '@gd/core';
 import type { TxClient } from '../../db/tenantExtension.js';
+import type { NotifyInput } from '../notifications.js';
 import { parseToken } from './parse.js';
 
 export interface EffectCtx {
   tx: TxClient;
   task: Task & { client: Client };
+  to: TaskStatus;
   payload: TransitionPayload;
   actorId: string;
   actorRole: Role;
@@ -14,7 +16,10 @@ export interface EffectCtx {
 export interface EffectResult {
   updates: Prisma.TaskUpdateInput;
   autoNext?: string; // системски следен статус (E_AUTO_NEXT) ако условот важи
+  notifications: NotifyInput[]; // се испраќаат по commit (не смеат да го паднат преодот)
 }
+
+const statusLabel = (s: string) => TASK_STATUS_META[s as TaskStatus]?.label ?? s;
 
 function resolveAssignee(role: string, ctx: EffectCtx): string | null {
   if (ctx.payload.assigneeId) return ctx.payload.assigneeId;
@@ -25,6 +30,7 @@ function resolveAssignee(role: string, ctx: EffectCtx): string | null {
 /** Изврши ги effects од матрицата (PRD §4.3). Враќа акумулирани измени на таскот. */
 export async function runTaskEffects(tokens: string[], ctx: EffectCtx): Promise<EffectResult> {
   const updates: Prisma.TaskUpdateInput = {};
+  const notifications: NotifyInput[] = [];
   let autoNext: string | undefined;
 
   for (const token of tokens) {
@@ -90,14 +96,62 @@ export async function runTaskEffects(tokens: string[], ctx: EffectCtx): Promise<
         break;
       }
 
-      // Одложени/друга фаза: E_NOTIFY (B1), E_ALARM (B1), E_SCHEDULE_METRICS (B2),
-      // E_STORAGE_TIMER (B3), E_CREATE_EXTRA_SLOTS/E_BIND_SCENARIOS/E_ACTIVATE_CHILDREN (капа, A4).
+      case 'E_NOTIFY': {
+        // E_NOTIFY(nov_task,role) | E_NOTIFY(vraten,role). Известува кого го носи новиот статус.
+        const kind = args[0] ?? 'nov_task';
+        const role = args[1];
+        const recipientId =
+          (role ? resolveAssignee(role, ctx) : null) ??
+          (typeof updates.assigneeId === 'string' ? updates.assigneeId : ctx.task.assigneeId);
+        if (recipientId) {
+          const returned = kind === 'vraten';
+          notifications.push({
+            recipientId,
+            level: 'potsetnik',
+            eventKey: returned ? 'task_returned' : 'task_new',
+            taskId: ctx.task.id,
+            clientId: ctx.task.clientId,
+            title: returned ? 'Задача вратена' : 'Нова задача за тебе',
+            body: `${ctx.task.client.name}: „${ctx.task.title}" — ${statusLabel(ctx.to)}.`,
+          });
+        }
+        break;
+      }
+
+      case 'E_ALARM': {
+        // E_ALARM(11): 3-то (или повеќе) враќање од клиент → критично до Директор(и).
+        if (args[0] === '11') {
+          const clientReturns = await ctx.tx.revision.count({
+            where: { taskId: ctx.task.id, source: 'client' },
+          });
+          if (clientReturns >= 3) {
+            const dirs = await ctx.tx.employee.findMany({
+              where: { role: 'dir', active: true },
+              select: { id: true },
+            });
+            for (const d of dirs) {
+              notifications.push({
+                recipientId: d.id,
+                level: 'kritichen',
+                eventKey: 'client_return_3x',
+                taskId: ctx.task.id,
+                clientId: ctx.task.clientId,
+                title: 'Трето враќање од клиент',
+                body: `„${ctx.task.title}" (${ctx.task.client.name}) е вратен по ${clientReturns}-ти пат од клиент.`,
+              });
+            }
+          }
+        }
+        break;
+      }
+
+      // Одложени/друга фаза: E_SCHEDULE_METRICS (B2), E_STORAGE_TIMER (B3).
       default:
         break;
     }
   }
 
-  return { updates, autoNext };
+  return { updates, autoNext, notifications };
 }
 
 export { resolveAssignee };

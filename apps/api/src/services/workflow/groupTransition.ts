@@ -10,6 +10,7 @@ import type { FileKind, Prisma } from '@gd/db';
 import { prisma, type TxClient } from '../../db/tenantExtension.js';
 import { AppError } from '../../lib/errors.js';
 import { recordEvent } from '../../lib/events.js';
+import { createNotification, type NotifyInput } from '../notifications.js';
 import { missingMessage } from './guards.js';
 import { parseToken } from './parse.js';
 
@@ -269,7 +270,7 @@ export async function transitionTaskGroup(
 
   const defaults = (group.client.defaultAssignees ?? {}) as Record<string, string>;
 
-  return prisma.$transaction(async (tx) => {
+  const { group: updatedGroup, notifications } = await prisma.$transaction(async (tx) => {
     const ctx: GroupCtx = { tx, group, payload };
     const missing = await runGroupGuards(rule.guards, ctx);
     if (missing.length) {
@@ -277,6 +278,7 @@ export async function transitionTaskGroup(
     }
 
     const upd: Prisma.TaskGroupUpdateInput = { status: to };
+    const notify: NotifyInput[] = [];
     let activated = 0;
     let extra = 0;
 
@@ -288,6 +290,49 @@ export async function transitionTaskGroup(
           if (role === 'scen') upd.scenaristId = payload.scenaristId ?? defaults.scen ?? null;
           if (role === 'kam') upd.kamId = payload.kamId ?? defaults.kam ?? null;
           if (role === 'rez') upd.rezId = group.rezId ?? defaults.rez ?? actor.id;
+          break;
+        }
+        case 'E_NOTIFY': {
+          // Известува кого го носи новиот капа-статус (сценарист/режисер).
+          const role = args[1] ?? 'rez';
+          const recipientId =
+            role === 'scen'
+              ? (payload.scenaristId ?? defaults.scen ?? group.scenaristId)
+              : role === 'kam'
+                ? (payload.kamId ?? defaults.kam ?? group.kamId)
+                : (group.rezId ?? defaults.rez ?? null);
+          if (recipientId) {
+            notify.push({
+              recipientId,
+              level: 'potsetnik',
+              eventKey: 'capa_new',
+              groupId: group.id,
+              clientId: group.clientId,
+              title: 'Нова капа задача',
+              body: `${group.client.name}: капата е во „${gLabel(to)}".`,
+            });
+          }
+          break;
+        }
+        case 'E_ALARM': {
+          // E_ALARM(9): одобрени сценарија > резервирани слотови → критично до Директор(и).
+          if (args[0] === '9' && extra > 0) {
+            const dirs = await tx.employee.findMany({
+              where: { role: 'dir', active: true },
+              select: { id: true },
+            });
+            for (const d of dirs) {
+              notify.push({
+                recipientId: d.id,
+                level: 'kritichen',
+                eventKey: 'scenario_slot_mismatch',
+                groupId: group.id,
+                clientId: group.clientId,
+                title: 'Повеќе сценарија од слотови',
+                body: `${group.client.name}: создадени ${extra} екстра слот(ови) за вишок одобрени сценарија.`,
+              });
+            }
+          }
           break;
         }
         case 'E_VERSION_BUMP':
@@ -347,6 +392,13 @@ export async function transitionTaskGroup(
       narrative: `${ROLE_LABEL[actor.role]} ја премести капата „${group.client.name} · ${group.monthKey}" од ${gLabel(group.status)} во ${gLabel(to)}${activated ? ` (активирани ${activated} деца${extra ? `, +${extra} екстра` : ''})` : ''}.`,
     });
 
-    return tx.taskGroup.findUnique({ where: { id: group.id } });
+    const result = await tx.taskGroup.findUnique({ where: { id: group.id } });
+    return { group: result, notifications: notify };
   });
+
+  // Известувања по commit (best-effort — не смеат да го паднат преодот).
+  for (const n of notifications) {
+    await createNotification(n).catch(() => undefined);
+  }
+  return updatedGroup;
 }
