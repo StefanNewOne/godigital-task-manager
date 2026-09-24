@@ -5,6 +5,7 @@ import {
   CalendarClock,
   ChevronDown,
   ChevronRight,
+  Film,
   Lock,
   Maximize2,
   Minimize2,
@@ -99,9 +100,9 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
   const [modalDate, setModalDate] = useState('');
   const [toasts, setToasts] = useState<Array<{ id: number; text: string }>>([]);
   const [open, setOpen] = useState({
-    context: false,
-    creative: false,
-    publication: false,
+    context: true,
+    creative: true,
+    publication: true,
     activity: true,
   });
   const [wz, setWz] = useState({
@@ -708,6 +709,60 @@ function renderZone(a: ZoneArgs): React.ReactNode {
     );
   }
 
+  if (status === 'chekaRezija') {
+    const monteurs = employees.filter((e) => e.role === 'mon');
+    return (
+      <>
+        <p style={sectionText}>
+          Прегледај го материјалот, додели монтажер на овој таск и додади насоки за монтажа.
+          Различни таскови може да добијат различни монтажери.
+        </p>
+        <div style={rawBox}>
+          <div style={rawBoxLabel}>Суров материјал од капата</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14 }}>
+            <Film size={16} aria-hidden /> Спремен за монтажа
+          </div>
+        </div>
+        <label style={fieldLabel}>
+          Монтажер · задолжително
+          <select
+            className="gd-field"
+            value={wz.assigneeId}
+            onChange={(e) => set({ assigneeId: e.target.value })}
+            style={{ marginTop: 4 }}
+          >
+            <option value="">— избери —</option>
+            {monteurs.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label style={fieldLabel}>
+          Насоки за монтажа
+          <textarea
+            className="gd-field"
+            rows={3}
+            value={wz.comment}
+            onChange={(e) => set({ comment: e.target.value })}
+            style={{ marginTop: 4 }}
+          />
+        </label>
+        <Button
+          variant="primary"
+          size="form"
+          disabled={pending || !wz.assigneeId}
+          onClick={() =>
+            doTransition('montaza', { assigneeId: wz.assigneeId, comment: wz.comment })
+          }
+        >
+          Додели монтажер и продолжи
+        </Button>
+      </>
+    );
+  }
+
   if (status === 'montaza') {
     return (
       <>
@@ -962,9 +1017,9 @@ function Section(props: {
     <div style={{ borderTop: '1px solid var(--gd-border)', padding: '12px 0' }}>
       <button style={sectionHead} onClick={props.onToggle}>
         {props.openState ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-        <span style={{ fontSize: 14, fontWeight: 600 }}>{props.title}</span>
+        <span style={{ fontSize: 16, lineHeight: '24px', fontWeight: 600 }}>{props.title}</span>
         {props.badge && (
-          <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--gd-ink-muted)' }}>
+          <span style={{ marginLeft: 4, fontSize: 12, color: 'var(--gd-ink-muted)' }}>
             {props.badge}
           </span>
         )}
@@ -1108,7 +1163,10 @@ const workHeader: React.CSSProperties = {
   borderBottom: '1px solid var(--gd-border)',
 };
 const lockedBox: React.CSSProperties = {
+  margin: 12,
   padding: 12,
+  border: '1px dashed var(--gd-border)',
+  borderRadius: 8,
   opacity: 0.55,
   pointerEvents: 'none',
   display: 'flex',
@@ -1129,6 +1187,20 @@ const counter: React.CSSProperties = {
   fontSize: 11,
   color: 'var(--gd-ink-muted)',
   marginTop: 4,
+};
+const rawBox: React.CSSProperties = {
+  border: '1px solid var(--gd-border)',
+  borderRadius: 8,
+  padding: 12,
+  background: 'var(--gd-surface-alt)',
+  marginBottom: 12,
+};
+const rawBoxLabel: React.CSSProperties = {
+  fontSize: 12,
+  lineHeight: '16px',
+  fontWeight: 500,
+  color: 'var(--gd-ink-muted)',
+  marginBottom: 6,
 };
 const uploadBox: React.CSSProperties = {
   display: 'flex',
