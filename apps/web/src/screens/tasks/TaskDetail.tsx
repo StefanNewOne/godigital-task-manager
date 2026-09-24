@@ -97,6 +97,7 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
   const [viewer, setViewer] = useState(false);
   const [modal, setModal] = useState<Modal>(null);
   const [reason, setReason] = useState('');
+  const [behalfReason, setBehalfReason] = useState('');
   const [modalDate, setModalDate] = useState('');
   const [toasts, setToasts] = useState<Array<{ id: number; text: string }>>([]);
   const [open, setOpen] = useState({
@@ -159,6 +160,8 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
   };
   const terminal = isTerminal(status, task.client.usesMetaAds);
   const locked = isWorkZoneLockable(status) && !!me && me.role !== 'dir' && me.role !== owner;
+  // D-5: Директор што дејствува во зона на друга улога — задолжителна причина.
+  const actingOnBehalf = !!me && !!owner && !terminal && me.role !== owner;
 
   // Тим по тип содржина (реални луѓе што ги знаеме).
   const teamIds = Array.from(
@@ -188,12 +191,18 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
   const canCancelNow = !!me && me.role === 'dir' && status !== 'otkazano' && status !== 'zavrseno';
 
   const doTransition = (to: string, payload: Record<string, unknown> = {}) => {
+    if (actingOnBehalf && !behalfReason.trim()) {
+      pushToast(`Внеси причина — дејствуваш наместо ${owner ? ROLE_LABEL[owner] : 'улогата'}.`);
+      return;
+    }
+    const merged = actingOnBehalf ? { reason: behalfReason, ...payload } : payload;
     transition.mutate(
-      { to, payload },
+      { to, payload: merged },
       {
         onSuccess: () => {
           pushToast(`Пренесено во „${TASK_STATUS_META[to as TaskStatus]?.label ?? to}".`);
           set({ brief: '', copy: '', comment: '', assigneeId: '', permalink: '' });
+          setBehalfReason('');
         },
         onError: onErr,
       },
@@ -380,6 +389,9 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
             status={status}
             ownerLabel={owner ? ROLE_LABEL[owner] : 'никој'}
             assigneeName={empName(task.assigneeId)}
+            onBehalf={actingOnBehalf}
+            behalfReason={behalfReason}
+            setBehalfReason={setBehalfReason}
           >
             {renderZone({
               task,
@@ -595,6 +607,9 @@ function WorkZone(props: {
   status: TaskStatus;
   ownerLabel: string;
   assigneeName: string;
+  onBehalf: boolean;
+  behalfReason: string;
+  setBehalfReason: (v: string) => void;
   children: React.ReactNode;
 }) {
   if (props.status === 'mrtov') {
@@ -608,7 +623,30 @@ function WorkZone(props: {
           <Lock size={14} /> Чека {props.ownerLabel} · {props.assigneeName}
         </div>
       ) : (
-        <div style={{ padding: 12 }}>{props.children}</div>
+        <div style={{ padding: 12 }}>
+          {props.onBehalf && (
+            <div style={behalfBox}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                <Lock size={14} aria-hidden />
+                <span style={{ fontSize: 12, fontWeight: 600 }}>
+                  Дејствуваш наместо {props.ownerLabel} (D-5)
+                </span>
+              </div>
+              <label style={fieldLabel}>
+                Причина · задолжително
+                <textarea
+                  className="gd-field"
+                  rows={2}
+                  value={props.behalfReason}
+                  onChange={(e) => props.setBehalfReason(e.target.value)}
+                  placeholder={`Зошто дејствуваш наместо ${props.ownerLabel}?`}
+                  style={{ marginTop: 4 }}
+                />
+              </label>
+            </div>
+          )}
+          {props.children}
+        </div>
       )}
     </div>
   );
@@ -1174,6 +1212,14 @@ const lockedBox: React.CSSProperties = {
   gap: 6,
   fontSize: 13,
   color: 'var(--gd-ink-secondary)',
+};
+const behalfBox: React.CSSProperties = {
+  border: '1px solid var(--gd-primary-border)',
+  background: 'var(--gd-primary-wash)',
+  borderRadius: 8,
+  padding: 12,
+  marginBottom: 12,
+  color: 'var(--gd-primary-hover)',
 };
 const fieldLabel: React.CSSProperties = {
   display: 'block',
