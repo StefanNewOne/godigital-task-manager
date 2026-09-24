@@ -72,6 +72,28 @@ describe('B1 аларми + известувања', () => {
     expect(t.body.data.enabled).toBe(!rule.enabled);
   });
 
+  it('исклучено правило за покриеност → алармот не се евалуира (#3)', async () => {
+    const rules = await request(app).get('/api/automation-rules').set(auth());
+    const coverage = (
+      rules.body.data as Array<{ id: string; name: string; enabled: boolean }>
+    ).find((r) => r.name === 'Критичен: покриеност под 7 дена');
+    expect(coverage, 'системското правило за покриеност постои').toBeTruthy();
+
+    if (coverage!.enabled) {
+      await request(app).post(`/api/automation-rules/${coverage!.id}/toggle`).set(auth());
+    }
+    const r = await request(app)
+      .post('/api/cron/evaluate-alarms')
+      .set('x-cron-secret', env.CRON_SECRET)
+      .send({});
+    expect(r.status).toBe(200);
+    expect(r.body.data.created).toBe(0);
+    expect(r.body.data.skipped).toBe('disabled');
+
+    // Врати го во вклучено (за другите тестови / состојба).
+    await request(app).post(`/api/automation-rules/${coverage!.id}/toggle`).set(auth());
+  });
+
   it('вработен може да ги исклучи потсетниците', async () => {
     const r = await request(app)
       .patch('/api/me/notification-prefs')
