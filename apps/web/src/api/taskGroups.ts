@@ -78,6 +78,25 @@ export function useSplitScenarios(id: string) {
   });
 }
 
+/** Продолжи го животот на суровиот материјал за +30 дена (H7). */
+export function useExtendStorage(id: string) {
+  const invalidate = useGroupInvalidator(id);
+  return useMutation({
+    mutationFn: () => api.post<TaskGroupRow>(`/task-groups/${id}/storage/extend`, {}),
+    onSuccess: invalidate,
+  });
+}
+
+/** Означи локална архива на суровиот материјал (H7). */
+export function useArchiveStorage(id: string) {
+  const invalidate = useGroupInvalidator(id);
+  return useMutation({
+    mutationFn: (path: string) =>
+      api.post<TaskGroupRow>(`/task-groups/${id}/storage/archive`, { path }),
+    onSuccess: invalidate,
+  });
+}
+
 export function useScenarioOutcomes(id: string) {
   const invalidate = useGroupInvalidator(id);
   return useMutation({

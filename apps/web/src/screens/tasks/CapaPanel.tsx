@@ -6,7 +6,9 @@ import { Check, Lock, X } from 'lucide-react';
 import { useMe } from '../../api/auth.js';
 import { useEmployees } from '../../api/admin.js';
 import {
+  useArchiveStorage,
   useBulkActivate,
+  useExtendStorage,
   useGroupTransition,
   useScenarioOutcomes,
   useScenarios,
@@ -124,6 +126,10 @@ export function CapaPanel({ groupId, onClose }: { groupId: string; onClose: () =
               </div>
             )}
           </div>
+
+          {group.contentType === 'video' && terminal && (
+            <StoragePanel group={group} meRole={me?.role} pushToast={pushToast} onErr={onErr} />
+          )}
         </div>
       </div>
 
@@ -133,6 +139,87 @@ export function CapaPanel({ groupId, onClose }: { groupId: string; onClose: () =
         </div>
       )}
     </aside>
+  );
+}
+
+type GroupData = NonNullable<ReturnType<typeof useTaskGroup>['data']>;
+
+/** Сторидж акции на суров материјал (H7) — само за затворена видео капа. */
+function StoragePanel({
+  group,
+  meRole,
+  pushToast,
+  onErr,
+}: {
+  group: GroupData;
+  meRole?: Role;
+  pushToast: (m: string) => void;
+  onErr: (e: unknown) => void;
+}) {
+  const extend = useExtendStorage(group.id);
+  const archive = useArchiveStorage(group.id);
+  const [path, setPath] = useState('');
+  const canManage = meRole === 'dir' || meRole === 'am';
+
+  if (group.localArchivePath) {
+    return (
+      <div style={storageBox}>
+        <div style={{ fontWeight: 500 }}>Суровиот материјал е архивиран локално</div>
+        <code style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>{group.localArchivePath}</code>
+      </div>
+    );
+  }
+  if (!group.rawDeleteAt) return null;
+
+  const days = Math.ceil((new Date(group.rawDeleteAt).getTime() - Date.now()) / 86_400_000);
+  return (
+    <div style={storageBox}>
+      <div>
+        Суровиот материјал се брише за{' '}
+        <strong>
+          {days} {days === 1 ? 'ден' : 'дена'}
+        </strong>
+        .
+      </div>
+      {canManage && (
+        <div
+          style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}
+        >
+          <Button
+            size="toolbar"
+            variant="secondary"
+            disabled={extend.isPending}
+            onClick={() =>
+              extend.mutate(undefined, {
+                onSuccess: () => pushToast('Продолжено за +30 дена.'),
+                onError: onErr,
+              })
+            }
+          >
+            Продолжи +30 дена
+          </Button>
+          <input
+            value={path}
+            onChange={(e) => setPath(e.target.value)}
+            placeholder="Патека до локална архива"
+            style={pathInput}
+          />
+          <Button
+            size="toolbar"
+            variant="ghost"
+            disabled={!path.trim() || archive.isPending}
+            onClick={() =>
+              archive.mutate(path.trim(), {
+                onSuccess: () => pushToast('Означено како локална архива.'),
+                onError: onErr,
+              })
+            }
+          >
+            Локална архива
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -638,6 +725,24 @@ const workHeader: React.CSSProperties = {
   fontWeight: 500,
   color: 'var(--gd-ink-muted)',
   borderBottom: '1px solid var(--gd-border)',
+};
+const storageBox: React.CSSProperties = {
+  marginTop: 16,
+  padding: 12,
+  border: '1px solid var(--gd-border)',
+  borderRadius: 8,
+  background: 'var(--gd-surface-alt)',
+  fontSize: 13,
+};
+const pathInput: React.CSSProperties = {
+  flex: 1,
+  minWidth: 160,
+  height: 28,
+  padding: '0 8px',
+  borderRadius: 6,
+  border: '1px solid var(--gd-border)',
+  background: 'var(--gd-surface)',
+  fontSize: 12,
 };
 const lockedBox: React.CSSProperties = {
   padding: 16,

@@ -80,6 +80,8 @@ export interface TaskGroupRow {
   scenarioDocVersion: number;
   scenariosTotal: number;
   scenariosApproved: number;
+  rawDeleteAt: string | null;
+  localArchivePath: string | null;
 }
 
 export interface TaskGroupDetail extends TaskGroupRow {
