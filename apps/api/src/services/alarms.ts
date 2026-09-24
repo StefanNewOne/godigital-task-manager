@@ -1,5 +1,5 @@
-import { plannedCoverage, type CoverageTask } from '@gd/core';
 import { prisma } from '../db/tenantExtension.js';
+import { clientCoverageDays } from './coverageQuery.js';
 import { createNotification } from './notifications.js';
 
 /** Име на системското правило што го контролира овој аларм (Админ → Аларми toggle). */
@@ -18,34 +18,19 @@ export async function evaluateCoverageAlarms() {
   if (rule && !rule.enabled) return { created: 0, skipped: 'disabled' as const };
 
   const directors = await prisma.employee.findMany({ where: { role: 'dir', active: true } });
-  const clients = await prisma.client.findMany({ where: { status: 'aktiven', archivedAt: null } });
-  const today = new Date();
+  const coverage = await clientCoverageDays(new Date());
   let created = 0;
 
-  for (const c of clients) {
-    const tasks = await prisma.task.findMany({
-      where: { clientId: c.id },
-      include: { slot: { select: { date: true } } },
-    });
-    const line = (type: 'video' | 'graphic'): CoverageTask[] =>
-      tasks
-        .filter((t) => t.contentType === type)
-        .map((t) => ({ status: t.status, publishDate: t.slot?.date ?? null }));
-
-    const nums: number[] = [];
-    if (c.videosPerMonth > 0) nums.push(plannedCoverage(line('video'), today));
-    if (c.graphicsPerMonth > 0) nums.push(plannedCoverage(line('graphic'), today));
-    const days = nums.length ? Math.min(...nums) : Number.POSITIVE_INFINITY;
-
-    if (days < c.coverageAlarmDays) {
+  for (const c of coverage) {
+    if (c.days < c.threshold) {
       for (const d of directors) {
         const n = await createNotification({
           recipientId: d.id,
           level: 'kritichen',
           eventKey: 'coverage_low',
-          clientId: c.id,
+          clientId: c.clientId,
           title: `Ниска покриеност: ${c.name}`,
-          body: `Покриеноста за „${c.name}" е ${days} дена (праг ${c.coverageAlarmDays}).`,
+          body: `Покриеноста за „${c.name}" е ${c.days} дена (праг ${c.threshold}).`,
         });
         if (n) created++;
       }

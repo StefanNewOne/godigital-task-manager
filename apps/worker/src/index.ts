@@ -4,11 +4,12 @@
  * контекст + CRON_SECRET. Секое правило = repeatable job што повикува API cron endpoint.
  *
  * Регистрирани cron jobs:
- *   slots.generate   0 6 20 * *   → /api/cron/slots-generate     (месечни слотови)
- *   evaluate.alarms  0 7 * * *    → /api/cron/evaluate-alarms    (аларми за покриеност, B1)
+ *   slots.generate       0 6 20 * *   → /api/cron/slots-generate       (месечни слотови)
+ *   evaluate.alarms      0 7 * * *    → /api/cron/evaluate-alarms      (аларми за покриеност, B1)
+ *   notifications.digest 0 7 * * *    → /api/cron/notifications-digest (дневен преглед за Директор, B1)
  *
  * Иднина: outbox.drain (real-time/знаење), knowledge.index (B4), metrics.pull (B2),
- * publication.resolve (B2), files.preview (B3), notifications.digest (B1).
+ * publication.resolve (B2), files.preview (B3).
  */
 import { Queue, Worker } from 'bullmq';
 import IORedis from 'ioredis';
@@ -28,6 +29,11 @@ interface CronJob {
 const CRON_JOBS: CronJob[] = [
   { name: 'slots.generate', pattern: '0 6 20 * *', endpoint: '/api/cron/slots-generate' },
   { name: 'evaluate.alarms', pattern: '0 7 * * *', endpoint: '/api/cron/evaluate-alarms' },
+  {
+    name: 'notifications.digest',
+    pattern: '0 7 * * *',
+    endpoint: '/api/cron/notifications-digest',
+  },
 ];
 
 const CRON_QUEUE = 'cron';
