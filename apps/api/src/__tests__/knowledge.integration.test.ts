@@ -1,17 +1,24 @@
+import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { PrismaClient } from '@gd/db';
 import { createApp } from '../app.js';
 import { env } from '../env.js';
 
-/** Интеграциски тест за B4.1: knowledge backfill + embedding (stub провајдер + pgvector). */
+/** Интеграциски тест за B4.1/B4.2: knowledge backfill + embedding + хибридно пребарување. */
 const app = createApp();
 const db = new PrismaClient();
+let dirToken = '';
+const UNIQUE = 'ЗЕБРАТЕСТ123';
 
 const cron = (path: string) =>
   request(app).post(`/api/cron/${path}`).set('x-cron-secret', env.CRON_SECRET).send({});
 
 beforeAll(async () => {
+  const login = await request(app)
+    .post('/api/auth/login')
+    .send({ email: 'aleks@godigital.mk', password: 'gd-devpass-2026' });
+  dirToken = login.body.data.accessToken as string;
   await db.knowledgeChunk.deleteMany({ where: { sourceType: 'clientProfile' } });
 });
 
@@ -51,5 +58,39 @@ describe('B4.1 knowledge indexing', () => {
   it('без cron токен → 403', async () => {
     const r = await request(app).post('/api/cron/knowledge-index').send({});
     expect(r.status).toBe(403);
+  });
+
+  it('хибридно пребарување ја наоѓа уникатната порција (B4.2)', async () => {
+    await db.knowledgeChunk.create({
+      data: {
+        sourceType: 'processDoc',
+        sourceId: randomUUID(),
+        visibility: 'internal',
+        occurredAt: new Date('2027-01-01'),
+        text: `${UNIQUE} уникатен документ за правила на враќање`,
+        metadata: {},
+        contentHash: randomUUID(),
+        embeddingStatus: 'pending',
+      },
+    });
+    await cron('knowledge-index');
+
+    const r = await request(app)
+      .post('/api/knowledge/search')
+      .set({ Authorization: `Bearer ${dirToken}` })
+      .send({ query: UNIQUE });
+    expect(r.status).toBe(200);
+    const hits = r.body.data as Array<{ text: string; score: number }>;
+    expect(hits.length).toBeGreaterThan(0);
+    // Единствената tsv-погодена порција е меѓу врвните резултати (RRF со FTS + вектор).
+    expect(hits.some((h) => h.text.includes(UNIQUE))).toBe(true);
+  });
+
+  it('празно прашање → 400', async () => {
+    const r = await request(app)
+      .post('/api/knowledge/search')
+      .set({ Authorization: `Bearer ${dirToken}` })
+      .send({ query: '' });
+    expect(r.status).toBe(400);
   });
 });
