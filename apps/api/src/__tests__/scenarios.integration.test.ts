@@ -121,7 +121,7 @@ describe('Сценарија (A4)', () => {
     const r = await request(app)
       .post(`/api/task-groups/${groupId}/transition`)
       .set(bearer('dir'))
-      .send({ to: 'scenKajKlient' });
+      .send({ to: 'scenKajKlient', payload: { reason: 'Наместо сценарист (D-5).' } });
     expect(r.status).toBe(200);
     expect(r.body.data.status).toBe('scenKajKlient');
   });
@@ -143,7 +143,7 @@ describe('Сценарија (A4)', () => {
     const r = await request(app)
       .post(`/api/task-groups/${groupId}/transition`)
       .set(bearer('dir'))
-      .send({ to: 'snimanje' });
+      .send({ to: 'snimanje', payload: { reason: 'Наместо режисер (D-5).' } });
     expect(r.status).toBe(200);
     expect(r.body.data.status).toBe('snimanje');
 

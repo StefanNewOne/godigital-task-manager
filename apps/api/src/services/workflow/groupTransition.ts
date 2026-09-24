@@ -268,6 +268,12 @@ export async function transitionTaskGroup(
     : actor.role === rule.actor || actor.role === 'dir';
   if (!allowed) throw new AppError('FORBIDDEN_ROLE', 'Немате дозвола за овој преод.', 403);
 
+  // D-5: Директор наместо носителот на капа-статусот — причина задолжителна (како кај таск-преоди).
+  const onBehalf = !systemRule && actor.role !== rule.actor;
+  if (onBehalf && !payload.reason?.trim()) {
+    throw new AppError('GUARD_FAILED', missingMessage(['reason']), 400, { missing: ['reason'] });
+  }
+
   const defaults = (group.client.defaultAssignees ?? {}) as Record<string, string>;
 
   const { group: updatedGroup, notifications } = await prisma.$transaction(async (tx) => {
@@ -381,6 +387,7 @@ export async function transitionTaskGroup(
 
     await tx.taskGroup.update({ where: { id: group.id }, data: upd });
 
+    const onBehalfNote = onBehalf ? ` (наместо ${ROLE_LABEL[rule.actor as Role]})` : '';
     await recordEvent(tx, {
       eventType: 'taskGroup.transition',
       objectType: 'group',
@@ -389,7 +396,8 @@ export async function transitionTaskGroup(
       clientId: group.clientId,
       oldValue: { status: group.status },
       newValue: { status: to, activated, extra },
-      narrative: `${ROLE_LABEL[actor.role]} ја премести капата „${group.client.name} · ${group.monthKey}" од ${gLabel(group.status)} во ${gLabel(to)}${activated ? ` (активирани ${activated} деца${extra ? `, +${extra} екстра` : ''})` : ''}.`,
+      context: onBehalf ? { onBehalfOfRole: rule.actor, reason: payload.reason } : {},
+      narrative: `${ROLE_LABEL[actor.role]}${onBehalfNote} ја премести капата „${group.client.name} · ${group.monthKey}" од ${gLabel(group.status)} во ${gLabel(to)}${activated ? ` (активирани ${activated} деца${extra ? `, +${extra} екстра` : ''})` : ''}.`,
     });
 
     const result = await tx.taskGroup.findUnique({ where: { id: group.id } });

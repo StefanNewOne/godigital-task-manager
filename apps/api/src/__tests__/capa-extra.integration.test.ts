@@ -86,7 +86,7 @@ describe('E_CREATE_EXTRA_SLOTS (A4)', () => {
     const r = await request(app)
       .post(`/api/task-groups/${groupId}/transition`)
       .set({ Authorization: `Bearer ${token}` })
-      .send({ to: 'snimanje' });
+      .send({ to: 'snimanje', payload: { reason: 'Наместо режисер (D-5).' } });
     expect(r.status).toBe(200);
     expect(r.body.data.status).toBe('snimanje');
 

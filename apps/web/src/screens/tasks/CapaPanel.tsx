@@ -39,6 +39,7 @@ export function CapaPanel({ groupId, onClose }: { groupId: string; onClose: () =
   const { data: employees } = useEmployees();
 
   const [toast, setToast] = useState<string | null>(null);
+  const [behalfReason, setBehalfReason] = useState('');
   const pushToast = (m: string) => {
     setToast(m);
     window.setTimeout(() => setToast((t) => (t === m ? null : t)), 4200);
@@ -65,6 +66,8 @@ export function CapaPanel({ groupId, onClose }: { groupId: string; onClose: () =
   const terminal = status === 'zatvoren';
   const owner = groupOwner(status);
   const locked = !terminal && !!me && me.role !== 'dir' && me.role !== owner;
+  // D-5: Директор во туѓа капа-зона мора да внесе причина (како кај таск-преоди).
+  const actingOnBehalf = !terminal && !!me && me.role === 'dir' && !!owner && me.role !== owner;
   const activeIdx = terminal ? steps.length : steps.indexOf(status);
 
   return (
@@ -114,12 +117,35 @@ export function CapaPanel({ groupId, onClose }: { groupId: string; onClose: () =
               </div>
             ) : (
               <div style={{ padding: 12, opacity: 1 }}>
+                {actingOnBehalf && (
+                  <div style={behalfBox}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                      <Lock size={14} aria-hidden />
+                      <span style={{ fontSize: 12, fontWeight: 600 }}>
+                        Дејствуваш наместо {owner ? ROLE_LABEL[owner] : 'улогата'} (D-5)
+                      </span>
+                    </div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 500 }}>
+                      Причина · задолжително
+                      <textarea
+                        className="gd-field"
+                        rows={2}
+                        value={behalfReason}
+                        onChange={(e) => setBehalfReason(e.target.value)}
+                        placeholder={`Зошто дејствуваш наместо ${owner ? ROLE_LABEL[owner] : 'улогата'}?`}
+                        style={{ marginTop: 4 }}
+                      />
+                    </label>
+                  </div>
+                )}
                 <Zone
                   group={group}
                   status={status}
                   scenarios={scenarios ?? []}
                   employees={employees ?? []}
                   meRole={me?.role}
+                  onBehalf={actingOnBehalf}
+                  behalfReason={behalfReason}
                   pushToast={pushToast}
                   onErr={onErr}
                 />
@@ -229,6 +255,8 @@ interface ZoneProps {
   scenarios: ScenarioRow[];
   employees: { id: string; name: string; role: Role }[];
   meRole: Role | undefined;
+  onBehalf: boolean;
+  behalfReason: string;
   pushToast: (m: string) => void;
   onErr: (e: unknown) => void;
 }
@@ -241,8 +269,17 @@ function Zone(p: ZoneProps) {
   const outcomes = useScenarioOutcomes(group.id);
   const upload = useGroupUpload(group.id);
 
-  const move = (to: string, payload?: Record<string, unknown>, ok = 'Капата е поместена.') =>
-    transition.mutate({ to, payload }, { onSuccess: () => p.pushToast(ok), onError: p.onErr });
+  const move = (to: string, payload?: Record<string, unknown>, ok = 'Капата е поместена.') => {
+    if (p.onBehalf && !p.behalfReason.trim()) {
+      p.pushToast('Внеси причина — дејствуваш наместо носителот на капата.');
+      return;
+    }
+    const merged = p.onBehalf ? { reason: p.behalfReason, ...payload } : payload;
+    transition.mutate(
+      { to, payload: merged },
+      { onSuccess: () => p.pushToast(ok), onError: p.onErr },
+    );
+  };
 
   const doUpload =
     (kind: 'scenarioDoc' | 'raw' | 'sharedMaterial') =>
@@ -753,6 +790,14 @@ const lockedBox: React.CSSProperties = {
   fontSize: 13,
   opacity: 0.55,
   pointerEvents: 'none',
+};
+const behalfBox: React.CSSProperties = {
+  border: '1px solid var(--gd-primary-border)',
+  background: 'var(--gd-primary-wash)',
+  borderRadius: 8,
+  padding: 12,
+  marginBottom: 12,
+  color: 'var(--gd-primary-hover)',
 };
 const sectionText: React.CSSProperties = {
   fontSize: 13,

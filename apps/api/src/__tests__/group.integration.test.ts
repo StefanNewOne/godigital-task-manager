@@ -9,7 +9,7 @@ const app = createApp();
 const db = new PrismaClient();
 const DEV_PASSWORD = 'gd-devpass-2026';
 // Секој тест свој месец (TaskGroup е unique по клиент+тип+месец).
-const MONTHS = ['2027-03', '2027-04', '2027-05', '2027-06', '2027-08', '2027-09'];
+const MONTHS = ['2027-03', '2027-04', '2027-05', '2027-06', '2027-08', '2027-09', '2027-10'];
 
 let clientId = '';
 const empId: Record<string, string> = {};
@@ -174,6 +174,31 @@ describe('A4 капа преоди', () => {
     expect(group!.status, 'капата авто-се затвора при качување суров материјал').toBe('zatvoren');
     const kids = await db.task.findMany({ where: { groupId: g.id } });
     expect(kids.every((k) => k.status === 'chekaRezija' && k.assigneeId === empId.rez)).toBe(true);
+  });
+
+  it('D-5: Директор наместо носителот без причина → 400; со причина → 200', async () => {
+    const g = await mkGroup(MONTHS[6]!, 'podgotovka');
+    const capaFields = {
+      scenaristId: empId.scen,
+      shootDate: '2027-10-10T10:00:00Z',
+      shootLocation: 'Штип',
+      scenaristNotes: 'Насоки.',
+    };
+    // Директорот не е носител на podgotovka (rez) → бара причина.
+    const blocked = await request(app)
+      .post(`/api/task-groups/${g.id}/transition`)
+      .set(bearer('dir'))
+      .send({ to: 'scenarija', payload: capaFields });
+    expect(blocked.status).toBe(400);
+    expect(blocked.body.code).toBe('GUARD_FAILED');
+    expect(blocked.body.details.missing).toContain('reason');
+
+    const ok = await request(app)
+      .post(`/api/task-groups/${g.id}/transition`)
+      .set(bearer('dir'))
+      .send({ to: 'scenarija', payload: { ...capaFields, reason: 'Режисерот е отсутен.' } });
+    expect(ok.status).toBe(200);
+    expect(ok.body.data.status).toBe('scenarija');
   });
 
   it('графичка капа: bulk активација → сите деца во brifing, капа затворена (D-3)', async () => {
