@@ -9,7 +9,7 @@ const app = createApp();
 const db = new PrismaClient();
 const DEV_PASSWORD = 'gd-devpass-2026';
 // Секој тест свој месец (TaskGroup е unique по клиент+тип+месец).
-const MONTHS = ['2027-03', '2027-04', '2027-05', '2027-06', '2027-08'];
+const MONTHS = ['2027-03', '2027-04', '2027-05', '2027-06', '2027-08', '2027-09'];
 
 let clientId = '';
 const empId: Record<string, string> = {};
@@ -155,6 +155,23 @@ describe('A4 капа преоди', () => {
     expect(r.body.data.status).toBe('zatvoren');
     expect(r.body.data.rawDeleteAt).toBeTruthy();
 
+    const kids = await db.task.findMany({ where: { groupId: g.id } });
+    expect(kids.every((k) => k.status === 'chekaRezija' && k.assigneeId === empId.rez)).toBe(true);
+  });
+
+  it('авто-затворање (#7): качување суров материјал преку presign ја затвора капата', async () => {
+    const g = await mkGroup(MONTHS[5]!, 'snimanje', { kamId: empId.kam });
+    await mkChild(g.id, MONTHS[5]!, new Date(Date.UTC(2027, 8, 20)), 'cekaSnimanje');
+
+    // Камерманот качува суров материјал — без рачен transition повик.
+    const r = await request(app)
+      .post('/api/files/presign')
+      .set(bearer('kam'))
+      .send({ ownerType: 'group', ownerId: g.id, kind: 'raw', mime: 'video/mp4', size: 2048 });
+    expect(r.status).toBe(201);
+
+    const group = await db.taskGroup.findUnique({ where: { id: g.id } });
+    expect(group!.status, 'капата авто-се затвора при качување суров материјал').toBe('zatvoren');
     const kids = await db.task.findMany({ where: { groupId: g.id } });
     expect(kids.every((k) => k.status === 'chekaRezija' && k.assigneeId === empId.rez)).toBe(true);
   });
