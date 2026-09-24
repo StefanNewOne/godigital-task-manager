@@ -5,6 +5,7 @@ import {
   cancelSchema,
   commentCreateSchema,
   dateChangeSchema,
+  extraTaskSchema,
   extractExternalRef,
   pauseSchema,
   publicationCreateSchema,
@@ -17,7 +18,7 @@ import { prisma } from '../db/tenantExtension.js';
 import { AppError } from '../lib/errors.js';
 import { parse } from '../lib/validate.js';
 import { requireAuth } from '../middleware/auth.js';
-import { changeTaskDate } from '../services/slots.js';
+import { changeTaskDate, createExtraTask } from '../services/slots.js';
 import { transitionTask } from '../services/workflow/transition.js';
 import { cancelTask, pauseTask, resumeTask } from '../services/workflow/special.js';
 
@@ -45,6 +46,13 @@ tasksRouter.get('/', async (req, res) => {
     orderBy: [{ priority: 'desc' }, { statusChangedAt: 'asc' }],
   });
   res.json({ data: tasks });
+});
+
+// Дополнителен (екстра) таск во постоечка капа (прототип „Ново видео/графика").
+tasksRouter.post('/extra', async (req, res) => {
+  const input = parse(extraTaskSchema, req.body);
+  const task = await createExtraTask(input, { id: req.auth!.sub, role: req.auth!.role });
+  res.status(201).json({ data: task });
 });
 
 tasksRouter.get('/:id', async (req, res) => {

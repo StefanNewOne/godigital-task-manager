@@ -21,9 +21,10 @@ import {
 import { useMe } from '../../api/auth.js';
 import { useClients, useEmployees } from '../../api/admin.js';
 import { useOverview } from '../../api/overview.js';
-import { useTasks } from '../../api/tasks.js';
+import { useCreateExtraTask, useTasks } from '../../api/tasks.js';
 import { useTaskGroups } from '../../api/taskGroups.js';
 import type { TaskListItem } from '../../lib/types.js';
+import { ApiRequestError } from '../../lib/api.js';
 import { daysUntil } from '../../lib/tasksView.js';
 import { TaskDetail } from './TaskDetail.js';
 import { CapaPanel } from './CapaPanel.js';
@@ -140,6 +141,7 @@ export function TasksScreen() {
   const canCreateVideo = !!me && canCreate(me.role, 'video');
   const canCreateGraphic = !!me && canCreate(me.role, 'graphic');
   const [toast, setToast] = useState<string | null>(null);
+  const [newTaskKind, setNewTaskKind] = useState<'video' | 'graphic' | null>(null);
 
   const groupsQ = useTaskGroups({
     clientId: clientId || undefined,
@@ -202,7 +204,7 @@ export function TasksScreen() {
         <Toolbar
           canCreateVideo={canCreateVideo}
           canCreateGraphic={canCreateGraphic}
-          onCreate={(k) => setToast(`Креирање ${k} доаѓа со Капа панелот.`)}
+          onCreate={(k) => setNewTaskKind(k === 'video' ? 'video' : 'graphic')}
           tab={tab}
           groupBy={groupBy}
           onGroupBy={() => setGroupBy((g) => (g === 'client' ? 'status' : 'client'))}
@@ -266,11 +268,135 @@ export function TasksScreen() {
 
       {openId && <TaskDetail taskId={openId} onClose={() => setOpenId(null)} />}
       {openGroupId && <CapaPanel groupId={openGroupId} onClose={() => setOpenGroupId(null)} />}
+      {newTaskKind && (
+        <NewTaskModal
+          kind={newTaskKind}
+          clients={clients ?? []}
+          defaultClientId={clientId || (clients ?? [])[0]?.id || ''}
+          onClose={() => setNewTaskKind(null)}
+          onCreated={(id) => {
+            setNewTaskKind(null);
+            setOpenId(id);
+            setToast('Дополнителниот таск е создаден.');
+          }}
+          onError={(m) => setToast(m)}
+        />
+      )}
       {toast && (
         <div style={toastStyle} onClick={() => setToast(null)}>
           {toast}
         </div>
       )}
+    </div>
+  );
+}
+
+// --- Нов (екстра) таск модал ----------------------------------------------
+
+function NewTaskModal({
+  kind,
+  clients,
+  defaultClientId,
+  onClose,
+  onCreated,
+  onError,
+}: {
+  kind: 'video' | 'graphic';
+  clients: Array<{ id: string; name: string }>;
+  defaultClientId: string;
+  onClose: () => void;
+  onCreated: (taskId: string) => void;
+  onError: (message: string) => void;
+}) {
+  const create = useCreateExtraTask();
+  const [clientId, setClientId] = useState(defaultClientId);
+  const [title, setTitle] = useState('');
+  const [date, setDate] = useState('');
+  const startLabel = kind === 'video' ? 'Чека режија' : 'Брифинг';
+  const valid = clientId && title.trim() && date;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div style={modalBackdrop} onClick={onClose}>
+      <div style={modalBox} className="gd-fade-up" onClick={(e) => e.stopPropagation()}>
+        <div style={{ fontSize: 16, lineHeight: '24px', fontWeight: 600, marginBottom: 4 }}>
+          {kind === 'video' ? 'Ново видео' : 'Нова графика'}
+        </div>
+        <div
+          style={{
+            fontSize: 13,
+            lineHeight: '18px',
+            color: 'var(--gd-ink-muted)',
+            marginBottom: 16,
+          }}
+        >
+          Дополнителниот таск се додава во капа таскот за месецот и добива резервиран слот на
+          избраниот датум. Стартува во „{startLabel}". Ако нема отворена капа за тој месец, прво
+          потврди го месецот во Календар.
+        </div>
+        <label style={ntLabel}>
+          Клиент
+          <select
+            className="gd-field"
+            value={clientId}
+            onChange={(e) => setClientId(e.target.value)}
+            style={{ marginTop: 4 }}
+          >
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label style={ntLabel}>
+          Наслов
+          <input
+            className="gd-field"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={kind === 'video' ? 'пр. Дополнително видео' : 'пр. Дополнителна графика'}
+            style={{ marginTop: 4 }}
+          />
+        </label>
+        <label style={ntLabel}>
+          Датум на објава
+          <input
+            type="date"
+            className="gd-field"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            style={{ marginTop: 4 }}
+          />
+        </label>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+          <Button variant="secondary" size="form" onClick={onClose}>
+            Откажи
+          </Button>
+          <Button
+            variant="primary"
+            size="form"
+            disabled={!valid || create.isPending}
+            onClick={() =>
+              create.mutate(
+                { clientId, contentType: kind, title: title.trim(), date },
+                {
+                  onSuccess: (t) => onCreated((t as { id: string }).id),
+                  onError: (e) =>
+                    onError(e instanceof ApiRequestError ? e.message : 'Неуспешно создавање.'),
+                },
+              )
+            }
+          >
+            Создај задача
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -314,7 +440,7 @@ function Toolbar(p: ToolbarProps) {
           <>
             <Button
               size="toolbar"
-              onClick={() => p.onCreate('видео')}
+              onClick={() => p.onCreate('video')}
               style={
                 p.canCreateGraphic
                   ? { borderTopRightRadius: 0, borderBottomRightRadius: 0 }
@@ -343,7 +469,7 @@ function Toolbar(p: ToolbarProps) {
                 <button
                   style={createMenuItem}
                   onClick={() => {
-                    p.onCreate('графика');
+                    p.onCreate('graphic');
                     setCreateOpen(false);
                   }}
                 >
@@ -354,7 +480,7 @@ function Toolbar(p: ToolbarProps) {
           </>
         ) : (
           p.canCreateGraphic && (
-            <Button size="toolbar" onClick={() => p.onCreate('графика')}>
+            <Button size="toolbar" onClick={() => p.onCreate('graphic')}>
               <Plus size={14} /> Нова графика
             </Button>
           )
@@ -595,4 +721,28 @@ const toastStyle: React.CSSProperties = {
   fontSize: 14,
   cursor: 'pointer',
   zIndex: 50,
+};
+const modalBackdrop: React.CSSProperties = {
+  position: 'fixed',
+  inset: 0,
+  zIndex: 70,
+  background: 'rgba(18,22,28,.4)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+const modalBox: React.CSSProperties = {
+  width: 460,
+  maxWidth: '92vw',
+  background: 'var(--gd-surface)',
+  borderRadius: 8,
+  boxShadow: 'var(--gd-shadow-popover)',
+  padding: 24,
+};
+const ntLabel: React.CSSProperties = {
+  display: 'block',
+  fontSize: 12,
+  fontWeight: 500,
+  color: 'var(--gd-ink-muted)',
+  marginBottom: 12,
 };

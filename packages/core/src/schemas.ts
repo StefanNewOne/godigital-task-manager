@@ -127,6 +127,15 @@ export const dateChangeSchema = z.object({
 });
 export type DateChangeInput = z.infer<typeof dateChangeSchema>;
 
+// Дополнителен (екстра) таск во постоечка капа (прототип: „Ново видео/графика").
+export const extraTaskSchema = z.object({
+  clientId: z.string().uuid(),
+  contentType: contentTypeSchema,
+  title: z.string().min(1, 'Насловот е задолжителен.'),
+  date: z.coerce.date(),
+});
+export type ExtraTaskInput = z.infer<typeof extraTaskSchema>;
+
 // ── State machine transitions (A3) ──
 export const transitionPayloadSchema = z
   .object({

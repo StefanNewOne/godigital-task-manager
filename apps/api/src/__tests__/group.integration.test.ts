@@ -9,7 +9,16 @@ const app = createApp();
 const db = new PrismaClient();
 const DEV_PASSWORD = 'gd-devpass-2026';
 // Секој тест свој месец (TaskGroup е unique по клиент+тип+месец).
-const MONTHS = ['2027-03', '2027-04', '2027-05', '2027-06', '2027-08', '2027-09', '2027-10'];
+const MONTHS = [
+  '2027-03',
+  '2027-04',
+  '2027-05',
+  '2027-06',
+  '2027-08',
+  '2027-09',
+  '2027-10',
+  '2027-11',
+];
 
 let clientId = '';
 const empId: Record<string, string> = {};
@@ -199,6 +208,32 @@ describe('A4 капа преоди', () => {
       .send({ to: 'scenarija', payload: { ...capaFields, reason: 'Режисерот е отсутен.' } });
     expect(ok.status).toBe(200);
     expect(ok.body.data.status).toBe('scenarija');
+  });
+
+  it('екстра таск: rez создава дополнително видео во капа → chekaRezija, isExtra', async () => {
+    await mkGroup(MONTHS[7]!, 'podgotovka', { rezId: empId.rez });
+    // Нема капа за друг месец → 400 со упатство кон Календар.
+    const noCapa = await request(app)
+      .post('/api/tasks/extra')
+      .set(bearer('rez'))
+      .send({ clientId, contentType: 'video', title: 'Без капа', date: '2027-12-10' });
+    expect(noCapa.status).toBe(400);
+
+    const r = await request(app)
+      .post('/api/tasks/extra')
+      .set(bearer('rez'))
+      .send({ clientId, contentType: 'video', title: 'Екстра видео', date: '2027-11-12' });
+    expect(r.status).toBe(201);
+    expect(r.body.data.status).toBe('chekaRezija');
+    expect(r.body.data.isExtra).toBe(true);
+    expect(r.body.data.assigneeId).toBe(empId.rez);
+
+    // Погрешна улога за тип → 403.
+    const forbidden = await request(app)
+      .post('/api/tasks/extra')
+      .set(bearer('kam'))
+      .send({ clientId, contentType: 'video', title: 'x', date: '2027-11-12' });
+    expect(forbidden.status).toBe(403);
   });
 
   it('графичка капа: bulk активација → сите деца во brifing, капа затворена (D-3)', async () => {

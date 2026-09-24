@@ -1,4 +1,5 @@
 import {
+  ROLE_LABEL,
   canChangeDate,
   generateSlots,
   ymd,
@@ -273,6 +274,102 @@ export async function changeTaskDate(
       clientId: task.clientId,
       newValue: { date: ymd(input.newDate), orderInDay },
       narrative: `Променет датум на таскот „${newTitle}" на ${ymd(input.newDate)} (причина: ${input.reason}).`,
+    });
+    return tx.task.findUnique({ where: { id: task.id } });
+  });
+}
+
+/**
+ * Дополнителен (екстра) таск во постоечка капа (прототип „Ново видео/графика").
+ * Видео стартува во `chekaRezija`, графика во `brifing`, на резервиран слот за дадениот датум.
+ * Бара веќе отворена капа за (клиент, тип, месец) — инаку упатува на Календар (Потврди месец).
+ */
+export async function createExtraTask(
+  input: { clientId: string; contentType: ContentType; title: string; date: Date },
+  actor: { id: string; role: Role },
+) {
+  // Дозвола: видео → Режисер, графика → Гр. креатор (плюс Директор, D-5).
+  if (actor.role !== 'dir') {
+    if (input.contentType === 'video' && actor.role !== 'rez') {
+      throw new AppError('FORBIDDEN_ROLE', 'Само Режисер може да создаде екстра видео.', 403);
+    }
+    if (input.contentType === 'graphic' && actor.role !== 'krea') {
+      throw new AppError('FORBIDDEN_ROLE', 'Само Гр. креатор може да создаде екстра графика.', 403);
+    }
+  }
+
+  const client = await prisma.client.findUnique({ where: { id: input.clientId } });
+  if (!client) throw new AppError('NOT_FOUND', 'Клиентот не е пронајден.', 404);
+
+  const now = new Date();
+  const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const dUtc = Date.UTC(
+    input.date.getUTCFullYear(),
+    input.date.getUTCMonth(),
+    input.date.getUTCDate(),
+  );
+  if (dUtc < todayUtc) {
+    throw new AppError('DATE_IN_PAST', 'Не е дозволен датум во минато.', 400);
+  }
+
+  const monthKey = `${input.date.getUTCFullYear()}-${String(input.date.getUTCMonth() + 1).padStart(2, '0')}`;
+  const group = await prisma.taskGroup.findFirst({
+    where: { clientId: input.clientId, contentType: input.contentType, monthKey },
+  });
+  if (!group) {
+    throw new AppError(
+      'VALIDATION_FAILED',
+      'Нема отворена капа за тој месец. Прво потврди го месецот во Календар.',
+      400,
+    );
+  }
+
+  const status = input.contentType === 'video' ? 'chekaRezija' : 'brifing';
+  const defaults = (client.defaultAssignees ?? {}) as Record<string, string>;
+  const assigneeId =
+    input.contentType === 'video'
+      ? (group.rezId ?? defaults.rez ?? (actor.role === 'rez' ? actor.id : null))
+      : (defaults.krea ?? (actor.role === 'krea' ? actor.id : null));
+
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.publishingSlot.findFirst({
+      where: { clientId: input.clientId, contentType: input.contentType, date: input.date },
+      orderBy: { orderInDay: 'desc' },
+    });
+    const orderInDay = existing ? existing.orderInDay + 1 : 1;
+    const slot = await tx.publishingSlot.create({
+      data: {
+        clientId: input.clientId,
+        contentType: input.contentType,
+        date: input.date,
+        orderInDay,
+        status: 'reserved',
+        monthKey,
+      },
+    });
+    const task = await tx.task.create({
+      data: {
+        groupId: group.id,
+        clientId: input.clientId,
+        contentType: input.contentType,
+        title: input.title,
+        titleIsAuto: false,
+        status: status as never,
+        isExtra: true,
+        slotId: slot.id,
+        assigneeId,
+        rezId: input.contentType === 'video' ? assigneeId : null,
+        kreaId: input.contentType === 'graphic' ? assigneeId : null,
+      },
+    });
+    await recordEvent(tx as TxClient, {
+      eventType: 'task.extraCreated',
+      objectType: 'task',
+      objectId: task.id,
+      taskId: task.id,
+      clientId: input.clientId,
+      newValue: { status, date: ymd(input.date), isExtra: true },
+      narrative: `${ROLE_LABEL[actor.role]} создаде дополнителен ${input.contentType === 'video' ? 'видео' : 'графички'} таск „${input.title}" во капата „${client.name} · ${monthKey}".`,
     });
     return tx.task.findUnique({ where: { id: task.id } });
   });

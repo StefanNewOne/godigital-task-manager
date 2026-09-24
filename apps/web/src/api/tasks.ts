@@ -55,6 +55,23 @@ export function useTransition(id: string) {
   });
 }
 
+/** Дополнителен (екстра) таск во постоечка капа (прототип „Ново видео/графика"). */
+export function useCreateExtraTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      clientId: string;
+      contentType: 'video' | 'graphic';
+      title: string;
+      date: string;
+    }) => api.post<TaskDetailData>('/tasks/extra', input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['tasks'] });
+      void qc.invalidateQueries({ queryKey: ['task-groups'] });
+    },
+  });
+}
+
 /** Преод преку Board DnD (динамичен id) — само за преоди без input-guards (D-8). */
 export function useBoardTransition() {
   const qc = useQueryClient();
