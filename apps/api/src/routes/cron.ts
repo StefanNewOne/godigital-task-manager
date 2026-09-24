@@ -7,6 +7,7 @@ import { evaluateCoverageAlarms } from '../services/alarms.js';
 import { generateDailyDigest } from '../services/digest.js';
 import { pullMetrics, resolvePublications } from '../services/meta/metrics.js';
 import { evaluateStorageQuota, runStorageCleanup } from '../services/storage.js';
+import { backfillKnowledge, processPendingEmbeddings } from '../services/knowledge/index.js';
 
 /** Cron рути — заштитени со CRON_SECRET (не JWT). Ги повикува worker-от. */
 export const cronRouter: ExpressRouter = Router();
@@ -59,5 +60,17 @@ cronRouter.post('/storage-cleanup', requireCronSecret, async (_req, res) => {
 // Квота аларм (B3): вкупен сторидж наспроти прагот → критично до Директор. BullMQ: дневно.
 cronRouter.post('/storage-quota', requireCronSecret, async (_req, res) => {
   const result = await evaluateStorageQuota();
+  res.json({ data: result });
+});
+
+// Знаење (B4): embed-ирај pending порции. BullMQ: често (пр. на 2 мин / по Outbox).
+cronRouter.post('/knowledge-index', requireCronSecret, async (_req, res) => {
+  const result = await processPendingEmbeddings();
+  res.json({ data: result });
+});
+
+// Знаење backfill (B4): индексирај ги постоечките ентитети (еднократно/периодично).
+cronRouter.post('/knowledge-backfill', requireCronSecret, async (_req, res) => {
+  const result = await backfillKnowledge();
   res.json({ data: result });
 });

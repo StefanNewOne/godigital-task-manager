@@ -40,6 +40,13 @@ const schema = z.object({
   FFMPEG_PATH: z.string().optional(),
   // Квота на сторидж по клиент (GB) за аларм; висок default за да не алармира без потреба.
   STORAGE_QUOTA_GB: z.coerce.number().default(500),
+  // Знаење + Claude помошник (B4). Без клучеви → детерминистички stub адаптери (dev/тест).
+  EMBED_PROVIDER: z.enum(['voyage', 'cohere', 'stub']).default('voyage'),
+  EMBED_MODEL: z.string().default('voyage-multilingual-2'),
+  EMBED_DIM: z.coerce.number().default(1024),
+  VOYAGE_API_KEY: z.string().optional(),
+  ANTHROPIC_API_KEY: z.string().optional(),
+  CLAUDE_MODEL: z.string().default('claude-opus-4-8'),
 });
 
 export type Env = z.infer<typeof schema>;
