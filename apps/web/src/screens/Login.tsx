@@ -39,7 +39,25 @@ export function Login() {
           gap: 16,
         }}
       >
-        <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>GoDigital Таск-менаџер</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              background: '#0866FF',
+              color: '#fff',
+              fontSize: 12,
+              fontWeight: 700,
+              display: 'grid',
+              placeItems: 'center',
+            }}
+            aria-hidden
+          >
+            GD
+          </span>
+          <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>GoDigital Таск-менаџер</h1>
+        </div>
         <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--gd-ink-muted)' }}>
           Е-мејл
           <input type="email" {...register('email')} style={inputStyle} autoComplete="username" />

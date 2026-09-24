@@ -240,7 +240,7 @@ export function CreativeViewer({ taskId, onClose }: { taskId: string; onClose: (
 const overlay: React.CSSProperties = {
   position: 'fixed',
   inset: 0,
-  zIndex: 50,
+  zIndex: 80,
   background: '#12161C',
   color: '#E2E7EB',
   display: 'flex',
@@ -359,5 +359,5 @@ const toastStyle: React.CSSProperties = {
   fontSize: 14,
   cursor: 'pointer',
   border: '1px solid #262b33',
-  zIndex: 60,
+  zIndex: 90,
 };
