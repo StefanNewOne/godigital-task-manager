@@ -29,7 +29,7 @@ apiRouter.use('/auth', authRouter);
 apiRouter.get('/me', requireAuth, async (req, res) => {
   const employee = await prisma.employee.findUnique({
     where: { id: req.auth!.sub },
-    select: employeeSafeSelect,
+    select: { ...employeeSafeSelect, notificationPrefs: true },
   });
   if (!employee) throw new AppError('NOT_FOUND', 'Вработениот не е пронајден.', 404);
   res.json({ data: employee });

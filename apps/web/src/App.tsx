@@ -9,6 +9,7 @@ import { Clients } from './screens/Clients.js';
 import { Login } from './screens/Login.js';
 import { Overview } from './screens/Overview.js';
 import { Placeholder } from './screens/Placeholder.js';
+import { Settings } from './screens/Settings.js';
 import { TasksScreen } from './screens/tasks/TasksScreen.js';
 import { AdminLayout } from './screens/admin/AdminLayout.js';
 import { AdminAlarms } from './screens/admin/Alarms.js';
@@ -121,6 +122,8 @@ export function App() {
             <Route path="automations" element={<AdminAutomations />} />
             <Route path="alarms" element={<AdminAlarms />} />
           </Route>
+          {/* Лични поставки (H6) — не се врзани за nav дозволи; достапни за секоја улога. */}
+          <Route path="settings" element={<Settings />} />
           <Route path="*" element={<Placeholder title="Ненајдена страница" />} />
         </Route>
       </Routes>

@@ -9,6 +9,8 @@ export interface Me {
   color: string;
   active: boolean;
   lastActiveAt: string | null;
+  /** Само од `GET /me` (не од листата на вработени). */
+  notificationPrefs?: { reminders?: boolean } | null;
 }
 
 export interface EmployeeRow extends Me {

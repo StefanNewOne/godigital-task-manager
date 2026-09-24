@@ -137,9 +137,14 @@ export function AppShell() {
         })}
         {me && (
           <div style={railBottom}>
-            <span style={avatar(AVATAR_COLOR[me.role])} title={me.name}>
+            <NavLink
+              to="/settings"
+              style={avatar(AVATAR_COLOR[me.role])}
+              title={`${me.name} · Поставки`}
+              aria-label="Поставки"
+            >
               {initials(me.name)}
-            </span>
+            </NavLink>
             <button
               onClick={() => logout.mutate()}
               style={railLogout}
@@ -373,4 +378,5 @@ const avatar = (bg: string): React.CSSProperties => ({
   fontSize: 12,
   fontWeight: 600,
   flex: '0 0 auto',
+  textDecoration: 'none',
 });
