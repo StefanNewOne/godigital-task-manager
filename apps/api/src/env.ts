@@ -23,6 +23,16 @@ const schema = z.object({
   R2_ACCESS_KEY_ID: z.string().default('minioadmin'),
   R2_SECRET_ACCESS_KEY: z.string().default('minioadmin'),
   R2_BUCKET: z.string().default('godigital'),
+  // Email (alarm/kritichen). Локално = Mailhog (host порта 1135, без auth). Прод = вистински SMTP.
+  SMTP_HOST: z.string().default('localhost'),
+  SMTP_PORT: z.coerce.number().default(1135),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_FROM: z.string().default('GoDigital <no-reply@godigital.mk>'),
+  EMAIL_ENABLED: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
 });
 
 export type Env = z.infer<typeof schema>;

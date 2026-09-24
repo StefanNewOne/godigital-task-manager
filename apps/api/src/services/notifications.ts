@@ -1,5 +1,6 @@
 import { dedupeKey, notificationChannels, ymd, type NotificationLevel } from '@gd/core';
 import { prisma } from '../db/tenantExtension.js';
+import { sendEmail } from '../lib/mailer.js';
 
 export interface NotifyInput {
   recipientId: string;
@@ -30,7 +31,13 @@ export async function createNotification(input: NotifyInput) {
   const scopeId = input.taskId ?? input.groupId ?? input.clientId ?? 'global';
   const key = dedupeKey(input.eventKey, scopeId, input.recipientId, ymd(new Date()));
 
-  return prisma.notification.upsert({
+  // Дали е нов запис (за да не праќаме email повторно на дедуплиран аларм истиот ден).
+  const existing = await prisma.notification.findUnique({
+    where: { dedupeKey: key },
+    select: { id: true },
+  });
+
+  const notif = await prisma.notification.upsert({
     where: { dedupeKey: key },
     update: {},
     create: {
@@ -46,4 +53,15 @@ export async function createNotification(input: NotifyInput) {
       dedupeKey: key,
     },
   });
+
+  // Email за alarm/kritichen (D-12) — само за нов запис, best-effort (не го блокира тек).
+  if (!existing && notificationChannels(input.level).includes('email')) {
+    const emp = await prisma.employee.findUnique({
+      where: { id: input.recipientId },
+      select: { email: true },
+    });
+    if (emp?.email) void sendEmail(emp.email, input.title, input.body);
+  }
+
+  return notif;
 }
