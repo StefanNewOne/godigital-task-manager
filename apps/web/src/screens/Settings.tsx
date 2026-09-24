@@ -138,7 +138,7 @@ function toggle(on: boolean): React.CSSProperties {
     border: 'none',
     cursor: 'pointer',
     flexShrink: 0,
-    background: on ? 'var(--gd-brand)' : 'var(--gd-border)',
+    background: on ? 'var(--gd-primary)' : 'var(--gd-border)',
     transition: 'background 150ms',
   };
 }

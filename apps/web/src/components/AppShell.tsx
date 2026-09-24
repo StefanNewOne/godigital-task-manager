@@ -309,7 +309,7 @@ const askTopBtn: React.CSSProperties = {
   borderRadius: 8,
   fontSize: 13,
   fontWeight: 500,
-  color: 'var(--gd-brand)',
+  color: 'var(--gd-primary)',
   background: 'var(--gd-surface)',
   cursor: 'pointer',
 };

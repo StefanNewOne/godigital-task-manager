@@ -129,7 +129,7 @@ const askBtn: React.CSSProperties = {
   width: '100%',
   borderRadius: 8,
   border: 'none',
-  background: 'var(--gd-brand)',
+  background: 'var(--gd-primary)',
   color: '#fff',
   fontSize: 14,
   fontWeight: 500,
