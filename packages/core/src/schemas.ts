@@ -256,6 +256,22 @@ export const promotionCreateSchema = z.object({
 });
 export type PromotionCreateInput = z.infer<typeof promotionCreateSchema>;
 
+// ── Campaign (B2, PRD §4.7): Аналитичар управува со платени кампањи ──
+export const campaignCreateSchema = z.object({
+  clientId: z.string().uuid(),
+  name: z.string().min(1, 'Името е задолжително.'),
+  objective: z.string().min(1, 'Целта е задолжителна.'),
+  budget: z.coerce.number().nonnegative('Буџетот не може да е негативен.'),
+  periodFrom: z.coerce.date(),
+  periodTo: z.coerce.date(),
+  status: z.enum(['planned', 'active', 'closed']).default('planned'),
+  metaCampaignId: z.string().optional(),
+});
+export type CampaignCreateInput = z.infer<typeof campaignCreateSchema>;
+
+export const campaignUpdateSchema = campaignCreateSchema.partial().omit({ clientId: true });
+export type CampaignUpdateInput = z.infer<typeof campaignUpdateSchema>;
+
 // ── Comments (@таг, D-9) ──
 export const commentCreateSchema = z.object({
   body: z.string().min(1, 'Коментарот е задолжителен.'),

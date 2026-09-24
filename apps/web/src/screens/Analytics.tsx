@@ -1,5 +1,9 @@
 import type React from 'react';
+import { useState } from 'react';
+import { Button } from '@gd/ui';
+import { useMe } from '../api/auth.js';
 import { useAnalytics, type AnalyticsCampaign, type AnalyticsPost } from '../api/analytics.js';
+import { CampaignsManager } from './CampaignsManager.js';
 
 /**
  * Аналитика (Handoff §9). Распоредот е финален; бројките доаѓаат од `/analytics` (B2),
@@ -28,18 +32,40 @@ const fmtDay = (iso: string): string => {
 export function Analytics() {
   const month = currentMonth();
   const { data, isLoading } = useAnalytics(month);
+  const { data: me } = useMe();
+  const [managing, setManaging] = useState(false);
+  const canManage = me?.role === 'ana' || me?.role === 'dir';
+
+  const header = (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+      {canManage && (
+        <Button variant="secondary" size="form" onClick={() => setManaging(true)}>
+          Кампањи
+        </Button>
+      )}
+    </div>
+  );
+  const campaignsModal = managing ? <CampaignsManager onClose={() => setManaging(false)} /> : null;
 
   if (isLoading) {
-    return <div style={{ padding: 24, color: 'var(--gd-ink-muted)' }}>Вчитување…</div>;
+    return (
+      <div style={{ padding: '24px 20px 48px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {header}
+        <div style={{ color: 'var(--gd-ink-muted)' }}>Вчитување…</div>
+        {campaignsModal}
+      </div>
+    );
   }
 
   if (!data || !data.hasData) {
     return (
-      <div style={{ padding: '24px 20px 48px' }}>
+      <div style={{ padding: '24px 20px 48px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {header}
         <div style={emptyState} role="note">
           Сè уште нема снимени метрики за овој месец. Метриките се влечат автоматски од Meta по
           објавување (на секои 6 часа).
         </div>
+        {campaignsModal}
       </div>
     );
   }
@@ -69,6 +95,7 @@ export function Analytics() {
 
   return (
     <div style={{ padding: '24px 20px 48px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {header}
       <div style={kpiGrid}>
         {kpiCards.map((k) => (
           <div key={k.label} style={card}>
@@ -146,6 +173,7 @@ export function Analytics() {
           ))}
         </div>
       </section>
+      {campaignsModal}
     </div>
   );
 }

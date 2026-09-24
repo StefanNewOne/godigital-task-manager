@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   calendarConfigSchema,
+  campaignCreateSchema,
   clientCreateSchema,
   employeeCreateSchema,
   holidayCreateSchema,
@@ -74,5 +75,23 @@ describe('schemas', () => {
     expect(holidayCreateSchema.safeParse({ date: '2026-09-08', name: 'Празник' }).success).toBe(
       true,
     );
+  });
+
+  it('campaignCreateSchema: coerce на буџет/датуми, default статус planned', () => {
+    const r = campaignCreateSchema.safeParse({
+      clientId: '00000000-0000-7000-8000-000000000000',
+      name: 'Есенска',
+      objective: 'reach',
+      budget: '450',
+      periodFrom: '2026-09-15',
+      periodTo: '2026-09-30',
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.budget).toBe(450);
+      expect(r.data.status).toBe('planned');
+      expect(r.data.periodFrom).toBeInstanceOf(Date);
+    }
+    expect(campaignCreateSchema.safeParse({ name: 'x' }).success).toBe(false);
   });
 });
