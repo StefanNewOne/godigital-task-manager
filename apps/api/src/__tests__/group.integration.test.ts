@@ -18,6 +18,7 @@ const MONTHS = [
   '2027-09',
   '2027-10',
   '2027-11',
+  '2027-12',
 ];
 
 let clientId = '';
@@ -210,15 +211,8 @@ describe('A4 капа преоди', () => {
     expect(ok.body.data.status).toBe('scenarija');
   });
 
-  it('екстра таск: rez создава дополнително видео во капа → chekaRezija, isExtra', async () => {
+  it('интервентно видео: во постоечка капа → chekaRezija, isExtra', async () => {
     await mkGroup(MONTHS[7]!, 'podgotovka', { rezId: empId.rez });
-    // Нема капа за друг месец → 400 со упатство кон Календар.
-    const noCapa = await request(app)
-      .post('/api/tasks/extra')
-      .set(bearer('rez'))
-      .send({ clientId, contentType: 'video', title: 'Без капа', date: '2027-12-10' });
-    expect(noCapa.status).toBe(400);
-
     const r = await request(app)
       .post('/api/tasks/extra')
       .set(bearer('rez'))
@@ -234,6 +228,24 @@ describe('A4 капа преоди', () => {
       .set(bearer('kam'))
       .send({ clientId, contentType: 'video', title: 'x', date: '2027-11-12' });
     expect(forbidden.status).toBe(403);
+  });
+
+  it('интервентно видео без капа: авто-создава контејнер-капа + таск', async () => {
+    // MONTHS[8] = 2027-12 нема капа (исчистено во beforeAll).
+    const r = await request(app)
+      .post('/api/tasks/extra')
+      .set(bearer('rez'))
+      .send({ clientId, contentType: 'video', title: 'Интервентно без капа', date: '2027-12-10' });
+    expect(r.status).toBe(201);
+    expect(r.body.data.status).toBe('chekaRezija');
+    expect(r.body.data.isExtra).toBe(true);
+
+    const group = await db.taskGroup.findFirst({
+      where: { clientId, contentType: 'video', monthKey: '2027-12' },
+    });
+    expect(group, 'капата е авто-создадена').toBeTruthy();
+    expect(group!.status).toBe('podgotovka');
+    expect(r.body.data.groupId).toBe(group!.id);
   });
 
   it('графичка капа: bulk активација → сите деца во brifing, капа затворена (D-3)', async () => {

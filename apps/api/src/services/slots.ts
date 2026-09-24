@@ -313,25 +313,39 @@ export async function createExtraTask(
   }
 
   const monthKey = `${input.date.getUTCFullYear()}-${String(input.date.getUTCMonth() + 1).padStart(2, '0')}`;
-  const group = await prisma.taskGroup.findFirst({
-    where: { clientId: input.clientId, contentType: input.contentType, monthKey },
-  });
-  if (!group) {
-    throw new AppError(
-      'VALIDATION_FAILED',
-      'Нема отворена капа за тој месец. Прво потврди го месецот во Календар.',
-      400,
-    );
-  }
-
   const status = input.contentType === 'video' ? 'chekaRezija' : 'brifing';
   const defaults = (client.defaultAssignees ?? {}) as Record<string, string>;
-  const assigneeId =
-    input.contentType === 'video'
-      ? (group.rezId ?? defaults.rez ?? (actor.role === 'rez' ? actor.id : null))
-      : (defaults.krea ?? (actor.role === 'krea' ? actor.id : null));
 
   return prisma.$transaction(async (tx) => {
+    // Интервентен таск НЕ зависи од потврден месец — контејнер-капа се создава ако ја нема
+    // (претходно снимен/интернет материјал што ја заобиколува претпродукцијата).
+    let group = await tx.taskGroup.findFirst({
+      where: { clientId: input.clientId, contentType: input.contentType, monthKey },
+    });
+    let createdGroup = false;
+    if (!group) {
+      group = await tx.taskGroup.create({
+        data: {
+          clientId: input.clientId,
+          contentType: input.contentType,
+          monthKey,
+          status: input.contentType === 'video' ? 'podgotovka' : 'gPodgotovka',
+          plannedCount:
+            input.contentType === 'video' ? client.videosPerMonth : client.graphicsPerMonth,
+          rezId:
+            input.contentType === 'video'
+              ? (defaults.rez ?? (actor.role === 'rez' ? actor.id : null))
+              : null,
+        },
+      });
+      createdGroup = true;
+    }
+
+    const assigneeId =
+      input.contentType === 'video'
+        ? (group.rezId ?? defaults.rez ?? (actor.role === 'rez' ? actor.id : null))
+        : (defaults.krea ?? (actor.role === 'krea' ? actor.id : null));
+
     const existing = await tx.publishingSlot.findFirst({
       where: { clientId: input.clientId, contentType: input.contentType, date: input.date },
       orderBy: { orderInDay: 'desc' },
@@ -368,8 +382,8 @@ export async function createExtraTask(
       objectId: task.id,
       taskId: task.id,
       clientId: input.clientId,
-      newValue: { status, date: ymd(input.date), isExtra: true },
-      narrative: `${ROLE_LABEL[actor.role]} создаде дополнителен ${input.contentType === 'video' ? 'видео' : 'графички'} таск „${input.title}" во капата „${client.name} · ${monthKey}".`,
+      newValue: { status, date: ymd(input.date), isExtra: true, createdGroup },
+      narrative: `${ROLE_LABEL[actor.role]} создаде интервентен ${input.contentType === 'video' ? 'видео' : 'графички'} таск „${input.title}" во капата „${client.name} · ${monthKey}"${createdGroup ? ' (нова капа)' : ''}.`,
     });
     return tx.task.findUnique({ where: { id: task.id } });
   });
