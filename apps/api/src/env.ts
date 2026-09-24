@@ -33,6 +33,9 @@ const schema = z.object({
     .enum(['true', 'false'])
     .default('true')
     .transform((v) => v === 'true'),
+  // Meta Graph API (B2). Без токен → детерминистички stub адаптер (dev/тест). Никогаш на frontend.
+  META_SYSTEM_TOKEN: z.string().optional(),
+  META_GRAPH_VERSION: z.string().default('v21.0'),
 });
 
 export type Env = z.infer<typeof schema>;

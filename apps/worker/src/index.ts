@@ -7,9 +7,9 @@
  *   slots.generate       0 6 20 * *   → /api/cron/slots-generate       (месечни слотови)
  *   evaluate.alarms      0 7 * * *    → /api/cron/evaluate-alarms      (аларми за покриеност, B1)
  *   notifications.digest 0 7 * * *    → /api/cron/notifications-digest (дневен преглед за Директор, B1)
+ *   metrics.pull         на 6 часа     → /api/cron/metrics-pull         (Meta insights → MetricSnapshot, B2)
  *
- * Иднина: outbox.drain (real-time/знаење), knowledge.index (B4), metrics.pull (B2),
- * publication.resolve (B2), files.preview (B3).
+ * Иднина: outbox.drain (real-time/знаење), knowledge.index (B4), files.preview (B3).
  */
 import { Queue, Worker } from 'bullmq';
 import IORedis from 'ioredis';
@@ -34,6 +34,7 @@ const CRON_JOBS: CronJob[] = [
     pattern: '0 7 * * *',
     endpoint: '/api/cron/notifications-digest',
   },
+  { name: 'metrics.pull', pattern: '0 */6 * * *', endpoint: '/api/cron/metrics-pull' },
 ];
 
 const CRON_QUEUE = 'cron';

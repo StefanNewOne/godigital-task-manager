@@ -5,6 +5,7 @@ import { AppError } from '../lib/errors.js';
 import { generateForAllActiveClients, nextMonthKey } from '../services/slots.js';
 import { evaluateCoverageAlarms } from '../services/alarms.js';
 import { generateDailyDigest } from '../services/digest.js';
+import { pullMetrics, resolvePublications } from '../services/meta/metrics.js';
 
 /** Cron рути — заштитени со CRON_SECRET (не JWT). Ги повикува worker-от. */
 export const cronRouter: ExpressRouter = Router();
@@ -38,4 +39,12 @@ cronRouter.post('/evaluate-alarms', requireCronSecret, async (_req, res) => {
 cronRouter.post('/notifications-digest', requireCronSecret, async (_req, res) => {
   const result = await generateDailyDigest();
   res.json({ data: result });
+});
+
+// Meta метрики (PRD §4.7/§4.8, B2): резолвирај media id, па влечи insights → MetricSnapshot.
+// BullMQ job metrics.pull: 0 */6 * * *.
+cronRouter.post('/metrics-pull', requireCronSecret, async (_req, res) => {
+  const resolved = await resolvePublications();
+  const pulled = await pullMetrics();
+  res.json({ data: { ...resolved, ...pulled } });
 });

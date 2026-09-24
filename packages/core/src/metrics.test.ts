@@ -59,6 +59,11 @@ describe('normalizeMetaInsights', () => {
     expect(m.clicks).toBe(40);
   });
 
+  it('cpr се зема директно од Meta (cost_per_result → cpr)', () => {
+    expect(normalizeMetaInsights({ cost_per_result: '0.34' }).cpr).toBe(0.34);
+    expect(normalizeMetaInsights({ cpr: 0.5 }).cpr).toBe(0.5);
+  });
+
   it('непарсибилни/непознати влезови не рушат', () => {
     expect(normalizeMetaInsights(null)).toEqual({});
     expect(normalizeMetaInsights('nonsense')).toEqual({});
