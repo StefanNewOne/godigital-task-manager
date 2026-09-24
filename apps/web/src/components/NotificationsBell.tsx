@@ -1,6 +1,7 @@
 import type React from 'react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Check } from 'lucide-react';
 import { Modal } from '@gd/ui';
 import { useMarkRead, useNotifications } from '../api/notifications.js';
 import type { NotificationRow } from '../lib/types.js';
@@ -9,6 +10,11 @@ const LEVEL_COLOR: Record<string, string> = {
   kritichen: 'var(--gd-danger)',
   alarm: 'var(--gd-warning)',
   potsetnik: 'var(--gd-ink-muted)',
+};
+const LEVEL_LABEL: Record<string, string> = {
+  kritichen: 'Критичен',
+  alarm: 'Аларм',
+  potsetnik: 'Потсетник',
 };
 
 /** Каде води известувањето: конкретен таск/капа, инаку филтриран список по клиент. */
@@ -49,22 +55,20 @@ export function NotificationsBell() {
         )}
         {items.map((n) => (
           <div key={n.id} style={item}>
-            <span
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                background: LEVEL_COLOR[n.level],
-                marginTop: 6,
-                flex: '0 0 auto',
-              }}
-            />
             <button onClick={() => openNotification(n)} style={itemBody} title="Отвори">
-              <div style={{ fontSize: 13, fontWeight: 500 }}>{n.title}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                <span style={levelPill(n.level)}>{LEVEL_LABEL[n.level] ?? n.level}</span>
+                <span style={{ fontSize: 13, fontWeight: 500 }}>{n.title}</span>
+              </div>
               <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>{n.body}</div>
             </button>
-            <button onClick={() => markRead.mutate(n.id)} style={readBtn} title="Означи прочитано">
-              ✓
+            <button
+              onClick={() => markRead.mutate(n.id)}
+              style={readBtn}
+              title="Означи прочитано"
+              aria-label="Означи прочитано"
+            >
+              <Check size={14} />
             </button>
           </div>
         ))}
@@ -117,7 +121,22 @@ const readBtn: React.CSSProperties = {
   background: 'var(--gd-surface)',
   borderRadius: 6,
   cursor: 'pointer',
-  fontSize: 12,
-  height: 24,
+  width: 26,
+  height: 26,
+  display: 'grid',
+  placeItems: 'center',
+  color: 'var(--gd-ink-muted)',
   alignSelf: 'center',
+  flex: '0 0 auto',
 };
+const levelPill = (level: string): React.CSSProperties => ({
+  fontSize: 11,
+  fontWeight: 500,
+  lineHeight: '16px',
+  padding: '0 6px',
+  borderRadius: 4,
+  color: LEVEL_COLOR[level] ?? 'var(--gd-ink-muted)',
+  border: `1px solid ${LEVEL_COLOR[level] ?? 'var(--gd-border)'}`,
+  whiteSpace: 'nowrap',
+  flex: '0 0 auto',
+});

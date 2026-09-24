@@ -9,6 +9,7 @@ import {
   type TaskStatus,
 } from '@gd/core';
 import {
+  Check,
   ChevronDown,
   ChevronRight,
   Clapperboard,
@@ -16,6 +17,8 @@ import {
   Paperclip,
   Video,
 } from 'lucide-react';
+
+const VIDEO_CAPA_STEPS: GroupStatus[] = ['podgotovka', 'scenarija', 'scenKajKlient', 'snimanje'];
 import type { CoverageRow } from '../../api/overview.js';
 import type { ClientRow, EmployeeRow, TaskGroupRow, TaskListItem } from '../../lib/types.js';
 import { deadlineFor, fmtDate, relDate } from '../../lib/tasksView.js';
@@ -275,6 +278,30 @@ function CapaStrip({ groups, clientById, empById, onOpenCapa }: ListViewProps) {
                 </span>
                 <span style={capaChip}>{meta?.label ?? g.status}</span>
               </div>
+              {g.contentType === 'video' && (
+                <div style={{ display: 'flex', alignItems: 'center', margin: '4px 0 8px' }}>
+                  {VIDEO_CAPA_STEPS.map((st, i) => {
+                    const activeIdx = VIDEO_CAPA_STEPS.indexOf(g.status as GroupStatus);
+                    const done = activeIdx > i;
+                    const isActive = i === activeIdx;
+                    return (
+                      <div
+                        key={st}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          flex: i < VIDEO_CAPA_STEPS.length - 1 ? 1 : '0 0 auto',
+                        }}
+                      >
+                        <span style={capaStep(done, isActive)} title={GROUP_STATUS_META[st]?.label}>
+                          {done ? <Check size={11} /> : ''}
+                        </span>
+                        {i < VIDEO_CAPA_STEPS.length - 1 && <span style={capaStepLine} />}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               <div style={{ fontSize: 13, color: 'var(--gd-ink-secondary)' }}>
                 {g.contentType === 'video'
                   ? `${g.scenariosApproved} од ${total} сценарија одобрени${ownerName ? ` · кај ${ownerName}` : ''}`
@@ -434,4 +461,21 @@ const capaChip: React.CSSProperties = {
   background: 'var(--gd-surface)',
   border: '1px solid var(--gd-border)',
   color: 'var(--gd-ink-secondary)',
+};
+const capaStep = (done: boolean, active: boolean): React.CSSProperties => ({
+  width: 20,
+  height: 20,
+  flex: '0 0 20px',
+  borderRadius: '50%',
+  display: 'grid',
+  placeItems: 'center',
+  fontSize: 11,
+  border: done || active ? 'none' : '1px solid var(--gd-primary-border)',
+  background: done || active ? 'var(--gd-primary)' : 'var(--gd-surface)',
+  color: '#fff',
+});
+const capaStepLine: React.CSSProperties = {
+  flex: 1,
+  height: 2,
+  background: 'var(--gd-primary-border)',
 };
