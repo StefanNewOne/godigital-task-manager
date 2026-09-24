@@ -1,0 +1,19 @@
+{
+  "name": "@gd/eslint-plugin",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint index.js rules"
+  },
+  "devDependencies": {
+    "eslint": "^9.15.0",
+    "vitest": "^2.1.5"
+  }
+}

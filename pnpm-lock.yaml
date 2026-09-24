@@ -17,6 +17,9 @@ importers:
       '@eslint/js':
         specifier: ^9.15.0
         version: 9.39.5
+      '@gd/eslint-plugin':
+        specifier: workspace:*
+        version: link:packages/eslint-plugin
       '@playwright/test':
         specifier: ^1.63.0
         version: 1.63.0
@@ -277,6 +280,15 @@ importers:
       typescript:
         specifier: ^5.6.3
         version: 5.9.3
+
+  packages/eslint-plugin:
+    devDependencies:
+      eslint:
+        specifier: ^9.15.0
+        version: 9.39.5(jiti@2.7.0)
+      vitest:
+        specifier: ^2.1.5
+        version: 2.1.9(@types/node@22.20.4)(jsdom@25.0.1)(lightningcss@1.32.0)
 
   packages/ui:
     dependencies:
