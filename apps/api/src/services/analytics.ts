@@ -35,9 +35,17 @@ export interface AnalyticsPost {
   rate: number | null;
 }
 
+export interface AnalyticsSplit {
+  organicReach: number;
+  paidReach: number;
+  organicPosts: number;
+  paidPosts: number;
+}
+
 export interface AnalyticsData {
   month: string;
   kpis: AnalyticsKpis;
+  split: AnalyticsSplit;
   campaigns: AnalyticsCampaign[];
   topPosts: AnalyticsPost[];
   /** false = нема снимени метрики за месецот (екранот прикажува празна состојба). */
@@ -81,6 +89,7 @@ export async function getAnalytics(month: string): Promise<AnalyticsData> {
   let views = 0;
   let engagement = 0;
   let ctrWeighted = 0; // Σ(ctr · impressions)
+  const split: AnalyticsSplit = { organicReach: 0, paidReach: 0, organicPosts: 0, paidPosts: 0 };
   const posts: AnalyticsPost[] = [];
 
   for (const p of pubs) {
@@ -89,17 +98,25 @@ export async function getAnalytics(month: string): Promise<AnalyticsData> {
     const pReach = num(s.reach);
     const pImp = num(s.impressions);
     const pEng = num(s.engagement);
+    const paid = p.promotion?.decision === 'paid';
     reach += pReach;
     impressions += pImp;
     views += num(s.views);
     engagement += pEng;
     if (s.ctr != null) ctrWeighted += num(s.ctr) * pImp;
+    if (paid) {
+      split.paidReach += pReach;
+      split.paidPosts++;
+    } else {
+      split.organicReach += pReach;
+      split.organicPosts++;
+    }
     posts.push({
       publicationId: p.id,
       name: `${p.task.client.name} · ${p.task.title}`,
       color: p.task.client.color,
       platform: p.platform,
-      paid: p.promotion?.decision === 'paid',
+      paid,
       reach: pReach,
       engagement: pEng,
       rate: pReach > 0 ? Math.round((pEng / pReach) * 1000) / 10 : null,
@@ -158,6 +175,7 @@ export async function getAnalytics(month: string): Promise<AnalyticsData> {
   return {
     month,
     kpis,
+    split,
     campaigns,
     topPosts: posts.slice(0, 8),
     hasData: posts.length > 0 || spend > 0,

@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { PrismaClient } from '@gd/db';
 import { createApp } from '../app.js';
 import { env } from '../env.js';
+import { cleanupMonth } from './helpers.js';
 
 /** Интеграциски тест за B2.2: /analytics агрегација (по metrics.pull со stub). */
 const app = createApp();
@@ -19,6 +20,17 @@ async function login(email: string): Promise<string> {
 beforeAll(async () => {
   anaToken = await login('vane@godigital.mk');
   monToken = await login('dejan@godigital.mk');
+
+  await cleanupMonth(db, MONTH);
+  const oldCamps = await db.campaign.findMany({
+    where: { metaCampaignId: 'camp_analytics_1' },
+    select: { id: true },
+  });
+  if (oldCamps.length) {
+    const ids = oldCamps.map((c) => c.id);
+    await db.metricSnapshot.deleteMany({ where: { campaignId: { in: ids } } });
+    await db.campaign.deleteMany({ where: { id: { in: ids } } });
+  }
 
   const client = await db.client.findFirst({ where: { status: 'aktiven', archivedAt: null } });
   const group = await db.taskGroup.create({

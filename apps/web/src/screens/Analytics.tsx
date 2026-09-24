@@ -1,100 +1,76 @@
 import type React from 'react';
+import { useAnalytics, type AnalyticsCampaign, type AnalyticsPost } from '../api/analytics.js';
 
 /**
- * Аналитика (Handoff §9). Распоредот е финален; бројките се ИЛУСТРАТИВНИ до Фаза B2
- * (реалните Meta метрики се влечат на секои 6 часа во `MetricSnapshot`). Кога B2 ќе се
- * вклучи, овие картички се хранат од `/analytics`, без промена на распоредот.
+ * Аналитика (Handoff §9). Распоредот е финален; бројките доаѓаат од `/analytics` (B2),
+ * агрегирани од `MetricSnapshot` (Meta insights на секои 6ч). Празна состојба додека нема
+ * снимени метрики за месецот.
  */
-const KPIS = [
-  { label: 'Досег', value: '586k', hint: '+12% од август' },
-  { label: 'Прегледи', value: '405k', hint: '+8% од август' },
-  { label: 'Ангажман', value: '21.1k', hint: '−3% од август' },
-  { label: 'Потрошено', value: '1.530 €', hint: 'од 1.800 € буџет' },
-  { label: 'Цена по резултат', value: '0.34 €', hint: '−0.06 € од август' },
-  { label: 'Објави', value: '58', hint: '22 видео · 36 графика' },
-];
+function currentMonth(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
 
-const CAMPAIGNS = [
-  {
-    name: 'Астибо · Есенска колекција',
-    color: '#D97706',
-    period: '15–30 сеп',
-    spent: 286,
-    budget: 450,
-    reach: '84.2k',
-    cpr: '0.31 €',
-  },
-  {
-    name: 'Алекс Дизајн · Лежај Ена',
-    color: '#DB2777',
-    period: '10–25 сеп',
-    spent: 241,
-    budget: 300,
-    reach: '61.7k',
-    cpr: '0.44 €',
-  },
-  {
-    name: 'Голд Хотел · Викенд пакет',
-    color: '#0EA5E9',
-    period: '18 сеп – 2 окт',
-    spent: 132,
-    budget: 600,
-    reach: '22.4k',
-    cpr: '0.58 €',
-  },
-];
-
-const TOP_POSTS = [
-  {
-    name: 'Алекс дизајн пост 5 · Лежај Ена',
-    color: '#DB2777',
-    paid: true,
-    pct: 96,
-    reach: '61.7k',
-    eng: '4.4k',
-    rate: '7.1%',
-  },
-  {
-    name: 'Астибо V-9-5 · Есенска колекција',
-    color: '#D97706',
-    paid: true,
-    pct: 86,
-    reach: '54.2k',
-    eng: '3.8k',
-    rate: '7.0%',
-  },
-  {
-    name: 'Ресторан ИВ G-9-9-агенда',
-    color: '#0D9488',
-    paid: false,
-    pct: 62,
-    reach: '28.4k',
-    eng: '2.1k',
-    rate: '7.4%',
-  },
-  {
-    name: 'ЛЛ Гурмет пост 5',
-    color: '#65A30D',
-    paid: false,
-    pct: 52,
-    reach: '19.8k',
-    eng: '1.2k',
-    rate: '6.1%',
-  },
-];
+const fmtNum = (n: number): string => {
+  if (n >= 1000) {
+    const k = n / 1000;
+    return `${k >= 100 ? Math.round(k) : k.toFixed(1).replace(/\.0$/, '')}k`;
+  }
+  return String(Math.round(n));
+};
+const fmtEur = (n: number): string => `${Math.round(n).toLocaleString('mk-MK')} €`;
+const fmtCpr = (n: number | null): string => (n == null ? '—' : `${n.toFixed(2)} €`);
+const fmtDay = (iso: string): string => {
+  const d = new Date(iso);
+  return `${d.getUTCDate()}.${d.getUTCMonth() + 1}`;
+};
 
 export function Analytics() {
+  const month = currentMonth();
+  const { data, isLoading } = useAnalytics(month);
+
+  if (isLoading) {
+    return <div style={{ padding: 24, color: 'var(--gd-ink-muted)' }}>Вчитување…</div>;
+  }
+
+  if (!data || !data.hasData) {
+    return (
+      <div style={{ padding: '24px 20px 48px' }}>
+        <div style={emptyState} role="note">
+          Сè уште нема снимени метрики за овој месец. Метриките се влечат автоматски од Meta по
+          објавување (на секои 6 часа).
+        </div>
+      </div>
+    );
+  }
+
+  const { kpis, split, campaigns, topPosts } = data;
+  const kpiCards = [
+    { label: 'Досег', value: fmtNum(kpis.reach), hint: `${fmtNum(kpis.impressions)} импресии` },
+    { label: 'Прегледи', value: fmtNum(kpis.views), hint: '' },
+    {
+      label: 'Ангажман',
+      value: fmtNum(kpis.engagement),
+      hint: kpis.ctr != null ? `CTR ${kpis.ctr}%` : '',
+    },
+    { label: 'Потрошено', value: fmtEur(kpis.spend), hint: '' },
+    { label: 'Цена по резултат', value: fmtCpr(kpis.cpr), hint: '' },
+    {
+      label: 'Објави',
+      value: String(kpis.posts),
+      hint: `${split.organicPosts} орг · ${split.paidPosts} плат`,
+    },
+  ];
+
+  const totalReach = split.organicReach + split.paidReach;
+  const orgPct = totalReach > 0 ? Math.round((split.organicReach / totalReach) * 100) : 0;
+  const paidPct = 100 - orgPct;
+  const maxPostReach = topPosts.reduce((m, p) => Math.max(m, p.reach), 0) || 1;
+
   return (
     <div style={{ padding: '24px 20px 48px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* Чесен маркер: ова се демонстративни бројки додека Meta интеграцијата (Фаза B2) не влезе. */}
-      <div style={demoBanner} role="note">
-        Демонстративни податоци — реалните метрики се влечат од Meta во Фаза B2. Распоредот е
-        финален.
-      </div>
-
-      {/* KPI картички */}
       <div style={kpiGrid}>
-        {KPIS.map((k) => (
+        {kpiCards.map((k) => (
           <div key={k.label} style={card}>
             <div style={{ fontSize: 13, color: 'var(--gd-ink-muted)' }}>{k.label}</div>
             <div
@@ -107,7 +83,6 @@ export function Analytics() {
         ))}
       </div>
 
-      {/* Органски наспроти платено + Кампањи во тек */}
       <div
         style={{
           display: 'grid',
@@ -126,113 +101,112 @@ export function Analytics() {
               margin: '4px 0 16px',
             }}
           >
-            <div style={{ width: '62%', background: '#0D9488' }} />
-            <div style={{ width: '38%', background: '#DB2777' }} />
+            <div style={{ width: `${orgPct}%`, background: '#0D9488' }} />
+            <div style={{ width: `${paidPct}%`, background: '#DB2777' }} />
           </div>
           <Split
             color="#0D9488"
-            title="Органски · 62%"
-            lines={['36 објави · досег 364k', 'Просечен ангажман 3.1%']}
+            title={`Органски · ${orgPct}%`}
+            lines={[`${split.organicPosts} објави · досег ${fmtNum(split.organicReach)}`]}
           />
           <div style={{ height: 12 }} />
           <Split
             color="#DB2777"
-            title="Платено · 38%"
-            lines={['22 објави · досег 222k', 'Просечна цена по резултат 0.34 €']}
+            title={`Платено · ${paidPct}%`}
+            lines={[
+              `${split.paidPosts} објави · досег ${fmtNum(split.paidReach)}`,
+              kpis.cpr != null
+                ? `Просечна цена по резултат ${fmtCpr(kpis.cpr)}`
+                : 'Нема платени резултати',
+            ]}
           />
         </section>
 
         <section style={card}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h2 style={{ ...cardTitle, margin: 0 }}>Кампањи во тек</h2>
-            <span style={{ fontSize: 13, color: 'var(--gd-primary)', fontWeight: 500 }}>
-              Цела аналитика ›
-            </span>
-          </div>
-          <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {CAMPAIGNS.map((c) => (
-              <div key={c.name}>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    fontSize: 13,
-                  }}
-                >
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      fontWeight: 500,
-                    }}
-                  >
-                    <span
-                      style={{ width: 8, height: 8, borderRadius: '50%', background: c.color }}
-                    />
-                    {c.name}
-                  </span>
-                  <span style={{ color: 'var(--gd-ink-muted)' }}>{c.period}</span>
-                </div>
-                <div style={barTrack}>
-                  <div
-                    style={{
-                      height: '100%',
-                      width: `${(c.spent / c.budget) * 100}%`,
-                      background: c.color,
-                    }}
-                  />
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)', marginTop: 4 }}>
-                  {c.spent} € од {c.budget} € · досег {c.reach} · цена/резултат {c.cpr}
-                </div>
-              </div>
-            ))}
-          </div>
+          <h2 style={{ ...cardTitle, margin: 0 }}>Кампањи во тек</h2>
+          {campaigns.length === 0 ? (
+            <p style={{ fontSize: 13, color: 'var(--gd-ink-muted)', marginTop: 12 }}>
+              Нема активни кампањи во месецот.
+            </p>
+          ) : (
+            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {campaigns.map((c) => (
+                <CampaignRow key={c.id} c={c} />
+              ))}
+            </div>
+          )}
         </section>
       </div>
 
-      {/* Топ објави по ангажман */}
       <section style={card}>
         <h2 style={cardTitle}>Топ објави по ангажман</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {TOP_POSTS.map((p) => (
-            <div key={p.name}>
-              <div
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-              >
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    fontSize: 14,
-                    fontWeight: 500,
-                  }}
-                >
-                  <span style={{ width: 3, height: 16, borderRadius: 2, background: p.color }} />
-                  {p.name}
-                </span>
-                <span style={tag}>{p.paid ? 'Платено' : 'Органски'}</span>
-              </div>
-              <div style={{ ...barTrack, height: 8, marginTop: 6 }}>
-                <div style={{ height: '100%', width: `${p.pct}%`, background: p.color }} />
-              </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: 'var(--gd-ink-muted)',
-                  marginTop: 4,
-                  textAlign: 'right',
-                }}
-              >
-                досег {p.reach} · ангажман {p.eng} · {p.rate}
-              </div>
-            </div>
+          {topPosts.map((p) => (
+            <PostRow key={p.publicationId} p={p} maxReach={maxPostReach} />
           ))}
         </div>
       </section>
+    </div>
+  );
+}
+
+function CampaignRow({ c }: { c: AnalyticsCampaign }) {
+  const pct = c.budget > 0 ? Math.min(100, (c.spent / c.budget) * 100) : 0;
+  return (
+    <div>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          fontSize: 13,
+        }}
+      >
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 500 }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.color }} />
+          {c.name}
+        </span>
+        <span style={{ color: 'var(--gd-ink-muted)' }}>
+          {fmtDay(c.periodFrom)}–{fmtDay(c.periodTo)}
+        </span>
+      </div>
+      <div style={barTrack}>
+        <div style={{ height: '100%', width: `${pct}%`, background: c.color }} />
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)', marginTop: 4 }}>
+        {fmtEur(c.spent)} од {fmtEur(c.budget)} · досег {fmtNum(c.reach)} · цена/резултат{' '}
+        {fmtCpr(c.cpr)}
+      </div>
+    </div>
+  );
+}
+
+function PostRow({ p, maxReach }: { p: AnalyticsPost; maxReach: number }) {
+  const pct = Math.round((p.reach / maxReach) * 100);
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            fontSize: 14,
+            fontWeight: 500,
+          }}
+        >
+          <span style={{ width: 3, height: 16, borderRadius: 2, background: p.color }} />
+          {p.name}
+        </span>
+        <span style={tag}>{p.paid ? 'Платено' : 'Органски'}</span>
+      </div>
+      <div style={{ ...barTrack, height: 8, marginTop: 6 }}>
+        <div style={{ height: '100%', width: `${pct}%`, background: p.color }} />
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)', marginTop: 4, textAlign: 'right' }}>
+        досег {fmtNum(p.reach)} · ангажман {fmtNum(p.engagement)}
+        {p.rate != null ? ` · ${p.rate}%` : ''}
+      </div>
     </div>
   );
 }
@@ -262,14 +236,14 @@ function Split({ color, title, lines }: { color: string; title: string; lines: s
   );
 }
 
-const demoBanner: React.CSSProperties = {
-  background: 'var(--gd-warning-tint, #FEF3C7)',
-  border: '1px solid var(--gd-warning, #D97706)',
-  color: 'var(--gd-warning-text, #92400E)',
+const emptyState: React.CSSProperties = {
+  background: 'var(--gd-surface)',
+  border: '1px dashed var(--gd-border)',
   borderRadius: 8,
-  padding: '10px 14px',
-  fontSize: 13,
-  fontWeight: 500,
+  padding: '24px',
+  fontSize: 14,
+  color: 'var(--gd-ink-muted)',
+  textAlign: 'center',
 };
 const kpiGrid: React.CSSProperties = {
   display: 'grid',

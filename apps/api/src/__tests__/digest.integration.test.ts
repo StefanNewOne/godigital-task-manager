@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { PrismaClient } from '@gd/db';
 import { createApp } from '../app.js';
 import { env } from '../env.js';
+import { cleanupMonth } from './helpers.js';
 
 /** Интеграциски тест за B1: дневен преглед за Директор (notifications.digest). */
 const app = createApp();
@@ -12,6 +13,7 @@ let dirId = '';
 beforeAll(async () => {
   dirId = (await db.employee.findUnique({ where: { email: 'aleks@godigital.mk' } }))!.id;
   await db.notification.deleteMany({ where: { recipientId: dirId, eventKey: 'daily_digest' } });
+  await cleanupMonth(db, '2027-02');
 
   // Гарантирај барем една задача „кај клиент" за да прегледот секогаш има што да пријави.
   const client = await db.client.findFirst({ where: { status: 'aktiven', archivedAt: null } });

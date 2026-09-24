@@ -3,6 +3,10 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { PrismaClient } from '@gd/db';
 import { createApp } from '../app.js';
 import { env } from '../env.js';
+import { cleanupMonth } from './helpers.js';
+
+const MONTH = '2027-03';
+const CAMP_REF = 'camp_test_1';
 
 /** Интеграциски тест за B2.1: resolve + metrics.pull (stub адаптер) → MetricSnapshot. */
 const app = createApp();
@@ -15,11 +19,22 @@ let campaignId = '';
 const pull = () =>
   request(app).post('/api/cron/metrics-pull').set('x-cron-secret', env.CRON_SECRET).send({});
 
+async function cleanupCampaign(ref: string): Promise<void> {
+  const olds = await db.campaign.findMany({ where: { metaCampaignId: ref }, select: { id: true } });
+  if (olds.length) {
+    const ids = olds.map((o) => o.id);
+    await db.metricSnapshot.deleteMany({ where: { campaignId: { in: ids } } });
+    await db.campaign.deleteMany({ where: { id: { in: ids } } });
+  }
+}
+
 beforeAll(async () => {
+  await cleanupMonth(db, MONTH);
+  await cleanupCampaign(CAMP_REF);
   const client = await db.client.findFirst({ where: { status: 'aktiven', archivedAt: null } });
   clientId = client!.id;
   const group = await db.taskGroup.create({
-    data: { clientId, contentType: 'graphic', monthKey: '2027-03', status: 'zatvoren' },
+    data: { clientId, contentType: 'graphic', monthKey: MONTH, status: 'zatvoren' },
   });
   const task = await db.task.create({
     data: {
@@ -50,7 +65,7 @@ beforeAll(async () => {
       periodFrom: new Date('2027-03-01'),
       periodTo: new Date('2027-03-31'),
       status: 'active',
-      metaCampaignId: 'camp_test_1',
+      metaCampaignId: CAMP_REF,
     },
   });
   campaignId = campaign.id;
