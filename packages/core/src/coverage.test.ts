@@ -76,6 +76,16 @@ describe('coverage', () => {
     expect(cov).toBe(8);
   });
 
+  it('clientCoverage = 0 кога ниеден тип нема квота > 0', () => {
+    expect(clientCoverage({}, today)).toBe(0);
+    expect(clientCoverage({ video: { quota: 0, tasks: [] } }, today)).toBe(0);
+  });
+
+  it('readyCoverage = 0 кога нема таскови во За објавување или подоцна', () => {
+    expect(readyCoverage([{ status: 'dizajn', publishDate: d(2026, 9, 30) }], today)).toBe(0);
+    expect(readyCoverage([], today)).toBe(0);
+  });
+
   it('coverageLevel прагови: >14 ok, 7–14 warn, <7 danger', () => {
     expect(coverageLevel(15)).toBe('ok');
     expect(coverageLevel(14)).toBe('warn');

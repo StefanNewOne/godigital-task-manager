@@ -8,13 +8,14 @@ export default defineConfig({
       provider: 'v8',
       include: ['src/**/*.ts'],
       exclude: ['src/**/*.test.ts', 'src/index.ts'],
-      // packages/core = единствен извор на доменска логика → цел: 100% (CLAUDE.md §13).
-      // Праговите се кренати на 100 штом матрицата/guards се комплетни (A1).
+      // packages/core = единствен извор на доменска логика → 100% (CLAUDE.md §13).
+      // Недостижните дефанзивни гранки (пр. `?? null` под noUncheckedIndexedAccess)
+      // се означени со `/* v8 ignore */` + образложение, не се спуштаат праговите.
       thresholds: {
-        statements: 90,
-        branches: 85,
-        functions: 90,
-        lines: 90,
+        statements: 100,
+        branches: 100,
+        functions: 100,
+        lines: 100,
       },
     },
   },

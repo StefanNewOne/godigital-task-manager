@@ -66,6 +66,34 @@ describe('normalizeMetaInsights', () => {
       normalizeMetaInsights({ data: [{ name: 'reach', values: [{ value: 'NaN' }] }] }),
     ).toEqual({});
   });
+
+  it('boolean/object/празен string вредности се испуштаат (toNum → undefined)', () => {
+    expect(normalizeMetaInsights({ reach: true, impressions: '', views: {} })).toEqual({});
+  });
+
+  it('named-array: примитивна вредност директно во values[]', () => {
+    expect(normalizeMetaInsights({ data: [{ name: 'reach', values: [1234] }] }).reach).toBe(1234);
+  });
+
+  it('named-array: entry со `value` наместо `values[]`', () => {
+    expect(normalizeMetaInsights({ data: [{ name: 'reach', value: 500 }] }).reach).toBe(500);
+  });
+
+  it('нефинитен број (Infinity/NaN) се испушта', () => {
+    expect(normalizeMetaInsights({ reach: Infinity, impressions: NaN })).toEqual({});
+  });
+
+  it('named-array прескокнува невалидни записи (null, не-object, без string name)', () => {
+    const m = normalizeMetaInsights({
+      data: [
+        { name: 'reach', values: [{ value: 100 }] }, // валиден → тригерира named-array формат
+        null, // се прескокнува
+        42, // не-object → се прескокнува
+        { name: 123, values: [{ value: 9 }] }, // name не е string → се прескокнува
+      ],
+    });
+    expect(m).toEqual({ reach: 100 });
+  });
 });
 
 describe('deriveMetrics', () => {
@@ -120,5 +148,13 @@ describe('evaluateMetricThresholds', () => {
     const c: MetricThreshold[] = [{ metric: 'ctr', op: 'lte', value: 1, level: 'alarm', key: 'k' }];
     expect(evaluateMetricThresholds({ ctr: 1 }, c)).toHaveLength(1);
     expect(evaluateMetricThresholds({ ctr: 1.01 }, c)).toHaveLength(0);
+  });
+
+  it('оператор gte работи на граница', () => {
+    const c: MetricThreshold[] = [
+      { metric: 'reach', op: 'gte', value: 1000, level: 'alarm', key: 'k' },
+    ];
+    expect(evaluateMetricThresholds({ reach: 1000 }, c)).toHaveLength(1);
+    expect(evaluateMetricThresholds({ reach: 999 }, c)).toHaveLength(0);
   });
 });
