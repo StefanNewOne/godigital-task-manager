@@ -93,4 +93,23 @@ describe('B4.1 knowledge indexing', () => {
       .send({ query: '' });
     expect(r.status).toBe(400);
   });
+
+  it('Claude помошник (stub) одговара со извори од знаењето (B4.3)', async () => {
+    const r = await request(app)
+      .post('/api/knowledge/assistant/ask')
+      .set({ Authorization: `Bearer ${dirToken}` })
+      .send({ question: UNIQUE });
+    expect(r.status).toBe(200);
+    expect(r.body.data.answer.length).toBeGreaterThan(0);
+    expect(r.body.data.grounded).toBe(true);
+    expect((r.body.data.sources as unknown[]).length).toBeGreaterThan(0);
+  });
+
+  it('помошник за клиент без модул claudeAssistant → 403', async () => {
+    const r = await request(app)
+      .post('/api/knowledge/assistant/ask')
+      .set({ Authorization: `Bearer ${dirToken}` })
+      .send({ question: UNIQUE, clientId: randomUUID() });
+    expect(r.status).toBe(403);
+  });
 });
