@@ -2,6 +2,7 @@ import {
   AbortMultipartUploadCommand,
   CompleteMultipartUploadCommand,
   CreateMultipartUploadCommand,
+  DeleteObjectCommand,
   GetObjectCommand,
   PutObjectCommand,
   S3Client,
@@ -85,4 +86,9 @@ export async function abortMultipart(key: string, uploadId: string): Promise<voi
   await s3.send(
     new AbortMultipartUploadCommand({ Bucket: env.R2_BUCKET, Key: key, UploadId: uploadId }),
   );
+}
+
+/** Избриши објект од R2 (за ослободување простор при retention — суров материјал, B3). */
+export async function deleteObject(key: string): Promise<void> {
+  await s3.send(new DeleteObjectCommand({ Bucket: env.R2_BUCKET, Key: key }));
 }

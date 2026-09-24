@@ -8,8 +8,9 @@
  *   evaluate.alarms      0 7 * * *    → /api/cron/evaluate-alarms      (аларми за покриеност, B1)
  *   notifications.digest 0 7 * * *    → /api/cron/notifications-digest (дневен преглед за Директор, B1)
  *   metrics.pull         на 6 часа     → /api/cron/metrics-pull         (Meta insights → MetricSnapshot, B2)
+ *   storage.cleanup      0 3 * * *     → /api/cron/storage-cleanup      (бриши истечен суров материјал, B3)
  *
- * Иднина: outbox.drain (real-time/знаење), knowledge.index (B4), files.preview (B3).
+ * Иднина: outbox.drain (real-time/знаење), knowledge.index (B4), files.preview (B3.2).
  */
 import { Queue, Worker } from 'bullmq';
 import IORedis from 'ioredis';
@@ -35,6 +36,7 @@ const CRON_JOBS: CronJob[] = [
     endpoint: '/api/cron/notifications-digest',
   },
   { name: 'metrics.pull', pattern: '0 */6 * * *', endpoint: '/api/cron/metrics-pull' },
+  { name: 'storage.cleanup', pattern: '0 3 * * *', endpoint: '/api/cron/storage-cleanup' },
 ];
 
 const CRON_QUEUE = 'cron';

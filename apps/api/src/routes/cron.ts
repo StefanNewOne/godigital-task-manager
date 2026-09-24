@@ -6,6 +6,7 @@ import { generateForAllActiveClients, nextMonthKey } from '../services/slots.js'
 import { evaluateCoverageAlarms } from '../services/alarms.js';
 import { generateDailyDigest } from '../services/digest.js';
 import { pullMetrics, resolvePublications } from '../services/meta/metrics.js';
+import { runStorageCleanup } from '../services/storage.js';
 
 /** Cron рути — заштитени со CRON_SECRET (не JWT). Ги повикува worker-от. */
 export const cronRouter: ExpressRouter = Router();
@@ -47,4 +48,10 @@ cronRouter.post('/metrics-pull', requireCronSecret, async (_req, res) => {
   const resolved = await resolvePublications();
   const pulled = await pullMetrics();
   res.json({ data: { ...resolved, ...pulled } });
+});
+
+// Сторидж cleanup (PRD §4, B3): бриши истечен суров материјал. BullMQ: дневно.
+cronRouter.post('/storage-cleanup', requireCronSecret, async (_req, res) => {
+  const result = await runStorageCleanup();
+  res.json({ data: result });
 });

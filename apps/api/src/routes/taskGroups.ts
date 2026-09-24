@@ -13,6 +13,7 @@ import { parse } from '../lib/validate.js';
 import { requireAuth } from '../middleware/auth.js';
 import { bulkActivateGraphic, transitionTaskGroup } from '../services/workflow/groupTransition.js';
 import { setScenarioOutcomes, splitScenarios } from '../services/scenarios.js';
+import { archiveLocally, extendRaw } from '../services/storage.js';
 
 export const taskGroupsRouter: ExpressRouter = Router();
 taskGroupsRouter.use(requireAuth);
@@ -113,4 +114,37 @@ taskGroupsRouter.post('/:id/scenario-outcomes', async (req, res) => {
     role: req.auth!.role,
   });
   res.json({ data: scenarios });
+});
+
+/** Сторидж акции на суров материјал (H7) — управуваат Директор / Акаунт менаџер. */
+function requireStorageManager(role: string): void {
+  if (role !== 'dir' && role !== 'am') {
+    throw new AppError(
+      'FORBIDDEN_ROLE',
+      'Само Директор или Акаунт менаџер може да управува со сторидж.',
+      403,
+    );
+  }
+}
+
+// Продолжи го животот на суровиот материјал за +30 дена.
+taskGroupsRouter.post('/:id/storage/extend', async (req, res) => {
+  requireStorageManager(req.auth!.role);
+  const id = (req.params as { id: string }).id;
+  const group = await extendRaw(id);
+  if (!group) throw new AppError('NOT_FOUND', 'Капата не е пронајдена.', 404);
+  res.json({ data: group });
+});
+
+// Означи локална архива (суровиот материјал нема да се брише од сторидж).
+taskGroupsRouter.post('/:id/storage/archive', async (req, res) => {
+  requireStorageManager(req.auth!.role);
+  const id = (req.params as { id: string }).id;
+  const path = (req.body as { path?: string })?.path;
+  if (typeof path !== 'string' || path.trim() === '') {
+    throw new AppError('GUARD_FAILED', 'Патеката до локалната архива е задолжителна.', 400);
+  }
+  const group = await archiveLocally(id, path.trim());
+  if (!group) throw new AppError('NOT_FOUND', 'Капата не е пронајдена.', 404);
+  res.json({ data: group });
 });
