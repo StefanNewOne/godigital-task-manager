@@ -36,11 +36,11 @@ const meWith = (role: Me['role']): Me => ({
   lastActiveAt: null,
 });
 
-/** Заеднички рути за Task Detail (me се менува по тест). */
-function routes(me: Me) {
+/** Заеднички рути за Task Detail (me/task се менуваат по тест). */
+function routes(me: Me, task: TaskDetailData = TASK) {
   return {
     '/me': me,
-    '/tasks/t1': TASK,
+    '/tasks/t1': task,
     '/tasks/t1/activity': [],
     '/employees': [],
     '/clients': [{ id: 'cl1', name: 'Ресторан ИВ', color: '#0D9488' }],
@@ -71,5 +71,31 @@ describe('TaskDetail · работна зона', () => {
     // Работната зона е интерактивна, но без D-5 барање за причина.
     expect(await screen.findByRole('button', { name: 'Одобри' })).toBeTruthy();
     expect(screen.queryByText(/Дејствуваш наместо/)).toBeNull();
+  });
+
+  it('cekaSnimanje прикажува инфо, не скршено копче (#1)', async () => {
+    const task: TaskDetailData = { ...TASK, status: 'cekaSnimanje' };
+    mockFetch(routes(meWith('kam'), task));
+    renderWithProviders(<TaskDetail taskId="t1" onClose={() => {}} />);
+
+    expect(await screen.findByText(/се придвижува автоматски/)).toBeTruthy();
+    // Нема системско „→ Чека режија" копче.
+    expect(screen.queryByRole('button', { name: /Чека режија/ })).toBeNull();
+  });
+
+  it('analitika нуди одлука органски/во реклами + Заврши (#2)', async () => {
+    const task: TaskDetailData = {
+      ...TASK,
+      status: 'analitika',
+      publications: [
+        { id: 'pub1', platform: 'ig', postType: 'reel', permalink: 'x', publishedAt: null },
+      ],
+    };
+    mockFetch(routes(meWith('ana'), task));
+    renderWithProviders(<TaskDetail taskId="t1" onClose={() => {}} />);
+
+    expect(await screen.findByRole('button', { name: 'Органски' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Во реклами' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Заврши' })).toBeTruthy();
   });
 });

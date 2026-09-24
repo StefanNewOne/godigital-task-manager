@@ -43,6 +43,7 @@ import {
   useCancel,
   useDateChange,
   usePause,
+  usePromotion,
   useResume,
   useTask,
   useTransition,
@@ -90,6 +91,7 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
   const resume = useResume(taskId);
   const dateChange = useDateChange(taskId);
   const addPublication = useAddPublication(taskId);
+  const promotion = usePromotion(taskId);
   const upload = useFileUpload(taskId);
 
   const [expanded, setExpanded] = useState(false);
@@ -98,6 +100,7 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
   const [modal, setModal] = useState<Modal>(null);
   const [reason, setReason] = useState('');
   const [behalfReason, setBehalfReason] = useState('');
+  const [promoDecision, setPromoDecision] = useState<'organic' | 'paid' | null>(null);
   const [modalDate, setModalDate] = useState('');
   const [toasts, setToasts] = useState<Array<{ id: number; text: string }>>([]);
   const [open, setOpen] = useState({
@@ -203,6 +206,19 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
           pushToast(`Пренесено во „${TASK_STATUS_META[to as TaskStatus]?.label ?? to}".`);
           set({ brief: '', copy: '', comment: '', assigneeId: '', permalink: '' });
           setBehalfReason('');
+        },
+        onError: onErr,
+      },
+    );
+  };
+
+  const doPromotion = (publicationId: string, decision: 'organic' | 'paid') => {
+    promotion.mutate(
+      { publicationId, decision },
+      {
+        onSuccess: () => {
+          setPromoDecision(decision);
+          pushToast(decision === 'paid' ? 'Одлука: во реклами.' : 'Одлука: органски.');
         },
         onError: onErr,
       },
@@ -407,6 +423,8 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
                   onSuccess: () => pushToast('Објавата е зачувана.'),
                   onError: onErr,
                 }),
+              doPromotion,
+              promoDecision,
               runUpload,
             })}
           </WorkZone>
@@ -676,6 +694,8 @@ interface ZoneArgs {
     postType: 'reel' | 'post' | 'story' | 'carousel';
     permalink?: string;
   }) => void;
+  doPromotion: (publicationId: string, decision: 'organic' | 'paid') => void;
+  promoDecision: 'organic' | 'paid' | null;
   runUpload: (
     kind: 'graphic' | 'final',
     next: string,
@@ -1001,10 +1021,32 @@ function renderZone(a: ZoneArgs): React.ReactNode {
   }
 
   if (status === 'analitika') {
+    const pub = a.task.publications[0];
     return (
       <>
-        <p style={sectionText}>Одлука за промоција и завршување.</p>
-        <p style={{ ...counter }}>Органски / Во реклами се внесува по објавата — потоа „Заврши".</p>
+        <p style={sectionText}>Одлучи дали објавата оди органски или во реклами, потоа заврши.</p>
+        {pub ? (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+            <Button
+              variant={a.promoDecision === 'organic' ? 'primary' : 'secondary'}
+              size="form"
+              disabled={pending}
+              onClick={() => a.doPromotion(pub.id, 'organic')}
+            >
+              Органски
+            </Button>
+            <Button
+              variant={a.promoDecision === 'paid' ? 'primary' : 'secondary'}
+              size="form"
+              disabled={pending}
+              onClick={() => a.doPromotion(pub.id, 'paid')}
+            >
+              Во реклами
+            </Button>
+          </div>
+        ) : (
+          <p style={counter}>Нема објава за одлука.</p>
+        )}
         <Button
           variant="primary"
           size="form"
@@ -1017,8 +1059,19 @@ function renderZone(a: ZoneArgs): React.ReactNode {
     );
   }
 
-  // Фолбек: matrix-driven целни статуси (ништо не регресира).
-  const targets = allowedTaskTargets(status, ct);
+  if (status === 'cekaSnimanje') {
+    return (
+      <p style={sectionText}>
+        Чека снимање. Овој таск се придвижува автоматски штом капата ќе се затвори (по прикачување
+        суров материјал). Работата се носи на капата.
+      </p>
+    );
+  }
+
+  // Фолбек: matrix-driven целни статуси (без системски — тие се автоматски).
+  const targets = allowedTaskTargets(status, ct).filter(
+    (to) => findTaskTransition(status, to, ct)?.actor !== 'system',
+  );
   if (targets.length === 0) {
     return <p style={sectionText}>Нема достапни преоди за овој статус.</p>;
   }
