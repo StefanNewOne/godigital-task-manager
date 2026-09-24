@@ -21,8 +21,28 @@ export interface EffectResult {
 
 const statusLabel = (s: string) => TASK_STATUS_META[s as TaskStatus]?.label ?? s;
 
+/** Извршител што таскот веќе го носи за дадена улога (rez/krea/mon/diz) — за да се задржи истиот при враќање (TD-8). */
+function persistedAssignee(role: string, task: Task): string | null {
+  switch (role) {
+    case 'rez':
+      return task.rezId;
+    case 'krea':
+      return task.kreaId;
+    case 'mon':
+      return task.monId;
+    case 'diz':
+      return task.dizId;
+    default:
+      return null;
+  }
+}
+
 function resolveAssignee(role: string, ctx: EffectCtx): string | null {
+  // 1) експлицитен избор во payload; 2) веќе доделен извршител (задржи го при враќање);
+  // 3) default по клиент. Без (2) враќање без payload/default остава таскот недоделен (TD-8).
   if (ctx.payload.assigneeId) return ctx.payload.assigneeId;
+  const persisted = persistedAssignee(role, ctx.task);
+  if (persisted) return persisted;
   const map = (ctx.task.client.defaultAssignees ?? {}) as Record<string, string>;
   return map[role] ?? null;
 }
@@ -40,8 +60,11 @@ export async function runTaskEffects(tokens: string[], ctx: EffectCtx): Promise<
         const role = args[0] ?? '';
         const id = resolveAssignee(role, ctx);
         updates.assigneeId = id;
+        // Задржи го извршителот по улога за да може да се врати истиот при враќање (TD-8).
         if (role === 'rez') updates.rezId = id;
         if (role === 'krea') updates.kreaId = id;
+        if (role === 'mon') updates.monId = id;
+        if (role === 'diz') updates.dizId = id;
         break;
       }
 

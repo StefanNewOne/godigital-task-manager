@@ -431,6 +431,8 @@ model Task {
   assigneeId       String?     @db.Uuid
   rezId            String?     @db.Uuid
   kreaId           String?     @db.Uuid
+  monId            String?     @db.Uuid
+  dizId            String?     @db.Uuid
   brief            String?
   copy             String?
   priority         Priority    @default(normalen)

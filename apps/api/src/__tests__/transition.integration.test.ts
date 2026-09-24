@@ -221,4 +221,94 @@ describe('A3 transition engine', () => {
       });
     expect(ok.status).toBe(200);
   });
+
+  // ── TD-8: при враќање извршителот по улога (mon/diz) се задржува ──
+  // Клиент без defaultAssignees; без payload.assigneeId враќањето мораше да го наследи
+  // претходниот извршител од монтажерот/дизајнерот (порано → assigneeId null, own-scope не го гледаше).
+  async function mkIsolatedClient(): Promise<{ videoGroup: string; graphicGroup: string }> {
+    const c = await db.client.create({
+      data: {
+        name: `TD-8 изолиран ${MONTH}`,
+        color: '#123456',
+        contractStart: new Date('2027-01-01'),
+        contractMonths: 12,
+        defaultAssignees: undefined, // клучно: нема default за mon/diz
+      },
+    });
+    const videoGroup = (
+      await db.taskGroup.create({
+        data: {
+          clientId: c.id,
+          contentType: 'video',
+          monthKey: MONTH,
+          status: 'zatvoren',
+          plannedCount: 4,
+        },
+      })
+    ).id;
+    const graphicGroup = (
+      await db.taskGroup.create({
+        data: {
+          clientId: c.id,
+          contentType: 'graphic',
+          monthKey: MONTH,
+          status: 'zatvoren',
+          plannedCount: 8,
+        },
+      })
+    ).id;
+    return { videoGroup, graphicGroup };
+  }
+
+  it('видео враќање vnatresno→montaza го задржува монтажерот без payload/default (TD-8)', async () => {
+    const { videoGroup } = await mkIsolatedClient();
+    const g = await db.taskGroup.findUnique({ where: { id: videoGroup } });
+    const id = (
+      await db.task.create({
+        data: {
+          groupId: videoGroup,
+          clientId: g!.clientId,
+          contentType: 'video',
+          title: 'TD-8 видео',
+          status: 'vnatresno',
+          version: 1,
+          monId: empId.mon, // претходно доделен монтажер
+        },
+      })
+    ).id;
+    const r = await request(app)
+      .post(`/api/tasks/${id}/transition`)
+      .set(bearer('rez'))
+      .send({ to: 'montaza', payload: { comment: 'Скрати го интрото.' } });
+    expect(r.status).toBe(200);
+    expect(r.body.data.status).toBe('montaza');
+    expect(r.body.data.assigneeId).toBe(empId.mon);
+    expect(r.body.data.monId).toBe(empId.mon);
+  });
+
+  it('графика враќање vnatresno→dizajn го задржува дизајнерот без payload/default (TD-8)', async () => {
+    const { graphicGroup } = await mkIsolatedClient();
+    const g = await db.taskGroup.findUnique({ where: { id: graphicGroup } });
+    const id = (
+      await db.task.create({
+        data: {
+          groupId: graphicGroup,
+          clientId: g!.clientId,
+          contentType: 'graphic',
+          title: 'TD-8 графика',
+          status: 'vnatresno',
+          version: 1,
+          dizId: empId.diz, // претходно доделен дизајнер
+        },
+      })
+    ).id;
+    const r = await request(app)
+      .post(`/api/tasks/${id}/transition`)
+      .set(bearer('krea'))
+      .send({ to: 'dizajn', payload: { comment: 'Смени ја палетата.' } });
+    expect(r.status).toBe(200);
+    expect(r.body.data.status).toBe('dizajn');
+    expect(r.body.data.assigneeId).toBe(empId.diz);
+    expect(r.body.data.dizId).toBe(empId.diz);
+  });
 });
