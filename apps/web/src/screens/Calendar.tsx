@@ -299,7 +299,7 @@ export function Calendar() {
           </div>
           {daySlots.length === 0 ? (
             <p style={{ color: 'var(--gd-ink-muted)', fontSize: 13, padding: '8px 0' }}>
-              Нема објави за овој ден.
+              Нема таскови за овој ден.
             </p>
           ) : (
             daySlots.map((s) => (

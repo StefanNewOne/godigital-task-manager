@@ -17,7 +17,7 @@ export function AdminLayout() {
   return (
     <div style={{ display: 'flex', height: '100%' }}>
       <aside style={sidebar}>
-        <div style={consoleLabel}>АДМИН КОНЗОЛА</div>
+        <div style={consoleLabel}>Админ конзола</div>
         {SECTIONS.map((s) => (
           <NavLink key={s.path} to={s.path} style={sectionLink}>
             {s.label}

@@ -129,7 +129,7 @@ function CampaignForm({
         <Labeled label="Име">
           <input value={name} onChange={(e) => setName(e.target.value)} style={input} />
         </Labeled>
-        <Labeled label="Цел (objective)">
+        <Labeled label="Цел">
           <input value={objective} onChange={(e) => setObjective(e.target.value)} style={input} />
         </Labeled>
       </div>
@@ -172,7 +172,7 @@ function CampaignForm({
           />
         </Labeled>
       </div>
-      <Labeled label="Meta Campaign ID (по потреба)">
+      <Labeled label="Meta ID на кампања (по потреба)">
         <input value={metaCampaignId} onChange={(e) => setMeta(e.target.value)} style={input} />
       </Labeled>
       {error && <div style={{ color: 'var(--gd-danger)', fontSize: 13 }}>{error}</div>}
@@ -198,9 +198,10 @@ function Labeled({ label, children }: { label: string; children: React.ReactNode
 }
 
 const isoDay = (iso: string): string => iso.slice(0, 10);
+const pad = (n: number): string => String(n).padStart(2, '0');
 const fmtDate = (iso: string): string => {
   const d = new Date(iso);
-  return `${d.getUTCDate()}.${d.getUTCMonth() + 1}`;
+  return `${pad(d.getUTCDate())}.${pad(d.getUTCMonth() + 1)}.${d.getUTCFullYear()}`;
 };
 
 const input: React.CSSProperties = {

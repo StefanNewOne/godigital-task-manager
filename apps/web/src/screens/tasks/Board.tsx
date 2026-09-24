@@ -11,6 +11,7 @@ import {
 } from '@gd/core';
 import { tokens } from '@gd/ui';
 import { MessageSquare, MoreHorizontal, Paperclip } from 'lucide-react';
+import { daysLabel } from '../../lib/format.js';
 import { useBoardTransition } from '../../api/tasks.js';
 import { ApiRequestError } from '../../lib/api.js';
 import type { ClientRow, EmployeeRow, TaskListItem } from '../../lib/types.js';
@@ -206,7 +207,7 @@ function Card({
         )}
         {task.version > 1 && <span>v.{task.version}</span>}
         {stuck > 3 && !['objaveno', 'zavrseno', 'otkazano', 'pauza'].includes(task.status) && (
-          <span style={{ color: 'var(--gd-warning)' }}>◷ {stuck} дена во статус</span>
+          <span style={{ color: 'var(--gd-warning)' }}>◷ {daysLabel(stuck)} во статус</span>
         )}
       </div>
     </div>

@@ -176,7 +176,7 @@ export function CreativeViewer({ taskId, onClose }: { taskId: string; onClose: (
               <input
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
-                placeholder="Додади коментар…"
+                placeholder="Додај коментар…"
                 style={darkInput}
               />
               <Button

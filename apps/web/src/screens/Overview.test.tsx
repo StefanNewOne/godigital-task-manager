@@ -51,10 +51,10 @@ describe('Overview', () => {
     // „12 дена" се појавува и во видео-линијата и во вкупната покриеност на c1.
     expect(screen.getAllByText('12 дена').length).toBeGreaterThan(0);
     expect(screen.getByText(/Видео · 4\/мес/)).toBeTruthy();
-    // статус беџ од TASK_STATUS_META + просек денови
+    // статус точка + етикета од TASK_STATUS_META + просек денови
     expect(screen.getByText(TASK_STATUS_META.dizajn.label)).toBeTruthy();
     expect(screen.getByText('4')).toBeTruthy();
-    expect(screen.getByText(/3д просек/)).toBeTruthy();
+    expect(screen.getByText(/просек 3 дена/)).toBeTruthy();
   });
 
   it('најлошата покриеност е прва (сортирано по денови растечки)', async () => {

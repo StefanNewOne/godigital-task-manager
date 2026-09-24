@@ -1,6 +1,7 @@
 import type React from 'react';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { daysLabel } from '../lib/format.js';
 import { useClients } from '../api/admin.js';
 import { useOverview } from '../api/overview.js';
 import { useTasks } from '../api/tasks.js';
@@ -56,44 +57,48 @@ export function Clients() {
                 </tr>
               </thead>
               <tbody>
-                {clients.map((c) => {
-                  const cv = cov(c.id);
-                  return (
-                    <tr
-                      key={c.id}
-                      onClick={() => navigate(`/tasks?client=${c.id}&tab=list`)}
-                      style={clickRow}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.background = 'var(--gd-surface-alt)')
-                      }
-                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                    >
-                      <td
-                        style={{
-                          ...s.td,
-                          borderLeft: `4px solid ${cv ? LEVEL_COLOR[cv.level] : 'var(--gd-border)'}`,
-                        }}
+                {[...clients]
+                  .sort((a, b) => (cov(a.id)?.days ?? Infinity) - (cov(b.id)?.days ?? Infinity))
+                  .map((c) => {
+                    const cv = cov(c.id);
+                    return (
+                      <tr
+                        key={c.id}
+                        onClick={() => navigate(`/tasks?client=${c.id}&tab=list`)}
+                        style={clickRow}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.background = 'var(--gd-surface-alt)')
+                        }
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                       >
-                        <span style={dot(c.color)} />
-                        {c.name}
-                      </td>
-                      <td style={{ ...s.td, ...tabular }}>{c.videosPerMonth}</td>
-                      <td style={{ ...s.td, ...tabular }}>{c.graphicsPerMonth}</td>
-                      <td style={{ ...s.td, ...tabular }}>{activeCount.get(c.id) ?? 0}</td>
-                      <td
-                        style={{
-                          ...s.td,
-                          ...tabular,
-                          color: cv ? LEVEL_COLOR[cv.level] : undefined,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {cv ? `${cv.days} дена` : '—'}
-                      </td>
-                      <td style={s.td}>{CHANNEL_LABEL[c.approvalChannel] ?? c.approvalChannel}</td>
-                    </tr>
-                  );
-                })}
+                        <td
+                          style={{
+                            ...s.td,
+                            borderLeft: `4px solid ${c.color}`,
+                          }}
+                        >
+                          <span style={dot(c.color)} />
+                          {c.name}
+                        </td>
+                        <td style={{ ...s.td, ...tabular }}>{c.videosPerMonth}</td>
+                        <td style={{ ...s.td, ...tabular }}>{c.graphicsPerMonth}</td>
+                        <td style={{ ...s.td, ...tabular }}>{activeCount.get(c.id) ?? 0}</td>
+                        <td
+                          style={{
+                            ...s.td,
+                            ...tabular,
+                            color: cv ? LEVEL_COLOR[cv.level] : undefined,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {cv ? daysLabel(cv.days) : '—'}
+                        </td>
+                        <td style={s.td}>
+                          {CHANNEL_LABEL[c.approvalChannel] ?? c.approvalChannel}
+                        </td>
+                      </tr>
+                    );
+                  })}
               </tbody>
             </table>
           </div>

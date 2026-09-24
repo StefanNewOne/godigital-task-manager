@@ -3,11 +3,11 @@ import { ChevronRight } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { TASK_STATUS_META, coverageLevel, type TaskStatus } from '@gd/core';
 import { tokens } from '@gd/ui';
+import { daysLabel } from '../lib/format.js';
 import { useOverview, type CoverageRow } from '../api/overview.js';
 import { useMarkRead, useNotifications } from '../api/notifications.js';
 import { notificationTarget } from '../components/NotificationsBell.js';
 import { PeriodSidebar } from '../components/PeriodSidebar.js';
-import { StatusBadge } from '../components/StatusBadge.js';
 
 const ALARM_LABEL: Record<string, string> = {
   kritichen: 'Критичен',
@@ -61,7 +61,9 @@ function CoverageLine({
           }}
         />
       </div>
-      <span style={{ color: LEVEL_TEXT[level], fontWeight: 600, ...tabular }}>{days} дена</span>
+      <span style={{ color: LEVEL_TEXT[level], fontWeight: 600, ...tabular }}>
+        {daysLabel(days)}
+      </span>
       {until && <span style={{ color: 'var(--gd-ink-muted)' }}>· до {shortDate(until)}</span>}
     </div>
   );
@@ -157,7 +159,7 @@ export function Overview() {
                   </div>
                 </div>
                 <span style={{ color: LEVEL_TEXT[c.level], fontWeight: 600, ...tabular }}>
-                  {c.days} дена
+                  {daysLabel(c.days)}
                 </span>
                 <ChevronRight size={16} color="var(--gd-ink-muted)" style={{ flex: '0 0 auto' }} />
               </button>
@@ -226,8 +228,30 @@ export function Overview() {
                   onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--gd-surface-alt)')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 >
-                  <div style={{ width: 150, flex: '0 0 150px', textAlign: 'left' }}>
-                    <StatusBadge status={s.status} />
+                  <div
+                    style={{
+                      width: 168,
+                      flex: '0 0 168px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        flex: '0 0 8px',
+                        background:
+                          tokens.statusColor[s.status as keyof typeof tokens.statusColor] ??
+                          'var(--gd-ink-muted)',
+                      }}
+                      aria-hidden
+                    />
+                    <span style={{ fontSize: 14 }}>
+                      {TASK_STATUS_META[s.status as TaskStatus]?.label ?? s.status}
+                    </span>
                   </div>
                   <div style={barTrack}>
                     <div
@@ -252,7 +276,7 @@ export function Overview() {
                       ...tabular,
                     }}
                   >
-                    {s.avgDays > 0 ? `${s.avgDays}д просек` : ''}
+                    {s.avgDays > 0 ? `просек ${s.avgDays} дена` : ''}
                   </span>
                   <ChevronRight
                     size={16}

@@ -1,6 +1,6 @@
 import type React from 'react';
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Clapperboard } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { GROUP_STATUS_META } from '@gd/core';
 import type { ClientRow, TaskGroupRow, TaskListItem } from '../../lib/types.js';
 import {
@@ -86,8 +86,11 @@ export function MyTasks({ tasks, capas, clientById, openId, onOpen, onOpenCapa }
       {view === 'all' && capas.length > 0 && (
         <div style={{ marginBottom: 20 }}>
           <div style={{ ...sectionHeader, cursor: 'default' }}>
-            <Clapperboard size={14} />
-            <span>Мои капи</span>
+            <span
+              style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--gd-primary)' }}
+              aria-hidden
+            />
+            <span>Капа таскови</span>
             <span style={{ color: 'var(--gd-ink-muted)', fontWeight: 400 }}>· {capas.length}</span>
           </div>
           <div style={card}>
