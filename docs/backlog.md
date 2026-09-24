@@ -107,6 +107,13 @@
 
 **Статус на B1 (2026-09-24):** ✅ H6 (поставки за известувања) · ✅ `notifications.digest` (дневен преглед за Директор 07:00 — `alarm` in-app+email, роллап на ниска покриеност + задачи кај клиент, дедуп по ден; заедничкиот `clientCoverageDays` helper го делат аларм-от и прегледот) · ⛔ Rule Builder engine (D-13) · ⬜ **SMS за `kritichen` сè уште блокиран на провајдер (O-B1)** — единствената преостаната B1 ставка, чека Twilio credentials + број на Директор (deployment фаза). Со тоа B1 е функционално комплетен освен SMS каналот.
 
+**Статус на B2/B3/B4 (2026-09-24):** сите изградени зад адаптери со dev-stub (одлука: гради сè сега, вклучи со credentials).
+
+- **B2 (Meta + Аналитика) ✅:** `metrics.pull` (MetaClient stub/Graph), `/analytics`, жив Аналитика екран, Кампањи (H9), извештај+CSV (H10). План: `docs/plans/B2-meta-metrics-analytics.md`.
+- **B3 (Сторидж) ✅:** retention cleanup + продолжи +30 + локална архива (H7), прегледи (PreviewGenerator stub/ffmpeg), квота аларм. План: `docs/plans/B3-storage-lifecycle.md`.
+- **B4 (Знаење + Claude) ✅:** embedding pipeline (Voyage stub/real), `knowledge.index` + backfill, `/knowledge/search` (hybrid + RRF + ACL, pgvector raw SQL со tenantId), `/knowledge/assistant/ask` (Claude помошник stub/real преку backend proxy, raw HTTP за да не воведе `@anthropic-ai/sdk` — §18), панел UI (✦ Прашај). Гатиран по клиент со `claudeAssistant` модул.
+- **Останати credentials/одлуки за прод:** Meta (`META_SYSTEM_TOKEN`), ffmpeg бинар (`FFMPEG_PATH`), Voyage (`VOYAGE_API_KEY` + O-D10 тест на 20 реални коментари), Claude (`ANTHROPIC_API_KEY`), SMS провајдер (O-B1). До тогаш stub адаптерите го носат целиот тек.
+
 ---
 
 ## 6. Hotfix / Improvement бројач

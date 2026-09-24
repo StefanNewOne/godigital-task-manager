@@ -1,4 +1,5 @@
 import type React from 'react';
+import { useState } from 'react';
 import { NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom';
 import {
   BarChart3,
@@ -10,6 +11,7 @@ import {
   ListChecks,
   LogOut,
   Settings,
+  Sparkles,
   type LucideIcon,
 } from 'lucide-react';
 import { PERMISSIONS, type Role, type Screen } from '@gd/core';
@@ -17,6 +19,7 @@ import { useLogout, useMe } from '../api/auth.js';
 import { MONTH_LABELS } from '../lib/calendar.js';
 import { NotificationsBell } from './NotificationsBell.js';
 import { KritichenModal } from './KritichenModal.js';
+import { AssistantPanel } from './AssistantPanel.js';
 
 // `label` = кратка ознака во rail-от; `title` = наслов во топ-лентата (Handoff).
 const NAV: Array<{
@@ -82,6 +85,7 @@ export function AppShell() {
   const logout = useLogout();
   const loc = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [asking, setAsking] = useState(false);
 
   const visible = me ? NAV.filter((n) => PERMISSIONS[me.role].nav.includes(n.screen)) : [];
   const active =
@@ -201,6 +205,14 @@ export function AppShell() {
               )}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <button
+                onClick={() => setAsking(true)}
+                style={askTopBtn}
+                title="Прашај го помошникот"
+                aria-label="Прашај го помошникот"
+              >
+                <Sparkles size={14} aria-hidden /> Прашај
+              </button>
               <NotificationsBell />
               {me && PERMISSIONS[me.role].nav.includes('admin') && (
                 <NavLink to="/admin" style={topBarLink}>
@@ -216,6 +228,7 @@ export function AppShell() {
         </main>
       </div>
       <KritichenModal />
+      {asking && <AssistantPanel onClose={() => setAsking(false)} />}
     </div>
   );
 }
@@ -286,6 +299,20 @@ const topBarMain: React.CSSProperties = {
   padding: '0 20px',
 };
 
+const askTopBtn: React.CSSProperties = {
+  height: 32,
+  padding: '0 12px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 6,
+  border: '1px solid var(--gd-border)',
+  borderRadius: 8,
+  fontSize: 13,
+  fontWeight: 500,
+  color: 'var(--gd-brand)',
+  background: 'var(--gd-surface)',
+  cursor: 'pointer',
+};
 const topBarLink: React.CSSProperties = {
   height: 32,
   padding: '0 12px',
