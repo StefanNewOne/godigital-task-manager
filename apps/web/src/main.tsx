@@ -1,18 +1,22 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { App } from './App.js';
+import { PwaStatus } from './components/PwaStatus.js';
+import { idbPersister, queryClient } from './lib/pwa.js';
 import './index.css';
-
-const queryClient = new QueryClient();
 
 const rootEl = document.getElementById('root');
 if (!rootEl) throw new Error('Недостасува #root елемент.');
 
 createRoot(rootEl).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{ persister: idbPersister, maxAge: 1000 * 60 * 60 * 24 }}
+    >
       <App />
-    </QueryClientProvider>
+      <PwaStatus />
+    </PersistQueryClientProvider>
   </StrictMode>,
 );
