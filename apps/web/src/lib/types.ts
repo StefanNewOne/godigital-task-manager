@@ -33,6 +33,7 @@ export interface ClientRow {
   approvalChannel: string;
   calendarType: string;
   coverageAlarmDays: number;
+  deactivatedAt?: string | null;
 }
 
 export interface TaskListItem {

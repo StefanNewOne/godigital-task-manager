@@ -15,9 +15,11 @@ import {
   useClients,
   useCreateClient,
   useCreateContact,
+  useToggleClientActive,
   useUpdateClient,
   useUpdateContact,
 } from '../../api/admin.js';
+import { useMe } from '../../api/auth.js';
 import { ApiRequestError } from '../../lib/api.js';
 import type { ClientRow } from '../../lib/types.js';
 
@@ -33,8 +35,18 @@ const CALENDARS = [
 
 export function AdminClients() {
   const { data, isLoading } = useClients();
+  const me = useMe().data;
+  const toggle = useToggleClientActive();
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<ClientRow | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const isDirector = me?.role === 'dir';
+
+  const cutoffLabel = (iso: string) => {
+    const d = new Date(iso);
+    const end = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0));
+    return `${String(end.getUTCDate()).padStart(2, '0')}.${String(end.getUTCMonth() + 1).padStart(2, '0')}.${end.getUTCFullYear()}`;
+  };
 
   return (
     <div>
@@ -52,7 +64,13 @@ export function AdminClients() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.color }} />
               <strong style={{ fontSize: 16 }}>{c.name}</strong>
-              <span style={activeBadge}>{c.status === 'aktiven' ? 'Активен' : c.status}</span>
+              {c.deactivatedAt ? (
+                <span style={deactivatedBadge}>
+                  Деактивиран · до {cutoffLabel(c.deactivatedAt)}
+                </span>
+              ) : (
+                <span style={activeBadge}>{c.status === 'aktiven' ? 'Активен' : c.status}</span>
+              )}
             </div>
             <dl style={cardMeta}>
               <dt style={dt}>Видео/мес</dt>
@@ -70,15 +88,54 @@ export function AdminClients() {
                 {CALENDARS.find((x) => x.v === c.calendarType)?.l ?? c.calendarType}
               </dd>
             </dl>
-            <div style={{ marginTop: 12 }}>
+            <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
               <Button variant="ghost" size="toolbar" onClick={() => setEditing(c)}>
                 Уреди
               </Button>
+              {isDirector &&
+                (c.deactivatedAt ? (
+                  <Button
+                    variant="ghost"
+                    size="toolbar"
+                    onClick={() =>
+                      toggle.mutate(
+                        { id: c.id, deactivate: false },
+                        {
+                          onError: (e) =>
+                            setToast(e instanceof ApiRequestError ? e.message : 'Грешка.'),
+                        },
+                      )
+                    }
+                  >
+                    Активирај
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="toolbar"
+                    onClick={() =>
+                      toggle.mutate(
+                        { id: c.id, deactivate: true },
+                        {
+                          onError: (e) =>
+                            setToast(e instanceof ApiRequestError ? e.message : 'Грешка.'),
+                        },
+                      )
+                    }
+                  >
+                    Деактивирај
+                  </Button>
+                ))}
             </div>
           </div>
         ))}
       </div>
 
+      {toast && (
+        <div style={toastStyle} onClick={() => setToast(null)}>
+          {toast}
+        </div>
+      )}
       {creating && <ClientModal onClose={() => setCreating(false)} />}
       {editing && <ClientModal client={editing} onClose={() => setEditing(null)} />}
     </div>
@@ -386,6 +443,15 @@ const activeBadge: React.CSSProperties = {
   fontWeight: 500,
   color: 'var(--gd-success-text)',
   background: 'rgba(22,163,74,.1)',
+  borderRadius: 4,
+  padding: '2px 6px',
+};
+const deactivatedBadge: React.CSSProperties = {
+  marginLeft: 'auto',
+  fontSize: 11,
+  fontWeight: 500,
+  color: 'var(--gd-danger)',
+  background: 'rgba(220,38,38,.1)',
   borderRadius: 4,
   padding: '2px 6px',
 };

@@ -22,6 +22,8 @@ export const ERROR_CODES = [
   'NOT_FOUND',
   // месечен план (одобрување од Директор)
   'MONTH_NOT_APPROVED',
+  // животен циклус на клиент (Директор гаси клиент → cutoff по крај на месец)
+  'CLIENT_DEACTIVATED',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

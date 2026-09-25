@@ -11,6 +11,7 @@ import { prisma, type TxClient } from '../db/tenantExtension.js';
 import { AppError } from '../lib/errors.js';
 import { recordEvent } from '../lib/events.js';
 import { assertClientApprovedForMonth } from './monthlyPlan.js';
+import { assertClientActiveForDate } from './clientLifecycle.js';
 
 const NON_CHANGEABLE = new Set(['objaveno', 'analitika', 'zavrseno', 'otkazano']);
 
@@ -244,6 +245,8 @@ export async function changeTaskDate(
   if (newUtc < todayUtc) {
     throw new AppError('DATE_IN_PAST', 'Не е дозволено поместување на датум во минатото.', 400);
   }
+  // Деактивиран клиент: датумот не смее да падне по cutoff-от (крај на месецот на гасењето).
+  assertClientActiveForDate(task.client, input.newDate);
   const orderInDay = input.orderInDay ?? 1;
   const monthKey = `${input.newDate.getUTCFullYear()}-${String(input.newDate.getUTCMonth() + 1).padStart(2, '0')}`;
 
@@ -338,6 +341,8 @@ export async function createExtraTask(
   if (dUtc < todayUtc) {
     throw new AppError('DATE_IN_PAST', 'Не е дозволен датум во минато.', 400);
   }
+  // Деактивиран клиент: екстра таск не смее да се закаже по cutoff-от.
+  assertClientActiveForDate(client, input.date);
 
   const monthKey = `${input.date.getUTCFullYear()}-${String(input.date.getUTCMonth() + 1).padStart(2, '0')}`;
   await assertClientApprovedForMonth(input.clientId, monthKey);

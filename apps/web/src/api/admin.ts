@@ -35,6 +35,16 @@ export function useUpdateClient(id: string) {
   });
 }
 
+// Директор гаси/пали клиент (§редизајн: cutoff по крај на месецот на гасењето).
+export function useToggleClientActive() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, deactivate }: { id: string; deactivate: boolean }) =>
+      api.post<ClientRow>(`/clients/${id}/${deactivate ? 'deactivate' : 'reactivate'}`, {}),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['clients'] }),
+  });
+}
+
 // ── Вработени: создавање / уредување ──
 export function useCreateEmployee() {
   const qc = useQueryClient();

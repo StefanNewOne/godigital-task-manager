@@ -280,6 +280,9 @@ model Client {
   notes             String?
   defaultAssignees  Json?
   archivedAt        DateTime?
+  // Директор „гаси" клиент: датумите може да се активираат/закажат само до крај на месецот
+  // на гасењето (clientActiveForDate во @gd/core). null = активен.
+  deactivatedAt     DateTime?
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 

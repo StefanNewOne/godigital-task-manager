@@ -7,6 +7,7 @@ import { AppError } from '../lib/errors.js';
 import { parse } from '../lib/validate.js';
 import { recordEvent } from '../lib/events.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
+import { deactivateClient, reactivateClient } from '../services/clientLifecycle.js';
 
 export const clientsRouter: ExpressRouter = Router();
 
@@ -50,6 +51,24 @@ clientsRouter.post('/', requireRole('dir'), async (req, res) => {
     return created;
   });
   res.status(201).json({ data: client });
+});
+
+// Директор гаси клиент — датумите може да се закажат/активираат само до крај на месецот (§редизајн).
+clientsRouter.post('/:id/deactivate', requireRole('dir'), async (req, res) => {
+  const client = await deactivateClient((req.params as { id: string }).id, {
+    id: req.auth!.sub,
+    role: req.auth!.role,
+  });
+  res.json({ data: client });
+});
+
+// Директор повторно пали клиент.
+clientsRouter.post('/:id/reactivate', requireRole('dir'), async (req, res) => {
+  const client = await reactivateClient((req.params as { id: string }).id, {
+    id: req.auth!.sub,
+    role: req.auth!.role,
+  });
+  res.json({ data: client });
 });
 
 clientsRouter.patch('/:id', requireRole('dir'), async (req, res) => {
