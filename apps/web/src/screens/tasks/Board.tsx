@@ -99,7 +99,16 @@ export function Board({ tasks, clientById, empById, groupBy, onOpen }: BoardProp
               style={{ marginLeft: 'auto', color: 'var(--gd-ink-muted)' }}
             />
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto' }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              overflowY: 'auto',
+              flex: 1,
+              minHeight: 0,
+            }}
+          >
             {col.cards.map((t) => (
               <Card
                 key={t.id}
@@ -268,6 +277,8 @@ const boardWrap: React.CSSProperties = {
 const column = (isOver: boolean, dropClr: string | null): React.CSSProperties => ({
   minWidth: 300,
   width: 300,
+  maxHeight: '100%',
+  minHeight: 0,
   background: 'var(--gd-surface-alt)',
   border: `1px ${isOver ? 'dashed' : 'solid'} ${
     dropClr ?? (isOver ? 'var(--gd-primary-border)' : 'var(--gd-border)')

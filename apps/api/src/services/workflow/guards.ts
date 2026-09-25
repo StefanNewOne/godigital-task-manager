@@ -108,6 +108,16 @@ const LABELS: Record<string, string> = {
   outcome: 'исход',
   decision: 'одлука',
   reason: 'причина',
+  // капа guards
+  scenarist: 'сценарист',
+  shootDate: 'термин за снимање',
+  shootLocation: 'локација на снимање',
+  scenaristNotes: 'белешки за сценаристот',
+  scenarioDoc: 'сценариски документ',
+  scenarios: 'поделени сценарија',
+  scenarioOutcomes: 'исход за секое сценарио',
+  approvedScenario: 'барем едно одобрено сценарио',
+  firstChild: 'активиран прв таск',
 };
 
 /** Македонска порака од missing[] за toast. */
