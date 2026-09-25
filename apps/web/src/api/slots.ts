@@ -34,6 +34,15 @@ export function useSlots(clientId: string | null, month: string) {
   });
 }
 
+/** Глобален календар: слотови за сите клиенти за месецот. */
+export function useAllSlots(month: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['slots', 'all', month],
+    queryFn: () => api.get<SlotRow[]>(`/slots/all?month=${month}`),
+    enabled,
+  });
+}
+
 export function useGenerateSlots(clientId: string, month: string) {
   const qc = useQueryClient();
   return useMutation({

@@ -41,6 +41,19 @@ clientSlotsRouter.post('/confirm', requireRole('dir', 'am'), async (req, res) =>
 export const slotsRouter: ExpressRouter = Router();
 slotsRouter.use(requireAuth);
 
+// Глобален календар: слотови за сите клиенти за даден месец (tenant-scoped преку extension).
+slotsRouter.get('/all', async (req, res) => {
+  const month = typeof req.query.month === 'string' ? req.query.month : undefined;
+  const slots = await prisma.publishingSlot.findMany({
+    where: { ...(month ? { monthKey: month } : {}) },
+    orderBy: [{ date: 'asc' }, { orderInDay: 'asc' }],
+    include: {
+      task: { select: { id: true, status: true, title: true, contentType: true } },
+    },
+  });
+  res.json({ data: slots });
+});
+
 // Уредување на предлог-слот (H1: влечење без причина). Само predlog слотови.
 slotsRouter.patch('/:id', requireRole('dir', 'am', 'rez', 'krea'), async (req, res) => {
   const id = (req.params as { id: string }).id;

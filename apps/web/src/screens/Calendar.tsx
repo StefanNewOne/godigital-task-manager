@@ -5,6 +5,7 @@ import type { TaskStatus } from '@gd/core';
 import { Button, Modal, tokens } from '@gd/ui';
 import { useClients } from '../api/admin.js';
 import {
+  useAllSlots,
   useCalendarConfig,
   useConfirmMonth,
   useGenerateSlots,
@@ -65,11 +66,17 @@ export function Calendar() {
   const stackPanel = winW < 1100;
 
   const { data: clients } = useClients();
-  const [clientId, setClientId] = useState<string | null>(null);
-  const activeClient = clientId ?? clients?.[0]?.id ?? null;
+  // '' = Сите клиенти (глобален календар); инаку конкретен клиент.
+  const [clientId, setClientId] = useState<string>('');
+  const allMode = clientId === '';
+  const activeClient = allMode ? null : clientId;
+  const clientById = useMemo(() => new Map((clients ?? []).map((c) => [c.id, c])), [clients]);
   const monthKey = monthKeyOf(year, month0);
 
-  const { data: slots, isLoading } = useSlots(activeClient, monthKey);
+  const perClient = useSlots(activeClient, monthKey);
+  const allSlots = useAllSlots(monthKey, allMode);
+  const slots = allMode ? allSlots.data : perClient.data;
+  const isLoading = allMode ? allSlots.isLoading : perClient.isLoading;
   const generate = useGenerateSlots(activeClient ?? '', monthKey);
   const confirm = useConfirmMonth(activeClient ?? '', monthKey);
   const patch = usePatchSlot(activeClient ?? '', monthKey);
@@ -144,11 +151,12 @@ export function Calendar() {
           <ChevronRight size={16} />
         </button>
         <select
-          value={activeClient ?? ''}
+          value={clientId}
           onChange={(e) => setClientId(e.target.value)}
           className="gd-field"
           style={{ width: 180, height: 28 }}
         >
+          <option value="">Сите клиенти</option>
           {(clients ?? []).map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -183,8 +191,8 @@ export function Calendar() {
         ))}
       </div>
 
-      {/* Предлог банер */}
-      {isProposal && (
+      {/* Предлог банер (само per-client) */}
+      {!allMode && isProposal && (
         <div style={proposalBanner}>
           <span>
             Предлог за {MONTH_LABELS[month0]}:{' '}
@@ -197,8 +205,8 @@ export function Calendar() {
         </div>
       )}
 
-      {/* Празна состојба */}
-      {!isLoading && (slots?.length ?? 0) === 0 && (
+      {/* Празна состојба (per-client: генерирај; сите клиенти: само порака) */}
+      {!allMode && !isLoading && (slots?.length ?? 0) === 0 && (
         <div style={emptyState}>
           <p style={{ color: 'var(--gd-ink-muted)', margin: '0 0 12px' }}>
             {MONTH_LABELS[month0]} уште не е испланиран.
@@ -206,6 +214,13 @@ export function Calendar() {
           <Button size="form" onClick={runGenerate} disabled={generate.isPending}>
             {generate.isPending ? 'Генерирање…' : 'Генерирај распоред'}
           </Button>
+        </div>
+      )}
+      {allMode && !isLoading && (slots?.length ?? 0) === 0 && (
+        <div style={emptyState}>
+          <p style={{ color: 'var(--gd-ink-muted)', margin: 0 }}>
+            Нема слотови за {MONTH_LABELS[month0]} кај ниту еден клиент.
+          </p>
         </div>
       )}
 
@@ -255,36 +270,47 @@ export function Calendar() {
                         <span style={dayHintStyle}>{dayHint(cell.date, cell.key)}</span>
                       )}
                     </div>
-                    {(byDay.get(cell.key) ?? []).map((s) => {
-                      const draggable = s.status === 'reserved' && !!s.task;
-                      return (
-                        <span
-                          key={s.id}
-                          draggable={draggable}
-                          onDragStart={() =>
-                            s.task && setDrag({ taskId: s.task.id, title: s.task.title })
-                          }
-                          onClick={(e) => {
-                            if (s.status === 'predlog') {
-                              e.stopPropagation();
-                              setMoving(s);
+                    {allMode ? (
+                      <DayDots
+                        slots={byDay.get(cell.key) ?? []}
+                        colorOf={(cid) => clientById.get(cid)?.color ?? '#8A93A0'}
+                      />
+                    ) : (
+                      (byDay.get(cell.key) ?? []).map((s) => {
+                        const draggable = s.status === 'reserved' && !!s.task;
+                        return (
+                          <span
+                            key={s.id}
+                            draggable={draggable}
+                            onDragStart={() =>
+                              s.task && setDrag({ taskId: s.task.id, title: s.task.title })
                             }
-                          }}
-                          style={slotBar(s)}
-                          title={
-                            s.status === 'predlog'
-                              ? 'Кликни за поместување'
-                              : draggable
-                                ? 'Влечи за промена на датум'
-                                : SLOT_STATUS_LABEL[s.status]
-                          }
-                        >
-                          {s.contentType === 'video' ? '▶' : '▧'}{' '}
-                          {s.task ? s.task.title : s.contentType === 'video' ? 'Видео' : 'Графика'}
-                          {s.orderInDay === 2 ? ' ②' : ''}
-                        </span>
-                      );
-                    })}
+                            onClick={(e) => {
+                              if (s.status === 'predlog') {
+                                e.stopPropagation();
+                                setMoving(s);
+                              }
+                            }}
+                            style={slotBar(s)}
+                            title={
+                              s.status === 'predlog'
+                                ? 'Кликни за поместување'
+                                : draggable
+                                  ? 'Влечи за промена на датум'
+                                  : SLOT_STATUS_LABEL[s.status]
+                            }
+                          >
+                            {s.contentType === 'video' ? '▶' : '▧'}{' '}
+                            {s.task
+                              ? s.task.title
+                              : s.contentType === 'video'
+                                ? 'Видео'
+                                : 'Графика'}
+                            {s.orderInDay === 2 ? ' ②' : ''}
+                          </span>
+                        );
+                      })
+                    )}
                   </button>
                 );
               })}
@@ -310,9 +336,27 @@ export function Calendar() {
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    minWidth: 0,
                   }}
                 >
-                  {s.task ? s.task.title : s.contentType === 'video' ? '▶ Видео' : '▧ Графика'}
+                  {allMode && (
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        flex: '0 0 auto',
+                        background: clientById.get(s.clientId)?.color ?? '#8A93A0',
+                      }}
+                    />
+                  )}
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {allMode ? `${clientById.get(s.clientId)?.name ?? '—'} · ` : ''}
+                    {s.task ? s.task.title : s.contentType === 'video' ? '▶ Видео' : '▧ Графика'}
+                  </span>
                 </span>
                 {s.task ? (
                   <StatusBadge status={s.task.status as TaskStatus} />
@@ -391,6 +435,33 @@ export function Calendar() {
         <div style={toastStyle} onClick={() => setToast(null)}>
           {toast}
         </div>
+      )}
+    </div>
+  );
+}
+
+/** Кругчиња по клиент за глобалниот календар (боја = клиент). */
+function DayDots({ slots, colorOf }: { slots: SlotRow[]; colorOf: (clientId: string) => string }) {
+  if (slots.length === 0) return null;
+  const MAX = 8;
+  const shown = slots.slice(0, MAX);
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 3, alignItems: 'center' }}>
+      {shown.map((s) => (
+        <span
+          key={s.id}
+          title={`${s.contentType === 'video' ? '▶ Видео' : '▧ Графика'}${s.task ? ` · ${s.task.title}` : ''}`}
+          style={{
+            width: 9,
+            height: 9,
+            borderRadius: s.contentType === 'video' ? '50%' : 2,
+            background: colorOf(s.clientId),
+            boxShadow: '0 0 0 1px rgba(0,0,0,.08)',
+          }}
+        />
+      ))}
+      {slots.length > MAX && (
+        <span style={{ fontSize: 10, color: 'var(--gd-ink-muted)' }}>+{slots.length - MAX}</span>
       )}
     </div>
   );
