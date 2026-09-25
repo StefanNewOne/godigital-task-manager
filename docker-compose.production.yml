@@ -60,6 +60,9 @@ services:
       dockerfile: apps/api/Dockerfile
     restart: unless-stopped
     env_file: [.env.staging]
+    # Claude Code auth (CLAUDE_MODE=cli) — .credentials.json перзистира тука + се освежува.
+    volumes:
+      - claudehome:/root/.claude
     depends_on:
       postgres:
         condition: service_healthy
@@ -119,3 +122,4 @@ volumes:
   miniodata:
   caddydata:
   caddyconfig:
+  claudehome:
