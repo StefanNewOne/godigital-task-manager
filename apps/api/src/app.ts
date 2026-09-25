@@ -5,6 +5,7 @@ import type { Express } from 'express';
 import pinoHttp from 'pino-http';
 import { env } from './env.js';
 import { errorMiddleware } from './lib/errors.js';
+import { idempotency } from './middleware/idempotency.js';
 import { apiRouter } from './routes/index.js';
 
 /** Express апликацијата без `listen` — за тестови (supertest) и за index.ts. */
@@ -20,7 +21,7 @@ export function createApp(): Express {
     res.json({ ok: true, service: 'gd-api' });
   });
 
-  app.use('/api', apiRouter);
+  app.use('/api', idempotency, apiRouter);
   app.use(errorMiddleware);
 
   return app;

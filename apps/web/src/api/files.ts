@@ -41,9 +41,36 @@ export interface UploadArgs {
   ownerId: string;
   kind: FileKind;
   file: File;
+  onProgress?: (fraction: number) => void;
 }
 
-async function uploadFile({ ownerType, ownerId, kind, file }: UploadArgs): Promise<string> {
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** PUT на еден дел со retry + backoff (отпорно на flaky мобилна мрежа, C4). */
+async function putWithRetry(url: string, body: BodyInit, headers?: HeadersInit): Promise<Response> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      const res = await fetch(url, { method: 'PUT', body, headers });
+      if (res.ok) return res;
+      // 5xx/429 се повторуваат; 4xx (освен 429) се трајни.
+      if (res.status < 500 && res.status !== 429) return res;
+      lastErr = new Error(`HTTP ${res.status}`);
+    } catch (e) {
+      lastErr = e;
+    }
+    await sleep(500 * 2 ** attempt); // 0.5s, 1s, 2s, 4s
+  }
+  throw lastErr instanceof Error ? lastErr : new Error('Неуспешно прикачување на дел.');
+}
+
+async function uploadFile({
+  ownerType,
+  ownerId,
+  kind,
+  file,
+  onProgress,
+}: UploadArgs): Promise<string> {
   const mime = file.type || 'application/octet-stream';
   const presign = await api.post<PresignResponse>('/files/presign', {
     ownerType,
@@ -54,23 +81,22 @@ async function uploadFile({ ownerType, ownerId, kind, file }: UploadArgs): Promi
   });
 
   if (presign.mode === 'single') {
-    const res = await fetch(presign.url, {
-      method: 'PUT',
-      headers: { 'Content-Type': mime },
-      body: file,
-    });
+    const res = await putWithRetry(presign.url, file, { 'Content-Type': mime });
     if (!res.ok) throw new Error('Неуспешно прикачување на фајлот.');
+    onProgress?.(1);
     return presign.fileId;
   }
 
   const parts: Array<{ PartNumber: number; ETag: string }> = [];
+  const total = presign.parts.length;
   for (const p of presign.parts) {
     const start = (p.partNumber - 1) * presign.partSize;
     const chunk = file.slice(start, start + presign.partSize);
-    const res = await fetch(p.url, { method: 'PUT', body: chunk });
+    const res = await putWithRetry(p.url, chunk);
     if (!res.ok) throw new Error(`Неуспешен дел ${p.partNumber}.`);
     const etag = (res.headers.get('ETag') ?? '').replaceAll('"', '');
     parts.push({ PartNumber: p.partNumber, ETag: etag });
+    onProgress?.(parts.length / total);
   }
   await api.post(`/files/${presign.fileId}/complete`, { parts });
   return presign.fileId;

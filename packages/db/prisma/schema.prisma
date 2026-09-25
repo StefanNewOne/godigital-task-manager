@@ -828,6 +828,18 @@ model MonthlyPlanClient {
   @@index([tenantId, clientId])
 }
 
+// Идемпотентност за офлајн replay (Фаза C3) — ист Idempotency-Key враќа истиот одговор.
+model IdempotencyKey {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  tenantId     String   @default("godigital")
+  key          String   @unique
+  statusCode   Int
+  responseBody Json
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 // Web Push претплата по вработен-уред (Фаза C5). Едно endpoint = еден уред/прелистувач.
 model PushSubscription {
   id         String   @id @default(uuid(7)) @db.Uuid
