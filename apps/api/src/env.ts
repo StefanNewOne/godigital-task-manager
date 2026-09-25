@@ -47,6 +47,10 @@ const schema = z.object({
   VOYAGE_API_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
   CLAUDE_MODEL: z.string().default('claude-opus-4-8'),
+  // Web Push (Фаза C5). Без VAPID клучеви → push е no-op (dev/тест stub).
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().default('mailto:no-reply@godigital.mk'),
 });
 
 export type Env = z.infer<typeof schema>;

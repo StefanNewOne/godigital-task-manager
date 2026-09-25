@@ -42,6 +42,7 @@ const TENANT_MODELS = new Set<string>([
   'KnowledgeChunk',
   'MonthlyPlan',
   'MonthlyPlanClient',
+  'PushSubscription',
 ]);
 
 const WHERE_OPS = new Set([

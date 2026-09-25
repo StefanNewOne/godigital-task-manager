@@ -1,7 +1,9 @@
 import type React from 'react';
-import { Bell } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Bell, Smartphone } from 'lucide-react';
 import { useMe } from '../api/auth.js';
 import { useUpdateNotificationPrefs } from '../api/settings.js';
+import { disablePush, enablePush, pushSubscribed, pushSupported } from '../lib/push.js';
 
 /**
  * Лични поставки (H6). Засега: известувања. По §16 вработен може да ги исклучи само
@@ -13,6 +15,37 @@ export function Settings() {
 
   // Default: потсетниците се вклучени додека вработениот експлицитно не ги исклучи.
   const remindersOn = me?.notificationPrefs?.reminders ?? true;
+
+  // Push е по уред (не серверска преференца). Локална состојба + проверка при монтирање.
+  const supported = pushSupported();
+  const [pushOn, setPushOn] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushMsg, setPushMsg] = useState<string | null>(null);
+  useEffect(() => {
+    if (supported) void pushSubscribed().then(setPushOn);
+  }, [supported]);
+
+  const togglePush = async () => {
+    setPushBusy(true);
+    setPushMsg(null);
+    try {
+      if (pushOn) {
+        await disablePush();
+        setPushOn(false);
+      } else {
+        const r = await enablePush();
+        if (r === 'ok') setPushOn(true);
+        else if (r === 'denied') setPushMsg('Дозволата за известувања е одбиена во прелистувачот.');
+        else if (r === 'no-key')
+          setPushMsg('Push не е конфигуриран на серверот (нема VAPID клуч).');
+        else setPushMsg('Овој прелистувач не поддржува push.');
+      }
+    } catch {
+      setPushMsg('Неуспешно менување на push.');
+    } finally {
+      setPushBusy(false);
+    }
+  };
 
   return (
     <div style={{ padding: '24px 20px 48px', display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -61,7 +94,33 @@ export function Settings() {
         >
           <span style={lockedBadge}>Секогаш вклучено</span>
         </Row>
+
+        <div style={divider} />
+
+        <Row
+          icon={<Smartphone size={18} aria-hidden />}
+          title="Push на овој уред"
+          desc="Известувања на телефон/десктоп и кога апликацијата е затворена (по уред)."
+        >
+          {supported ? (
+            <button
+              role="switch"
+              aria-checked={pushOn}
+              aria-label="Push на овој уред"
+              disabled={pushBusy}
+              onClick={() => void togglePush()}
+              style={toggle(pushOn)}
+            >
+              <span style={knob(pushOn)} />
+            </button>
+          ) : (
+            <span style={lockedBadge}>Не е поддржано</span>
+          )}
+        </Row>
       </div>
+      {pushMsg && (
+        <p style={{ color: 'var(--gd-warning-text)', fontSize: 13, margin: 0 }}>{pushMsg}</p>
+      )}
     </div>
   );
 }

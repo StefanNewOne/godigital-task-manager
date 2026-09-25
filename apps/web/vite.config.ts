@@ -40,6 +40,8 @@ export default defineConfig(({ mode }) => ({
             workbox: {
               globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
               navigateFallbackDenylist: [/^\/api\//],
+              // Push/notificationclick handlers (C5) — вчитани во генерираниот SW.
+              importScripts: ['push-sw.js'],
               // Офлајн читање: последно вчитани GET-ови за таскови/преглед (C2).
               runtimeCaching: [
                 {

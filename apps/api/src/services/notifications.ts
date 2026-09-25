@@ -1,6 +1,7 @@
 import { dedupeKey, notificationChannels, ymd, type NotificationLevel } from '@gd/core';
 import { prisma } from '../db/tenantExtension.js';
 import { sendEmail } from '../lib/mailer.js';
+import { sendPushToEmployee } from './push.js';
 
 export interface NotifyInput {
   recipientId: string;
@@ -54,13 +55,24 @@ export async function createNotification(input: NotifyInput) {
     },
   });
 
-  // Email за alarm/kritichen (D-12) — само за нов запис, best-effort (не го блокира тек).
-  if (!existing && notificationChannels(input.level).includes('email')) {
-    const emp = await prisma.employee.findUnique({
-      where: { id: input.recipientId },
-      select: { email: true },
-    });
-    if (emp?.email) void sendEmail(emp.email, input.title, input.body);
+  // Само за нов запис, best-effort (не го блокира тек).
+  if (!existing) {
+    const channels = notificationChannels(input.level);
+    if (channels.includes('email')) {
+      const emp = await prisma.employee.findUnique({
+        where: { id: input.recipientId },
+        select: { email: true },
+      });
+      if (emp?.email) void sendEmail(emp.email, input.title, input.body);
+    }
+    if (channels.includes('push')) {
+      const url = input.taskId
+        ? `/tasks?task=${input.taskId}`
+        : input.groupId
+          ? `/tasks?capa=${input.groupId}`
+          : '/';
+      void sendPushToEmployee(input.recipientId, { title: input.title, body: input.body, url });
+    }
   }
 
   return notif;

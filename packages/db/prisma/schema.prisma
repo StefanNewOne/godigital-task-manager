@@ -827,3 +827,16 @@ model MonthlyPlanClient {
   @@unique([monthlyPlanId, clientId])
   @@index([tenantId, clientId])
 }
+
+// Web Push претплата по вработен-уред (Фаза C5). Едно endpoint = еден уред/прелистувач.
+model PushSubscription {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  tenantId   String   @default("godigital")
+  employeeId String   @db.Uuid
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, employeeId])
+}

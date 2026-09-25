@@ -142,6 +142,14 @@ export const monthlyPlanPutSchema = z.object({
 });
 export type MonthlyPlanPutInput = z.infer<typeof monthlyPlanPutSchema>;
 
+// Web Push претплата (Фаза C5).
+export const pushSubscribeSchema = z.object({
+  endpoint: z.string().url(),
+  keys: z.object({ p256dh: z.string().min(1), auth: z.string().min(1) }),
+});
+export type PushSubscribeInput = z.infer<typeof pushSubscribeSchema>;
+export const pushUnsubscribeSchema = z.object({ endpoint: z.string().url() });
+
 // ── State machine transitions (A3) ──
 export const transitionPayloadSchema = z
   .object({
