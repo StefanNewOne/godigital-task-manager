@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PrismaClient, type ContentType, type TaskStatus } from '@gd/db';
 import { createApp } from '../app.js';
 import { cleanupMonth } from './helpers.js';
@@ -35,6 +35,28 @@ async function mkTask(
 
 const bearer = (role: string) => ({ Authorization: `Bearer ${token[role]}` });
 
+/** Исчисти ги изолираните TD-8 клиенти (за да не се акумулираат во dev базата). */
+async function deleteIsolatedClients(): Promise<void> {
+  const isolated = await db.client.findMany({
+    where: { name: `TD-8 изолиран ${MONTH}` },
+    select: { id: true },
+  });
+  if (!isolated.length) return;
+  const ids = isolated.map((c) => c.id);
+  const tasks = await db.task.findMany({ where: { clientId: { in: ids } }, select: { id: true } });
+  const tids = tasks.map((t) => t.id);
+  if (tids.length) {
+    await db.revision.deleteMany({ where: { taskId: { in: tids } } });
+    await db.approval.deleteMany({ where: { objectType: 'task', objectId: { in: tids } } });
+    await db.task.deleteMany({ where: { id: { in: tids } } });
+  }
+  await db.publishingSlot.deleteMany({ where: { clientId: { in: ids } } });
+  await db.taskGroup.deleteMany({ where: { clientId: { in: ids } } });
+  await db.calendarConfig.deleteMany({ where: { clientId: { in: ids } } });
+  await db.monthlyPlanClient.deleteMany({ where: { clientId: { in: ids } } });
+  await db.client.deleteMany({ where: { id: { in: ids } } });
+}
+
 beforeAll(async () => {
   const emps = await db.employee.findMany();
   for (const e of emps) empId[e.role] = e.id;
@@ -53,6 +75,7 @@ beforeAll(async () => {
   clientId = client!.id;
 
   await cleanupMonth(db, MONTH);
+  await deleteIsolatedClients();
 
   graphicGroupId = (
     await db.taskGroup.create({
@@ -76,6 +99,10 @@ beforeAll(async () => {
       },
     })
   ).id;
+});
+
+afterAll(async () => {
+  await deleteIsolatedClients();
 });
 
 describe('A3 transition engine', () => {
