@@ -10,8 +10,11 @@ cd "$(dirname "$0")/.."
 if [ ! -f ".env.${ENVN}" ]; then
   echo "❌ Недостасува .env.${ENVN} (тајните не се committed)."; exit 1
 fi
-# shellcheck disable=SC1090
-set -a; . "./.env.${ENVN}"; set +a
+# НЕ source-ираме (вредности како SMTP_FROM со < > би скршиле bash); земаме само што треба.
+val() { grep -E "^$1=" ".env.${ENVN}" | head -1 | cut -d= -f2-; }
+STAGING_DOMAIN="$(val STAGING_DOMAIN)"
+POSTGRES_USER="$(val POSTGRES_USER)"
+POSTGRES_DB="$(val POSTGRES_DB)"
 
 echo "→ (1/6) Git pull"
 git pull --ff-only
