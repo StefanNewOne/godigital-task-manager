@@ -40,6 +40,8 @@ const TENANT_MODELS = new Set<string>([
   'SavedView',
   'EventLog',
   'KnowledgeChunk',
+  'MonthlyPlan',
+  'MonthlyPlanClient',
 ]);
 
 const WHERE_OPS = new Set([

@@ -20,6 +20,8 @@ export const ERROR_CODES = [
   // валидација
   'VALIDATION_FAILED',
   'NOT_FOUND',
+  // месечен план (одобрување од Директор)
+  'MONTH_NOT_APPROVED',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

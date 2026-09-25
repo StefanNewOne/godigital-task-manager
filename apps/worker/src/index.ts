@@ -41,6 +41,11 @@ const CRON_JOBS: CronJob[] = [
   { name: 'storage.cleanup', pattern: '0 3 * * *', endpoint: '/api/cron/storage-cleanup' },
   { name: 'storage.quota', pattern: '30 3 * * *', endpoint: '/api/cron/storage-quota' },
   { name: 'knowledge.index', pattern: '*/5 * * * *', endpoint: '/api/cron/knowledge-index' },
+  {
+    name: 'monthly.plan.reminder',
+    pattern: '0 6 * * *',
+    endpoint: '/api/cron/monthly-plan-reminder',
+  },
 ];
 
 const CRON_QUEUE = 'cron';

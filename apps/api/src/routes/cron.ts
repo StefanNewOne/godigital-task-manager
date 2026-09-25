@@ -3,6 +3,7 @@ import type { NextFunction, Request, Response, Router as ExpressRouter } from 'e
 import { env } from '../env.js';
 import { AppError } from '../lib/errors.js';
 import { generateForAllActiveClients, nextMonthKey } from '../services/slots.js';
+import { remindMonthlyPlan } from '../services/monthlyPlan.js';
 import { evaluateCoverageAlarms } from '../services/alarms.js';
 import { generateDailyDigest } from '../services/digest.js';
 import { pullMetrics, resolvePublications } from '../services/meta/metrics.js';
@@ -72,5 +73,11 @@ cronRouter.post('/knowledge-index', requireCronSecret, async (_req, res) => {
 // Знаење backfill (B4): индексирај ги постоечките ентитети (еднократно/периодично).
 cronRouter.post('/knowledge-backfill', requireCronSecret, async (_req, res) => {
   const result = await backfillKnowledge();
+  res.json({ data: result });
+});
+
+// Месечен план потсетник/аларм: до 15-ти тивко, на 15-ти потсетник, по 15-ти аларм. BullMQ: дневно.
+cronRouter.post('/monthly-plan-reminder', requireCronSecret, async (_req, res) => {
+  const result = await remindMonthlyPlan();
   res.json({ data: result });
 });

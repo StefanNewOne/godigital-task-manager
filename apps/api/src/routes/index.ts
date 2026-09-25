@@ -24,6 +24,7 @@ import { knowledgeRouter } from './knowledge.js';
 import { filesRouter } from './files.js';
 import { notificationsRouter } from './notifications.js';
 import { automationRulesRouter, automationRunsRouter } from './automation.js';
+import { monthlyPlanRouter } from './monthlyPlan.js';
 import { cronRouter } from './cron.js';
 
 export const apiRouter: ExpressRouter = Router();
@@ -70,4 +71,5 @@ apiRouter.use('/files', filesRouter);
 apiRouter.use('/notifications', notificationsRouter);
 apiRouter.use('/automation-rules', automationRulesRouter);
 apiRouter.use('/automation-runs', automationRunsRouter);
+apiRouter.use('/monthly-plan', monthlyPlanRouter);
 apiRouter.use('/cron', cronRouter);

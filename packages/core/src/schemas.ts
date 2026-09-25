@@ -136,6 +136,12 @@ export const extraTaskSchema = z.object({
 });
 export type ExtraTaskInput = z.infer<typeof extraTaskSchema>;
 
+// Месечен план на клиенти — Директорот одобрува кои клиенти се работат за месецот.
+export const monthlyPlanPutSchema = z.object({
+  clients: z.array(z.object({ clientId: z.string().uuid(), active: z.boolean() })),
+});
+export type MonthlyPlanPutInput = z.infer<typeof monthlyPlanPutSchema>;
+
 // ── State machine transitions (A3) ──
 export const transitionPayloadSchema = z
   .object({

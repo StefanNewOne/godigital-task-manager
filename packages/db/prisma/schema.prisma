@@ -799,3 +799,31 @@ model KnowledgeChunk {
   @@index([clientId, sourceType, occurredAt])
   // HNSW (embedding) + GIN (tsv) индекси се додаваат преку raw SQL во миграцијата.
 }
+
+// Месечен план на клиенти — Директорот одобрува кои клиенти се работат за даден месец
+// (до 15-ти; аларм ако касни). Мек гејт: важи само за месеци со потврден план.
+model MonthlyPlan {
+  id            String              @id @default(uuid(7)) @db.Uuid
+  tenantId      String              @default("godigital")
+  monthKey      String
+  confirmedById String?             @db.Uuid
+  confirmedAt   DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  clients       MonthlyPlanClient[]
+
+  @@unique([tenantId, monthKey])
+  @@index([tenantId, monthKey])
+}
+
+model MonthlyPlanClient {
+  id            String      @id @default(uuid(7)) @db.Uuid
+  tenantId      String      @default("godigital")
+  monthlyPlanId String      @db.Uuid
+  plan          MonthlyPlan @relation(fields: [monthlyPlanId], references: [id], onDelete: Cascade)
+  clientId      String      @db.Uuid
+  active        Boolean     @default(true)
+
+  @@unique([monthlyPlanId, clientId])
+  @@index([tenantId, clientId])
+}

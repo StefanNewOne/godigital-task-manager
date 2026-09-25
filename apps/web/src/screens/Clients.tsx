@@ -1,12 +1,24 @@
 import type React from 'react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@gd/ui';
 import { daysLabel } from '../lib/format.js';
+import { useMe } from '../api/auth.js';
 import { useClients } from '../api/admin.js';
 import { useOverview } from '../api/overview.js';
 import { useTasks } from '../api/tasks.js';
 import { PeriodSidebar } from '../components/PeriodSidebar.js';
 import { tableStyles as s } from '../components/table.js';
+import { MonthlyPlanModal } from './MonthlyPlanModal.js';
+
+/** monthKey за следниот месец (за одобрување на месечниот план). */
+function nextMonthKey(base = new Date()): string {
+  const y = base.getUTCFullYear();
+  const m = base.getUTCMonth() + 1;
+  const year = m > 11 ? y + 1 : y;
+  const month0 = m > 11 ? 0 : m;
+  return `${year}-${String(month0 + 1).padStart(2, '0')}`;
+}
 
 const LEVEL_COLOR: Record<string, string> = {
   ok: 'var(--gd-success-text)',
@@ -26,7 +38,10 @@ export function Clients() {
   const { data: clients, isLoading } = useClients();
   const { data: overview } = useOverview();
   const { data: tasks } = useTasks({});
+  const { data: me } = useMe();
   const navigate = useNavigate();
+  const [planOpen, setPlanOpen] = useState(false);
+  const planMonth = nextMonthKey();
 
   const cov = (id: string) => overview?.coverage.find((c) => c.clientId === id);
   const activeCount = useMemo(() => {
@@ -42,6 +57,13 @@ export function Clients() {
     <div style={{ display: 'flex', height: '100%' }}>
       <PeriodSidebar />
       <div style={{ flex: 1, minWidth: 0, overflow: 'auto', padding: '24px 20px' }}>
+        {me?.role === 'dir' && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+            <Button size="form" onClick={() => setPlanOpen(true)}>
+              Месечен план
+            </Button>
+          </div>
+        )}
         {isLoading && <p style={{ color: 'var(--gd-ink-muted)' }}>Вчитување…</p>}
         {clients && (
           <div style={s.wrap}>
@@ -104,6 +126,7 @@ export function Clients() {
           </div>
         )}
       </div>
+      {planOpen && <MonthlyPlanModal month={planMonth} onClose={() => setPlanOpen(false)} />}
     </div>
   );
 }

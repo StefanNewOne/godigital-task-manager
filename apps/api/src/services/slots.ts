@@ -10,6 +10,7 @@ import {
 import { prisma, type TxClient } from '../db/tenantExtension.js';
 import { AppError } from '../lib/errors.js';
 import { recordEvent } from '../lib/events.js';
+import { assertClientApprovedForMonth } from './monthlyPlan.js';
 
 const NON_CHANGEABLE = new Set(['objaveno', 'analitika', 'zavrseno', 'otkazano']);
 
@@ -124,10 +125,36 @@ export async function generateForAllActiveClients(month: string) {
   return { month, clients: results.length, results };
 }
 
+/**
+ * „Генерирај следен месец" (рачно, dir/am): предлог-слотови само за клиентите одобрени
+ * во потврдениот месечен план. Бара потврден план (мек гејт → инаку нема кого да генерира).
+ */
+export async function generateForApprovedClients(month: string) {
+  const plan = await prisma.monthlyPlan.findFirst({
+    where: { monthKey: month },
+    include: { clients: true },
+  });
+  if (!plan?.confirmedAt) {
+    throw new AppError(
+      'MONTH_NOT_APPROVED',
+      `Месецот ${month} не е потврден. Директорот прво ја потврдува месечната листа.`,
+      400,
+    );
+  }
+  const activeIds = plan.clients.filter((c) => c.active).map((c) => c.clientId);
+  const results: Array<{ clientId: string; slots: number }> = [];
+  for (const id of activeIds) {
+    const slots = await generateProposalSlots(id, month);
+    results.push({ clientId: id, slots: slots.length });
+  }
+  return { month, clients: results.length, results };
+}
+
 /** Потврди месец: predlog→reserved, автоматска капа (D-7), мртви таскови по слот. */
 export async function confirmMonth(clientId: string, month: string) {
   const client = await prisma.client.findUnique({ where: { id: clientId } });
   if (!client) throw new AppError('NOT_FOUND', 'Клиентот не е пронајден.', 404);
+  await assertClientApprovedForMonth(clientId, month);
 
   const slots = await prisma.publishingSlot.findMany({
     where: { clientId, monthKey: month, status: 'predlog' },
@@ -313,6 +340,7 @@ export async function createExtraTask(
   }
 
   const monthKey = `${input.date.getUTCFullYear()}-${String(input.date.getUTCMonth() + 1).padStart(2, '0')}`;
+  await assertClientApprovedForMonth(input.clientId, monthKey);
   const status = input.contentType === 'video' ? 'chekaRezija' : 'brifing';
   const defaults = (client.defaultAssignees ?? {}) as Record<string, string>;
 
