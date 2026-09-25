@@ -1,0 +1,24 @@
+node_modules
+**/node_modules
+dist
+**/dist
+.turbo
+**/.turbo
+.git
+.github
+.husky
+*.log
+backups
+coverage
+**/coverage
+playwright-report
+test-results
+# Prisma client се регенерира во сликата (linux бинар).
+packages/db/src/generated
+# Тајни — никогаш во слика.
+.env
+.env.*
+!.env.example
+!.env.staging.example
+# Design/docs не се потребни во runtime сликите.
+design_handoff_godigital_task_manager

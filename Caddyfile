@@ -1,0 +1,20 @@
+# Edge за staging/production — автоматски HTTPS (Let's Encrypt) за {$STAGING_DOMAIN}.
+{$STAGING_DOMAIN} {
+	encode gzip
+
+	# API + health → api контејнер
+	handle /api/* {
+		reverse_proxy api:3001
+	}
+	handle /health {
+		reverse_proxy api:3001
+	}
+	# Socket.io (real-time) → api контејнер
+	handle /socket.io/* {
+		reverse_proxy api:3001
+	}
+	# Сè друго → web (nginx статик, SPA)
+	handle {
+		reverse_proxy web:80
+	}
+}
