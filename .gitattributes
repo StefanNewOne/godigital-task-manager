@@ -1,0 +1,7 @@
+# Deploy-критични фајлови мора да се LF (CRLF крши bash/Docker на Linux VPS).
+*.sh text eol=lf
+**/Dockerfile text eol=lf
+Dockerfile text eol=lf
+Caddyfile text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
