@@ -350,8 +350,7 @@ function Zone(p: ZoneProps) {
           label="Прикачи суров материјал"
           onChange={doUpload('raw')}
           pending={upload.isPending}
-        />
-        <p style={hint}>Прикачувањето бара кренат MinIO/R2.</p>
+        />{' '}
         {canClose && (
           <Button
             variant="primary"
@@ -377,8 +376,7 @@ function Zone(p: ZoneProps) {
           label="Прикачи заеднички материјал"
           onChange={doUpload('sharedMaterial')}
           pending={upload.isPending}
-        />
-        <p style={hint}>Прикачувањето бара кренат MinIO/R2.</p>
+        />{' '}
         <Button
           variant="primary"
           size="form"
@@ -519,7 +517,6 @@ function ScenarijaZone({
   return (
     <>
       <UploadButton label="Прикачи сценариски документ" onChange={onUpload} pending={false} />
-      <p style={hint}>Прикачувањето бара кренат MinIO/R2.</p>
       <div
         style={{
           fontSize: 12,
@@ -803,11 +800,6 @@ const sectionText: React.CSSProperties = {
   fontSize: 13,
   color: 'var(--gd-ink-secondary)',
   margin: '0 0 12px',
-};
-const hint: React.CSSProperties = {
-  fontSize: 12,
-  color: 'var(--gd-ink-muted)',
-  margin: '6px 0 12px',
 };
 const scenarioCard: React.CSSProperties = {
   border: '1px solid var(--gd-border)',

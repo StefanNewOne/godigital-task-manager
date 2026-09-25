@@ -761,8 +761,7 @@ function renderZone(a: ZoneArgs): React.ReactNode {
             hidden
             onChange={a.runUpload('graphic', 'vnatresno')}
           />
-        </label>
-        <p style={{ ...counter, marginTop: 8 }}>Прикачувањето бара кренат MinIO/R2.</p>
+        </label>{' '}
       </>
     );
   }
@@ -828,8 +827,7 @@ function renderZone(a: ZoneArgs): React.ReactNode {
         <label style={{ ...uploadBox }}>
           <Upload size={16} /> Прикачи монтирано видео
           <input type="file" accept="video/*" hidden onChange={a.runUpload('final', 'vnatresno')} />
-        </label>
-        <p style={{ ...counter, marginTop: 8 }}>Прикачувањето бара кренат MinIO/R2.</p>
+        </label>{' '}
       </>
     );
   }
