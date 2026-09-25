@@ -47,6 +47,10 @@ const schema = z.object({
   VOYAGE_API_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
   CLAUDE_MODEL: z.string().default('claude-opus-4-8'),
+  // AI провајдер: 'cli' = Claude Code CLI преку терминал (претплата, без API клуч);
+  // 'api' = Anthropic API (бара ANTHROPIC_API_KEY); 'stub' = детерминистички (dev/тест).
+  CLAUDE_MODE: z.enum(['stub', 'cli', 'api']).default('stub'),
+  CLAUDE_CLI_PATH: z.string().default('claude'),
   // Web Push (Фаза C5). Без VAPID клучеви → push е no-op (dev/тест stub).
   VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),
