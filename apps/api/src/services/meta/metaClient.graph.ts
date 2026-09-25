@@ -25,8 +25,20 @@ export class GraphMetaClient implements MetaClient {
   }
 
   async fetchMediaInsights(input: { platform: string; mediaId: string }): Promise<unknown> {
-    const metrics = 'reach,impressions,video_views,total_interactions';
-    const url = `${this.base}/${input.mediaId}/insights?metric=${metrics}&access_token=${encodeURIComponent(this.token)}`;
+    // v21: `impressions`/`video_views` се укинати за IG медиа; `views` важи само за видео/reels
+    // (фото/carousel немаат views → цел повик паѓа ако се бара). Затоа метриките зависат од типот.
+    const enc = encodeURIComponent(this.token);
+    let isVideo = false;
+    try {
+      const meta = (await this.get(
+        `${this.base}/${input.mediaId}?fields=media_type&access_token=${enc}`,
+      )) as { media_type?: string };
+      isVideo = meta.media_type === 'VIDEO' || meta.media_type === 'REELS';
+    } catch {
+      // ако не можеме да го земеме типот, оди со безбедниот сет
+    }
+    const metrics = isVideo ? 'reach,views,total_interactions' : 'reach,total_interactions';
+    const url = `${this.base}/${input.mediaId}/insights?metric=${metrics}&access_token=${enc}`;
     return this.get(url);
   }
 
