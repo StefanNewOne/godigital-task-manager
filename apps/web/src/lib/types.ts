@@ -27,6 +27,9 @@ export interface ClientRow {
   videosPerMonth: number;
   graphicsPerMonth: number;
   usesMetaAds: boolean;
+  metaAdAccountId?: string | null;
+  metaPageId?: string | null;
+  metaIgId?: string | null;
   approvalChannel: string;
   calendarType: string;
   coverageAlarmDays: number;

@@ -94,6 +94,7 @@ function ClientModal({ client, onClose }: { client?: ClientRow; onClose: () => v
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<ClientCreateInput>({
     resolver: zodResolver(isEdit ? clientUpdateSchema : clientCreateSchema),
@@ -104,6 +105,9 @@ function ClientModal({ client, onClose }: { client?: ClientRow; onClose: () => v
           videosPerMonth: client.videosPerMonth,
           graphicsPerMonth: client.graphicsPerMonth,
           usesMetaAds: client.usesMetaAds,
+          metaAdAccountId: client.metaAdAccountId ?? undefined,
+          metaPageId: client.metaPageId ?? undefined,
+          metaIgId: client.metaIgId ?? undefined,
           calendarType: client.calendarType as ClientCreateInput['calendarType'],
           approvalChannel: client.approvalChannel as ClientCreateInput['approvalChannel'],
           coverageAlarmDays: client.coverageAlarmDays,
@@ -119,6 +123,7 @@ function ClientModal({ client, onClose }: { client?: ClientRow; onClose: () => v
         },
   });
 
+  const watchMeta = watch('usesMetaAds');
   const pending = create.isPending || update.isPending;
   const onSubmit = (values: ClientCreateInput) => {
     // На уредување не праќај празни опциони полиња — инаку PATCH ги презапишува
@@ -233,6 +238,23 @@ function ClientModal({ client, onClose }: { client?: ClientRow; onClose: () => v
         <label style={checkRow}>
           <input type="checkbox" {...register('usesMetaAds')} /> Користи Meta Ads
         </label>
+        {watchMeta && (
+          <div style={{ display: 'grid', gap: 8 }}>
+            <Field label="Meta Ad Account ID" error={errors.metaAdAccountId?.message}>
+              <input
+                className={fieldCls(false)}
+                placeholder="act_..."
+                {...register('metaAdAccountId')}
+              />
+            </Field>
+            <Field label="Facebook Page ID" error={errors.metaPageId?.message}>
+              <input className={fieldCls(false)} {...register('metaPageId')} />
+            </Field>
+            <Field label="Instagram ID" error={errors.metaIgId?.message}>
+              <input className={fieldCls(false)} {...register('metaIgId')} />
+            </Field>
+          </div>
+        )}
         <Field label="Белешки (по потреба)" error={errors.notes?.message}>
           <textarea className={fieldCls(false)} rows={2} {...register('notes')} />
         </Field>
