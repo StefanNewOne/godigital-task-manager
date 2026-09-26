@@ -12,6 +12,7 @@ import { AppError } from '../lib/errors.js';
 import { recordEvent } from '../lib/events.js';
 import { assertClientApprovedForMonth } from './monthlyPlan.js';
 import { assertClientActiveForDate } from './clientLifecycle.js';
+import { resolveCalendar } from './calendar.js';
 
 const NON_CHANGEABLE = new Set(['objaveno', 'analitika', 'zavrseno', 'otkazano']);
 
@@ -56,7 +57,16 @@ export async function generateProposalSlots(clientId: string, month: string) {
 
   const { year, month0 } = parseMonthKey(month);
   const holidays = await loadHolidaySet(clientId, year, month0);
-  const configs = await prisma.calendarConfig.findMany({ where: { clientId } });
+  // Резолуција стандарден/посебен календар по contentType (Парче 2).
+  const configs = await Promise.all(
+    (['video', 'graphic'] as ContentType[]).map((ct) =>
+      resolveCalendar(prisma, clientId, client.calendarType, ct),
+    ),
+  );
+  const configByType = new Map<ContentType, (typeof configs)[number]>([
+    ['video', configs[0]!],
+    ['graphic', configs[1]!],
+  ]);
 
   const quotas: Record<ContentType, number> = {
     video: client.videosPerMonth,
@@ -67,7 +77,7 @@ export async function generateProposalSlots(clientId: string, month: string) {
     for (const contentType of ['video', 'graphic'] as ContentType[]) {
       const quota = quotas[contentType];
       if (quota <= 0) continue;
-      const config = configs.find((c) => c.contentType === contentType);
+      const config = configByType.get(contentType);
       if (!config) continue;
 
       const spec: CalendarSpec = {

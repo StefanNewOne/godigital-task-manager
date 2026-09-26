@@ -11,6 +11,7 @@ import { prisma, type TxClient } from '../../db/tenantExtension.js';
 import { AppError } from '../../lib/errors.js';
 import { recordEvent } from '../../lib/events.js';
 import { createNotification, type NotifyInput } from '../notifications.js';
+import { resolveCalendar } from '../calendar.js';
 import { missingMessage } from './guards.js';
 import { parseToken } from './parse.js';
 
@@ -150,9 +151,7 @@ async function activateVideoChildren(ctx: GroupCtx): Promise<{ activated: number
   // E_CREATE_EXTRA_SLOTS: вишок одобрени сценарија → екстра слотови + таскови.
   let extra = 0;
   if (approved.length > children.length) {
-    const config = await tx.calendarConfig.findFirst({
-      where: { clientId: group.clientId, contentType: 'video' },
-    });
+    const config = await resolveCalendar(tx, group.clientId, group.client.calendarType, 'video');
     const weekdays = new Set<number>(config?.weekdays.length ? config.weekdays : [2, 5]);
     let cursor = children[children.length - 1]?.slot?.date ?? group.shootDate ?? new Date();
     for (let i = children.length; i < approved.length; i++) {

@@ -341,8 +341,10 @@ model Employee {
 model CalendarConfig {
   id             String      @id @default(uuid(7)) @db.Uuid
   tenantId       String      @default("godigital")
-  clientId       String      @db.Uuid
-  client         Client      @relation(fields: [clientId], references: [id])
+  // null = СТАНДАРДЕН календар за tenant (важи за клиенти со calendarType=standarden);
+  // не-null = посебен календар за конкретен клиент (override).
+  clientId       String?     @db.Uuid
+  client         Client?     @relation(fields: [clientId], references: [id])
   contentType    ContentType
   weekdays       Int[] // 1=пон … 7=нед
   publishTime    String // "HH:mm"
@@ -350,6 +352,7 @@ model CalendarConfig {
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
+  // Партиален unique за стандардниот (clientId IS NULL) е во миграцијата (Prisma нема филтриран unique).
   @@unique([clientId, contentType])
 }
 

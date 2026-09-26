@@ -9,6 +9,7 @@ import { authRouter, employeeSafeSelect } from './auth.js';
 import { clientsRouter } from './clients.js';
 import { clientContactsRouter, contactsRouter } from './clientContacts.js';
 import { calendarConfigRouter } from './calendarConfig.js';
+import { standardCalendarRouter } from './standardCalendar.js';
 import { employeesRouter } from './employees.js';
 import { holidaysRouter } from './holidays.js';
 import { clientSlotsRouter, slotsRouter } from './slots.js';
@@ -54,6 +55,7 @@ apiRouter.patch('/me/notification-prefs', requireAuth, async (req, res) => {
 apiRouter.use('/clients', clientsRouter);
 apiRouter.use('/clients/:id/contacts', clientContactsRouter);
 apiRouter.use('/contacts', contactsRouter);
+apiRouter.use('/calendar/standard', standardCalendarRouter);
 apiRouter.use('/clients/:id/calendar-config', calendarConfigRouter);
 apiRouter.use('/clients/:id/slots', clientSlotsRouter);
 apiRouter.use('/slots', slotsRouter);

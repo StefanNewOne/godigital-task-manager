@@ -17,3 +17,4 @@ export * from './publications.js';
 export * from './notifications.js';
 export * from './metrics.js';
 export * from './clientLifecycle.js';
+export * from './calendar.js';
