@@ -152,9 +152,9 @@ function nextMonthKeyOf(base: Date): string {
 }
 
 /**
- * Cron (дневно): ако наредниот месец не е генериран/потврден → потсети го Акаунт менаџерот
- * (редизајн: АМ го поседува генерирањето, не Директорот).
- * До 15-ти: тивко. На 15-ти: `potsetnik`. По 15-ти: `kritichen` (аларм додека не генерира).
+ * Cron (дневно): ако наредниот месец не е одобрен → потсети го Акаунт менаџерот да го одобри
+ * календарот (редизајн: АМ го поседува одобрувањето, не Директорот).
+ * До 15-ти: тивко. На 15-ти: `potsetnik`. По 15-ти: `kritichen` (аларм додека не одобри).
  */
 export async function remindMonthlyPlan(now = new Date()) {
   const targetMonth = nextMonthKeyOf(now);
@@ -175,8 +175,8 @@ export async function remindMonthlyPlan(now = new Date()) {
       recipientId: m.id,
       level,
       eventKey: 'monthly_next_generate',
-      title: level === 'potsetnik' ? 'Генерирај нареден месец' : 'Наредниот месец не е генериран',
-      body: `Генерирај го распоредот за ${targetMonth} (рок 15-ти во месецот).`,
+      title: level === 'potsetnik' ? 'Одобри нареден месец' : 'Наредниот месец не е одобрен',
+      body: `Одобри го календарот за ${targetMonth} (рок 15-ти во месецот).`,
     }).catch(() => null);
     if (created) notified++;
   }
