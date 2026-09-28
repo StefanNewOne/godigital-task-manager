@@ -19,22 +19,29 @@ function currentMonth(): string {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
-function monthOf(raw: unknown): string {
-  return typeof raw === 'string' && /^\d{4}-\d{2}$/.test(raw) ? raw : currentMonth();
+function monthOf(raw: unknown, fallback: string): string {
+  return typeof raw === 'string' && /^\d{4}-\d{2}$/.test(raw) ? raw : fallback;
+}
+/** Период од query: `from`/`to` (или назад-компатибилно `month`). */
+function periodOf(query: Record<string, unknown>): { from: string; to: string } {
+  const legacy = monthOf(query.month, currentMonth());
+  const from = monthOf(query.from, legacy);
+  const to = monthOf(query.to, from);
+  return from <= to ? { from, to } : { from: to, to: from };
 }
 
 reportsRouter.get('/clients', async (req, res) => {
   requireReportAccess(req.auth!.role);
-  const month = monthOf(req.query.month);
-  const rows = await getClientReport(month);
-  res.json({ data: { month, rows } });
+  const { from, to } = periodOf(req.query as Record<string, unknown>);
+  const rows = await getClientReport(from, to);
+  res.json({ data: { from, to, rows } });
 });
 
 reportsRouter.get('/clients.csv', async (req, res) => {
   requireReportAccess(req.auth!.role);
-  const month = monthOf(req.query.month);
-  const rows = await getClientReport(month);
+  const { from, to } = periodOf(req.query as Record<string, unknown>);
+  const rows = await getClientReport(from, to);
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename="izvestaj-${month}.csv"`);
+  res.setHeader('Content-Disposition', `attachment; filename="izvestaj-${from}_${to}.csv"`);
   res.send(clientReportToCsv(rows));
 });

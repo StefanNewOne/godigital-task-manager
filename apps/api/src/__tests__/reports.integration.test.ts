@@ -54,7 +54,8 @@ describe('B2.5 reports', () => {
   it('JSON извештај содржи ред за клиентот со објави и метрики', async () => {
     const r = await request(app).get(`/api/reports/clients?month=${MONTH}`).set(bearer(anaToken));
     expect(r.status).toBe(200);
-    expect(r.body.data.month).toBe(MONTH);
+    expect(r.body.data.from).toBe(MONTH);
+    expect(r.body.data.to).toBe(MONTH);
     const rows = r.body.data.rows as Array<{ name: string; graphicPosts: number; reach: number }>;
     const row = rows.find((x) => x.name === clientName);
     expect(row).toBeTruthy();
@@ -68,7 +69,7 @@ describe('B2.5 reports', () => {
       .set(bearer(anaToken));
     expect(r.status).toBe(200);
     expect(r.headers['content-type']).toContain('text/csv');
-    expect(r.headers['content-disposition']).toContain(`izvestaj-${MONTH}.csv`);
+    expect(r.headers['content-disposition']).toContain(`izvestaj-${MONTH}_${MONTH}.csv`);
     expect(r.text).toContain('Клиент');
     expect(r.text).toContain('Досег');
   });

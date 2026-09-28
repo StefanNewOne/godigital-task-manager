@@ -14,18 +14,19 @@ export interface ClientReportRow {
 }
 
 export interface ClientReport {
-  month: string;
+  from: string;
+  to: string;
   rows: ClientReportRow[];
 }
 
-export function useClientReport(month: string) {
+export function useClientReport(from: string, to: string) {
   return useQuery({
-    queryKey: ['report', 'clients', month],
-    queryFn: () => api.get<ClientReport>(`/reports/clients?month=${month}`),
+    queryKey: ['report', 'clients', from, to],
+    queryFn: () => api.get<ClientReport>(`/reports/clients?from=${from}&to=${to}`),
   });
 }
 
 /** URL за CSV преземање (cookie-auth оди со барањето). */
-export function clientReportCsvUrl(month: string): string {
-  return `/api/reports/clients.csv?month=${month}`;
+export function clientReportCsvUrl(from: string, to: string): string {
+  return `/api/reports/clients.csv?from=${from}&to=${to}`;
 }

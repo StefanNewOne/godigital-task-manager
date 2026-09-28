@@ -44,6 +44,61 @@ const monthLabel = (mk: string): string => {
   return `${MK_MONTHS[Number(m) - 1] ?? m} ${y?.slice(2)}`;
 };
 
+/** CSV ќелија: наводници + escape (за Excel; со BOM за кирилица). */
+const cell = (v: string | number | null): string => {
+  const s = v == null ? '' : String(v);
+  return `"${s.replace(/"/g, '""')}"`;
+};
+
+/** Изгради CSV од целата клиент+период аналитика (Instagram · Facebook · Реклами). */
+function buildClientCsv(d: ClientAnalytics): string {
+  const rows: string[] = [];
+  const line = (...cells: Array<string | number | null>) => rows.push(cells.map(cell).join(','));
+  line('Клиент', d.clientName);
+  line('Период', `${d.from} - ${d.to}`);
+  line('');
+
+  line('INSTAGRAM (органски)');
+  line('Тип', 'Објави', 'Досег', 'Ангажман', 'Прегледи');
+  for (const k of d.instagram.byKind) {
+    line(k.kind === 'video' ? 'Видео' : 'Слика', k.posts, k.reach, k.engagement, k.views);
+  }
+  line('');
+  line('IG по месец', 'Досег', 'Ангажман', 'Прегледи', 'Објави');
+  for (const m of d.instagram.byMonth) {
+    line(m.month, m.reach, m.engagement, m.views, m.posts);
+  }
+  line('');
+
+  line('FACEBOOK (страница)');
+  line('Месец', 'Следбеници', 'Ангажман', 'Прегледи', 'Нови', 'Видео', 'Реакции');
+  for (const m of d.facebook.byMonth) {
+    line(m.month, m.followers, m.engagement, m.pageViews, m.newFollows, m.videoViews, m.reactions);
+  }
+  line('');
+
+  line('РЕКЛАМИ (платено)');
+  line('Ниво', 'Име', 'Потрошено', 'Досег', 'Импресии', 'CTR %');
+  const walk = (node: AdNode, level: string) => {
+    line(level, node.name, Math.round(node.spend), node.reach, node.impressions, node.ctr ?? '');
+    for (const ch of node.children ?? []) {
+      walk(ch, level === 'Кампања' ? 'Публика' : 'Ад');
+    }
+  };
+  for (const c of d.ads.campaigns) walk(c, 'Кампања');
+  return rows.join('\r\n');
+}
+
+function downloadClientCsv(d: ClientAnalytics): void {
+  const blob = new Blob(['﻿' + buildClientCsv(d)], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `analitika-${d.clientName}-${d.from}_${d.to}.csv`.replace(/\s+/g, '-');
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export function Analytics() {
   const { data: me } = useMe();
   const { data: clients } = useClients();
@@ -99,6 +154,11 @@ export function Analytics() {
           />
         </label>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          {data && (
+            <Button variant="secondary" size="form" onClick={() => downloadClientCsv(data)}>
+              Преземи CSV
+            </Button>
+          )}
           {canReport && (
             <Button variant="secondary" size="form" onClick={() => setReporting(true)}>
               Месечен извештај
@@ -113,7 +173,7 @@ export function Analytics() {
       )}
       {data && <ClientAnalyticsView data={data} />}
 
-      {reporting && <ReportModal month={from} onClose={() => setReporting(false)} />}
+      {reporting && <ReportModal from={from} to={to} onClose={() => setReporting(false)} />}
     </div>
   );
 }

@@ -4,19 +4,28 @@ import { clientReportCsvUrl, useClientReport } from '../api/reports.js';
 
 const fmt = (n: number): string => Math.round(n).toLocaleString('mk-MK');
 
-/** Месечен извештај по клиент (H10): табела + преземи CSV. */
-export function ReportModal({ month, onClose }: { month: string; onClose: () => void }) {
-  const { data, isLoading } = useClientReport(month);
+/** Извештај по клиент за период (H10): табела + преземи CSV. */
+export function ReportModal({
+  from,
+  to,
+  onClose,
+}: {
+  from: string;
+  to: string;
+  onClose: () => void;
+}) {
+  const { data, isLoading } = useClientReport(from, to);
   const rows = data?.rows ?? [];
+  const label = from === to ? from : `${from} – ${to}`;
 
   return (
     <Modal
       open
       onClose={onClose}
-      title={`Извештај · ${month}`}
+      title={`Извештај · ${label}`}
       width={760}
       footer={
-        <a href={clientReportCsvUrl(month)} download style={csvBtn}>
+        <a href={clientReportCsvUrl(from, to)} download style={csvBtn}>
           Преземи CSV
         </a>
       }

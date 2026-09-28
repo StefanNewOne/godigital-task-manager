@@ -18,10 +18,11 @@ const num = (d: unknown): number => (d == null ? 0 : Number(d));
  * Месечен извештај по клиент (H10, PRD §4.7): објави по тип + агрегирани метрики (најнов
  * `MetricSnapshot` по објава) + трошок од кампањите што се преклопуваат со месецот.
  */
-export async function getClientReport(month: string): Promise<ClientReportRow[]> {
-  const [y, m] = month.split('-').map(Number);
-  const monthStart = new Date(Date.UTC(y!, m! - 1, 1));
-  const monthEnd = new Date(Date.UTC(y!, m!, 1));
+export async function getClientReport(from: string, to: string = from): Promise<ClientReportRow[]> {
+  const [fy, fm] = from.split('-').map(Number);
+  const [ty, tm] = to.split('-').map(Number);
+  const monthStart = new Date(Date.UTC(fy!, fm! - 1, 1));
+  const monthEnd = new Date(Date.UTC(ty!, tm!, 1)); // ексклузивно (крај на `to`)
 
   const clients = await prisma.client.findMany({
     where: { status: 'aktiven', archivedAt: null },
@@ -33,7 +34,7 @@ export async function getClientReport(month: string): Promise<ClientReportRow[]>
     const pubs = await prisma.publication.findMany({
       where: {
         OR: [
-          { task: { clientId: c.id, group: { monthKey: month } } },
+          { task: { clientId: c.id, group: { monthKey: { gte: from, lte: to } } } },
           { taskId: null, clientId: c.id, publishedAt: { gte: monthStart, lt: monthEnd } },
         ],
       },

@@ -12,7 +12,8 @@ describe('ReportModal', () => {
   it('прикажува ред по клиент + CSV копче', async () => {
     mockFetch({
       '/reports/clients': {
-        month: '2026-09',
+        from: '2026-09',
+        to: '2026-09',
         rows: [
           {
             clientId: 'c1',
@@ -28,11 +29,11 @@ describe('ReportModal', () => {
         ],
       },
     });
-    renderWithProviders(<ReportModal month="2026-09" onClose={() => {}} />);
+    renderWithProviders(<ReportModal from="2026-09" to="2026-09" onClose={() => {}} />);
 
     expect(await screen.findByText('Ресторан ИВ')).toBeTruthy();
     expect(screen.getByText('Клиент')).toBeTruthy();
     const csv = screen.getByText('Преземи CSV') as HTMLAnchorElement;
-    expect(csv.getAttribute('href')).toContain('/reports/clients.csv?month=2026-09');
+    expect(csv.getAttribute('href')).toContain('/reports/clients.csv?from=2026-09&to=2026-09');
   });
 });
