@@ -559,14 +559,14 @@ function Toolbar(p: ToolbarProps) {
               size="toolbar"
               onClick={() => p.onCreate('video')}
               style={
-                p.canCreateGraphic || p.canCreateCapa
+                p.canCreateGraphic
                   ? { borderTopRightRadius: 0, borderBottomRightRadius: 0 }
                   : undefined
               }
             >
               <Plus size={14} /> Ново видео
             </Button>
-            {(p.canCreateGraphic || p.canCreateCapa) && (
+            {p.canCreateGraphic && (
               <Button
                 size="toolbar"
                 onClick={() => setCreateOpen((o) => !o)}
@@ -581,30 +581,17 @@ function Toolbar(p: ToolbarProps) {
                 <ChevronDown size={14} />
               </Button>
             )}
-            {createOpen && (
+            {createOpen && p.canCreateGraphic && (
               <div style={createMenu}>
-                {p.canCreateGraphic && (
-                  <button
-                    style={createMenuItem}
-                    onClick={() => {
-                      p.onCreate('graphic');
-                      setCreateOpen(false);
-                    }}
-                  >
-                    Нова графика
-                  </button>
-                )}
-                {p.canCreateCapa && (
-                  <button
-                    style={createMenuItem}
-                    onClick={() => {
-                      p.onCreate('capa');
-                      setCreateOpen(false);
-                    }}
-                  >
-                    Создај капа
-                  </button>
-                )}
+                <button
+                  style={createMenuItem}
+                  onClick={() => {
+                    p.onCreate('graphic');
+                    setCreateOpen(false);
+                  }}
+                >
+                  Нова графика
+                </button>
               </div>
             )}
           </>
@@ -616,6 +603,12 @@ function Toolbar(p: ToolbarProps) {
           )
         )}
       </div>
+      {/* Режисер „Создај капа" — видливо копче (нормална видео капа, независно од календар). */}
+      {p.canCreateCapa && (
+        <Button variant="secondary" size="toolbar" onClick={() => p.onCreate('capa')}>
+          <Plus size={14} /> Создај капа
+        </Button>
+      )}
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
         {(p.tab === 'board' || p.tab === 'list') && (

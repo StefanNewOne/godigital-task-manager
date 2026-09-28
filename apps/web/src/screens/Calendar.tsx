@@ -16,6 +16,7 @@ import {
 } from '../api/slots.js';
 import { useMe } from '../api/auth.js';
 import { useDateChange } from '../api/tasks.js';
+import { CalendarSettings } from './CalendarSettings.js';
 import { ApiRequestError } from '../lib/api.js';
 import { MONTH_LABELS, WEEKDAY_LABELS, buildMonthGrid, monthKeyOf, ymd } from '../lib/calendar.js';
 import type { SlotRow } from '../lib/types.js';
@@ -85,6 +86,7 @@ export function Calendar() {
   const genNext = useGenerateNextMonth();
   const me = useMe().data;
   const canGenerate = me?.role === 'am' || me?.role === 'dir';
+  const [showSettings, setShowSettings] = useState(false);
   const dateChange = useDateChange(dc?.taskId ?? '');
   const { data: calConfig } = useCalendarConfig(activeClient);
   const { data: holidays } = useHolidays();
@@ -181,17 +183,33 @@ export function Calendar() {
           ))}
         </div>
         {canGenerate && (
-          <Button
-            variant="secondary"
-            size="toolbar"
-            onClick={runGenNext}
-            disabled={genNext.isPending}
-            style={{ marginLeft: 'auto' }}
-          >
-            {genNext.isPending ? 'Генерирање…' : 'Генерирај нареден месец'}
-          </Button>
+          <>
+            <Button
+              variant="secondary"
+              size="toolbar"
+              onClick={() => setShowSettings((s) => !s)}
+              style={{ marginLeft: 'auto' }}
+            >
+              {showSettings ? 'Сокриј поставки' : 'Календарски поставки'}
+            </Button>
+            <Button
+              variant="secondary"
+              size="toolbar"
+              onClick={runGenNext}
+              disabled={genNext.isPending}
+            >
+              {genNext.isPending ? 'Генерирање…' : 'Генерирај нареден месец'}
+            </Button>
+          </>
         )}
       </div>
+
+      {canGenerate && showSettings && (
+        <CalendarSettings
+          clientId={activeClient ?? ''}
+          clientName={clientById.get(clientId)?.name}
+        />
+      )}
 
       {/* Легенда */}
       <div style={legendRow}>

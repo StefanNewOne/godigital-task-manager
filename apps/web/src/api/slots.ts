@@ -5,6 +5,8 @@ import type { SlotRow } from '../lib/types.js';
 export interface CalendarConfigRow {
   contentType: 'video' | 'graphic';
   weekdays: number[]; // 1=пон … 7=нед
+  publishTime?: string;
+  allowTwoPerDay?: boolean;
 }
 /** Календарска конфигурација по клиент (кои денови се видео/графика). */
 export function useCalendarConfig(clientId: string | null) {
@@ -12,6 +14,22 @@ export function useCalendarConfig(clientId: string | null) {
     queryKey: ['calendar-config', clientId],
     queryFn: () => api.get<CalendarConfigRow[]>(`/clients/${clientId}/calendar-config`),
     enabled: !!clientId,
+  });
+}
+
+export interface CalendarConfigInput {
+  contentType: 'video' | 'graphic';
+  weekdays: number[];
+  publishTime: string;
+  allowTwoPerDay: boolean;
+}
+/** Зачувај посебен календар за клиент (АМ/Директор). */
+export function useSaveCalendarConfig(clientId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CalendarConfigInput) =>
+      api.put<CalendarConfigRow>(`/clients/${clientId}/calendar-config`, input),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['calendar-config', clientId] }),
   });
 }
 
