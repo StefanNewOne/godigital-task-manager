@@ -8,7 +8,6 @@ import {
   useAllSlots,
   useCalendarConfig,
   useConfirmMonth,
-  useGenerateNextMonth,
   useGenerateSlots,
   useHolidays,
   usePatchSlot,
@@ -84,7 +83,6 @@ export function Calendar() {
   const generate = useGenerateSlots(activeClient ?? '', monthKey);
   const confirm = useConfirmMonth(activeClient ?? '', monthKey);
   const patch = usePatchSlot(activeClient ?? '', monthKey);
-  const genNext = useGenerateNextMonth();
   const me = useMe().data;
   const canGenerate = me?.role === 'am' || me?.role === 'dir';
   const [showSettings, setShowSettings] = useState(false);
@@ -145,11 +143,6 @@ export function Calendar() {
       onSuccess: () => setToast('Предлог-распоредот е генериран.'),
       onError: (e) => setToast(e instanceof ApiRequestError ? e.message : 'Грешка.'),
     });
-  const runGenNext = () =>
-    genNext.mutate(undefined, {
-      onSuccess: (r) => setToast(`Генериран нареден месец (${r.month}) за ${r.clients} клиенти.`),
-      onError: (e) => setToast(e instanceof ApiRequestError ? e.message : 'Грешка.'),
-    });
 
   return (
     <div style={{ padding: '24px 20px' }}>
@@ -196,14 +189,6 @@ export function Calendar() {
             </Button>
             <Button variant="secondary" size="toolbar" onClick={() => setShowApproval((s) => !s)}>
               {showApproval ? 'Сокриј одобрување' : 'Одобри месец'}
-            </Button>
-            <Button
-              variant="secondary"
-              size="toolbar"
-              onClick={runGenNext}
-              disabled={genNext.isPending}
-            >
-              {genNext.isPending ? 'Генерирање…' : 'Генерирај нареден месец'}
             </Button>
           </>
         )}
