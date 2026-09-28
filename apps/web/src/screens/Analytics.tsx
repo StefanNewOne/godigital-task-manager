@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Button } from '@gd/ui';
 import { useMe } from '../api/auth.js';
 import { useAnalytics, type AnalyticsCampaign, type AnalyticsPost } from '../api/analytics.js';
+import { usePageSnapshots, type PageSnapshotRow } from '../api/meta.js';
 import { CampaignsManager } from './CampaignsManager.js';
 import { ReportModal } from './ReportModal.js';
 
@@ -34,6 +35,8 @@ export function Analytics() {
   const month = currentMonth();
   const { data, isLoading } = useAnalytics(month);
   const { data: me } = useMe();
+  const canMeta = me?.role === 'dir' || me?.role === 'am';
+  const pageSnaps = usePageSnapshots(!!canMeta);
   const [managing, setManaging] = useState(false);
   const [reporting, setReporting] = useState(false);
   const canManage = me?.role === 'ana' || me?.role === 'dir';
@@ -186,7 +189,60 @@ export function Analytics() {
           ))}
         </div>
       </section>
+
+      {(pageSnaps.data?.length ?? 0) > 0 && (
+        <section style={card}>
+          <h2 style={cardTitle}>FB страници</h2>
+          <p style={{ fontSize: 12, color: 'var(--gd-ink-muted)', margin: '0 0 12px' }}>
+            Досегот по страница е укинат од Meta — прикажани се достапните метрики (последни 28
+            дена).
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {(pageSnaps.data ?? []).map((s) => (
+              <PageRow key={s.clientId} s={s} />
+            ))}
+          </div>
+        </section>
+      )}
       {modals}
+    </div>
+  );
+}
+
+function PageRow({ s }: { s: PageSnapshotRow }) {
+  const stats: Array<[string, number | null]> = [
+    ['Следбеници', s.followers],
+    ['Ангажман', s.engagement],
+    ['Прегледи', s.pageViews],
+    ['Нови', s.newFollows],
+    ['Видео', s.videoViews],
+    ['Реакции', s.reactions],
+  ];
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          fontWeight: 500,
+          fontSize: 13,
+          minWidth: 140,
+        }}
+      >
+        <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.client.color }} />
+        {s.client.name}
+      </span>
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+        {stats.map(([label, v]) => (
+          <span key={label} style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>
+            {label}:{' '}
+            <strong style={{ color: 'var(--gd-ink)', fontVariantNumeric: 'tabular-nums' }}>
+              {v == null ? '—' : fmtNum(v)}
+            </strong>
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

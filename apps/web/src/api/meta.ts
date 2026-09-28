@@ -16,6 +16,28 @@ export interface MetaAdAccount {
 interface BackfillResult {
   media: { created: number; updated: number; total: number };
   campaigns: { created: number; updated: number; total: number; snapshots: number };
+  page: { captured: boolean; followers?: number | null };
+}
+
+export interface PageSnapshotRow {
+  clientId: string;
+  followers: number | null;
+  engagement: number | null;
+  pageViews: number | null;
+  newFollows: number | null;
+  videoViews: number | null;
+  reactions: number | null;
+  capturedAt: string;
+  client: { name: string; color: string };
+}
+
+/** Најнови FB page snapshots по клиент (за Аналитика). */
+export function usePageSnapshots(enabled: boolean) {
+  return useQuery({
+    queryKey: ['page-snapshots'],
+    queryFn: () => api.get<PageSnapshotRow[]>('/meta/page-snapshots'),
+    enabled,
+  });
 }
 
 /** Достапни Meta страници + IG business сметки (dir/am) за доделба по клиент. */

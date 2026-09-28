@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import type { Router as ExpressRouter } from 'express';
 import { requireAuth, requireRole } from '../middleware/auth.js';
+import { prisma } from '../db/tenantExtension.js';
 import { getMetaClient } from '../services/meta/metaClient.js';
 import {
   backfillClientCampaigns,
   backfillClientMedia,
+  backfillClientPage,
   pullMetrics,
 } from '../services/meta/metrics.js';
 
@@ -25,12 +27,34 @@ metaRouter.get('/ad-accounts', requireRole('dir', 'am'), async (_req, res) => {
   res.json({ data: accounts });
 });
 
-// Backfill: IG органски постови + платени кампањи (ако има ад-акаунт) + повлечи метрики.
+// Backfill: IG органски постови + платени кампањи + FB page метрики + повлечи метрики.
 metaRouter.post('/clients/:id/backfill', requireRole('dir', 'am'), async (req, res) => {
   const clientId = (req.params as { id: string }).id;
   const limit = Math.min(Number((req.body as { limit?: number })?.limit) || 25, 100);
   const media = await backfillClientMedia(clientId, limit);
   const campaigns = await backfillClientCampaigns(clientId, 50);
-  const pulled = await pullMetrics();
-  res.json({ data: { media, campaigns, pulled } });
+  const page = await backfillClientPage(clientId);
+  // mediaOnly: кампањите веќе се снимени погоре — избегни дупли snapshots.
+  const pulled = await pullMetrics({ mediaOnly: true });
+  res.json({ data: { media, campaigns, page, pulled } });
+});
+
+// Најнов FB page snapshot за клиент (followers, ангажман, page views…).
+metaRouter.get('/clients/:id/page', async (req, res) => {
+  const clientId = (req.params as { id: string }).id;
+  const snap = await prisma.pageSnapshot.findFirst({
+    where: { clientId },
+    orderBy: { capturedAt: 'desc' },
+  });
+  res.json({ data: snap });
+});
+
+// Најнови FB page snapshots за сите клиенти (за Аналитика → FB страници).
+metaRouter.get('/page-snapshots', requireRole('dir', 'am'), async (_req, res) => {
+  const snaps = await prisma.pageSnapshot.findMany({
+    orderBy: { capturedAt: 'desc' },
+    distinct: ['clientId'],
+    include: { client: { select: { name: true, color: true } } },
+  });
+  res.json({ data: snaps });
 });

@@ -4,6 +4,7 @@ import type {
   MetaAccount,
   MetaAdAccount,
   MetaClient,
+  PageMetrics,
   PublicationRef,
 } from './metaClient.js';
 
@@ -75,6 +76,19 @@ export class StubMetaClient implements MetaClient {
       startTime: `2035-06-0${i + 1}T00:00:00+0000`,
       stopTime: `2035-06-2${i}T00:00:00+0000`,
     }));
+  }
+
+  async fetchPageMetrics(pageId: string): Promise<PageMetrics> {
+    const h = hash(pageId);
+    return {
+      followers: 1_000 + (h % 50_000),
+      engagement: 100 + (h % 5_000),
+      pageViews: 200 + (h % 8_000),
+      newFollows: h % 500,
+      videoViews: 500 + (h % 100_000),
+      reactions: h % 2_000,
+      raw: { stub: true },
+    };
   }
 
   async fetchAdInsights(input: { metaCampaignId: string }): Promise<unknown> {

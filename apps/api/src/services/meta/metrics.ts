@@ -70,7 +70,7 @@ export async function resolvePublications() {
  * Влечи метрики за објави со резолвиран media id + активни кампањи → **append** `MetricSnapshot`
  * (append-only време-серија, §И6). Best-effort по објект: една грешка не го паѓа целиот пул.
  */
-export async function pullMetrics() {
+export async function pullMetrics(opts: { mediaOnly?: boolean } = {}) {
   const client = getMetaClient();
   let snapshots = 0;
   let errors = 0;
@@ -92,9 +92,12 @@ export async function pullMetrics() {
     }
   }
 
-  const campaigns = await prisma.campaign.findMany({
-    where: { status: 'active', metaCampaignId: { not: null } },
-  });
+  // Кампањите се прескокнуваат кога `mediaOnly` (backfill веќе ги снима сите статуси).
+  const campaigns = opts.mediaOnly
+    ? []
+    : await prisma.campaign.findMany({
+        where: { status: 'active', metaCampaignId: { not: null } },
+      });
   for (const c of campaigns) {
     try {
       const raw = await client.fetchAdInsights({ metaCampaignId: c.metaCampaignId! });
@@ -154,6 +157,31 @@ export async function backfillClientMedia(clientId: string, limit = 25) {
     }
   }
   return { created, updated, total: media.length };
+}
+
+/**
+ * Backfill (B2): FB page-ниво метрики → append `PageSnapshot`. Reach е укинат од Meta (v21),
+ * па се снимаат достапните (followers, ангажман, page views, нови follows, video views, реакции).
+ */
+export async function backfillClientPage(clientId: string) {
+  const clientRow = await prisma.client.findUnique({ where: { id: clientId } });
+  if (!clientRow) throw new AppError('NOT_FOUND', 'Клиентот не е пронајден.', 404);
+  if (!clientRow.metaPageId) return { captured: false };
+
+  const pm = await getMetaClient().fetchPageMetrics(clientRow.metaPageId);
+  await prisma.pageSnapshot.create({
+    data: {
+      clientId,
+      followers: pm.followers,
+      engagement: pm.engagement,
+      pageViews: pm.pageViews,
+      newFollows: pm.newFollows,
+      videoViews: pm.videoViews,
+      reactions: pm.reactions,
+      raw: pm.raw as Prisma.InputJsonValue,
+    },
+  });
+  return { captured: true, followers: pm.followers };
 }
 
 /** FB статус на кампања → наш CampaignStatus. */

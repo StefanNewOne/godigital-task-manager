@@ -4,6 +4,7 @@ import type {
   MetaAccount,
   MetaAdAccount,
   MetaClient,
+  PageMetrics,
   PublicationRef,
 } from './metaClient.js';
 
@@ -167,6 +168,50 @@ export class GraphMetaClient implements MetaClient {
     return out.slice(0, limit);
   }
 
+  async fetchPageMetrics(pageId: string): Promise<PageMetrics> {
+    const enc = encodeURIComponent(this.token);
+    // 1) Page токен + followers (page-insights бараат page access token, не системски — #210).
+    const meta = (await this.get(
+      `${this.base}/${pageId}?fields=access_token,followers_count,fan_count&access_token=${enc}`,
+    )) as { access_token?: string; followers_count?: number; fan_count?: number };
+    const followers = meta.followers_count ?? meta.fan_count ?? null;
+    const raw: Record<string, unknown> = { followers_count: meta.followers_count };
+    if (!meta.access_token) {
+      return {
+        followers,
+        engagement: null,
+        pageViews: null,
+        newFollows: null,
+        videoViews: null,
+        reactions: null,
+        raw,
+      };
+    }
+    // 2) Достапни page insights (reach/impressions се укинати во v21).
+    const pt = encodeURIComponent(meta.access_token);
+    const metrics =
+      'page_post_engagements,page_views_total,page_daily_follows_unique,page_video_views,page_actions_post_reactions_total';
+    let insights: unknown = null;
+    try {
+      insights = await this.get(
+        `${this.base}/${pageId}/insights?metric=${metrics}&period=days_28&access_token=${pt}`,
+      );
+    } catch {
+      // best-effort — followers сепак се враќаат
+    }
+    raw.insights = insights;
+    const val = (name: string) => pickPageMetric(insights, name);
+    return {
+      followers,
+      engagement: val('page_post_engagements'),
+      pageViews: val('page_views_total'),
+      newFollows: val('page_daily_follows_unique'),
+      videoViews: val('page_video_views'),
+      reactions: val('page_actions_post_reactions_total'),
+      raw,
+    };
+  }
+
   private async get(url: string): Promise<unknown> {
     const res = await fetch(url);
     if (!res.ok) {
@@ -174,4 +219,21 @@ export class GraphMetaClient implements MetaClient {
     }
     return res.json();
   }
+}
+
+/** Извлечи ја последната нумеричка вредност за page-метрика (сумира ако е breakdown object). */
+function pickPageMetric(insights: unknown, name: string): number | null {
+  const data = (insights as { data?: Array<{ name: string; values?: Array<{ value: unknown }> }> })
+    ?.data;
+  const entry = data?.find((d) => d.name === name);
+  const value = entry?.values?.[entry.values.length - 1]?.value;
+  if (typeof value === 'number') return value;
+  if (value && typeof value === 'object') {
+    const sum = Object.values(value as Record<string, unknown>).reduce<number>(
+      (acc, v) => acc + (typeof v === 'number' ? v : 0),
+      0,
+    );
+    return sum;
+  }
+  return null;
 }

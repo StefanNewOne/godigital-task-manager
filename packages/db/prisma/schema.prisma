@@ -295,6 +295,7 @@ model Client {
   campaigns         Campaign[]
   moduleAssignments ModuleAssignment[]
   publications      Publication[]
+  pageSnapshots     PageSnapshot[]
 
   @@index([tenantId])
 }
@@ -594,6 +595,28 @@ model Promotion {
 }
 
 // MetricSnapshot — append-only (без UPDATE/DELETE grant; спроведено во миграција).
+/**
+ * FB page-ниво метрики (B2). Reach/impressions по страница се укинати од Meta (v21), па се
+ * снимаат само достапните: followers, ангажман, page views, нови follows, video views, реакции.
+ * Append-only временска серија (како MetricSnapshot).
+ */
+model PageSnapshot {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  tenantId     String   @default("godigital")
+  clientId     String   @db.Uuid
+  client       Client   @relation(fields: [clientId], references: [id])
+  capturedAt   DateTime @default(now())
+  followers    Int?
+  engagement   Int?
+  pageViews    Int?
+  newFollows   Int?
+  videoViews   Int?
+  reactions    Int?
+  raw          Json
+
+  @@index([clientId, capturedAt])
+}
+
 model MetricSnapshot {
   id            String   @id @default(uuid(7)) @db.Uuid
   tenantId      String   @default("godigital")

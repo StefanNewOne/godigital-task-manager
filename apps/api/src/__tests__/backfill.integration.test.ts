@@ -3,6 +3,7 @@ import { PrismaClient } from '@gd/db';
 import {
   backfillClientCampaigns,
   backfillClientMedia,
+  backfillClientPage,
   pullMetrics,
 } from '../services/meta/metrics.js';
 import { getAnalytics } from '../services/analytics.js';
@@ -26,6 +27,7 @@ beforeAll(async () => {
       contractMonths: 12,
       metaIgId: 'stub_ig_test',
       metaAdAccountId: 'act_stub_test',
+      metaPageId: 'stub_page_test',
     },
   });
   clientId = c.id;
@@ -34,6 +36,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await db.publication.deleteMany({ where: { clientId } });
   await db.campaign.deleteMany({ where: { clientId } });
+  await db.pageSnapshot.deleteMany({ where: { clientId } });
   await db.client.delete({ where: { id: clientId } });
   setMetaClient(null);
   await db.$disconnect();
@@ -85,5 +88,16 @@ describe('Meta ад-акаунт backfill (B2 платено)', () => {
     });
     expect(snaps.length).toBeGreaterThan(0);
     expect(snaps.some((s) => Number(s.spend) > 0)).toBe(true);
+  });
+});
+
+describe('FB page метрики (B2)', () => {
+  it('backfill на страница создава PageSnapshot со followers', async () => {
+    const r = await backfillClientPage(clientId);
+    expect(r.captured).toBe(true);
+    const snap = await db.pageSnapshot.findFirst({ where: { clientId } });
+    expect(snap).not.toBeNull();
+    expect(snap!.followers).toBeGreaterThan(0);
+    expect(snap!.engagement).toBeGreaterThan(0);
   });
 });

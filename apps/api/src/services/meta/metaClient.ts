@@ -45,6 +45,22 @@ export interface AdCampaignItem {
   stopTime: string | null;
 }
 
+/** FB page-ниво метрики (reach е укинат од Meta v21 — недостапно). */
+export interface PageMetrics {
+  followers: number | null;
+  /** Ангажман (page_post_engagements, 28 дена). */
+  engagement: number | null;
+  /** Page views (page_views_total, 28 дена). */
+  pageViews: number | null;
+  /** Нови follows (page_daily_follows_unique, 28 дена). */
+  newFollows: number | null;
+  /** Video views (page_video_views, 28 дена). */
+  videoViews: number | null;
+  /** Реакции (page_actions_post_reactions_total, 28 дена). */
+  reactions: number | null;
+  raw: unknown;
+}
+
 /**
  * Адаптер кон Meta Graph API (B2). Враќа СУРОВ Graph одговор — нормализацијата ја прави
  * `@gd/core` (`normalizeMetaInsights`/`deriveMetrics`). Никогаш не се повикува од frontend.
@@ -64,6 +80,8 @@ export interface MetaClient {
   listAdAccounts(): Promise<MetaAdAccount[]>;
   /** Кампањи од рекламна сметка (за backfill на платени метрики). */
   fetchCampaigns(adAccountId: string, limit: number): Promise<AdCampaignItem[]>;
+  /** FB page-ниво метрики (followers, ангажман, page views…). */
+  fetchPageMetrics(pageId: string): Promise<PageMetrics>;
 }
 
 let singleton: MetaClient | null = null;
