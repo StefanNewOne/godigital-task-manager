@@ -4,9 +4,8 @@ import type { AccountMediaItem, MetaAccount, MetaClient, PublicationRef } from '
  * Реален Meta Graph API адаптер (B2). Се користи само во прод кога постои системски токен;
  * во dev/тест факторијата бира stub. Враќа СУРОВ Graph одговор (core го нормализира).
  *
- * Забелешка (O-B2a): точниот сет метрики по платформа и резолуцијата на IG media id од
- * shortcode се финализираат при вклучување со реални credentials. Тука е разумен default:
- * `externalRef` (извлечен од permalink, PRD §4.8) се користи како media id.
+ * IG media id (O-B2a решено): shortcode-от од permalink се совпаѓа во media edge на IG-сметката
+ * (`resolveMediaId` со `client.metaIgId`) за да се добие нумеричкиот media id за insights.
  */
 export class GraphMetaClient implements MetaClient {
   private readonly base: string;
