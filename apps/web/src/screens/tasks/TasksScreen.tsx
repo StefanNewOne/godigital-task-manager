@@ -22,7 +22,7 @@ import { useMe } from '../../api/auth.js';
 import { useClients, useEmployees } from '../../api/admin.js';
 import { useOverview } from '../../api/overview.js';
 import { useCreateExtraTask, useTasks } from '../../api/tasks.js';
-import { useTaskGroups } from '../../api/taskGroups.js';
+import { useCreateVideoCapa, useTaskGroups } from '../../api/taskGroups.js';
 import type { TaskListItem } from '../../lib/types.js';
 import { ApiRequestError } from '../../lib/api.js';
 import { daysUntil } from '../../lib/tasksView.js';
@@ -140,8 +140,11 @@ export function TasksScreen() {
   const effectiveGroupBy = clientId ? 'status' : groupBy;
   const canCreateVideo = !!me && canCreate(me.role, 'video');
   const canCreateGraphic = !!me && canCreate(me.role, 'graphic');
+  // Режисер „Создај капа" (Парче 5): нормална видео капа, независно од календарот.
+  const canCreateCapa = !!me && (me.role === 'rez' || me.role === 'dir');
   const [toast, setToast] = useState<string | null>(null);
   const [newTaskKind, setNewTaskKind] = useState<'video' | 'graphic' | null>(null);
+  const [newCapaOpen, setNewCapaOpen] = useState(false);
 
   const groupsQ = useTaskGroups({
     clientId: clientId || undefined,
@@ -204,7 +207,12 @@ export function TasksScreen() {
         <Toolbar
           canCreateVideo={canCreateVideo}
           canCreateGraphic={canCreateGraphic}
-          onCreate={(k) => setNewTaskKind(k === 'video' ? 'video' : 'graphic')}
+          canCreateCapa={canCreateCapa}
+          onCreate={(k) =>
+            k === 'capa'
+              ? setNewCapaOpen(true)
+              : setNewTaskKind(k === 'video' ? 'video' : 'graphic')
+          }
           tab={tab}
           groupBy={groupBy}
           onGroupBy={() => setGroupBy((g) => (g === 'client' ? 'status' : 'client'))}
@@ -278,6 +286,19 @@ export function TasksScreen() {
             setNewTaskKind(null);
             setOpenId(id);
             setToast('Дополнителниот таск е создаден.');
+          }}
+          onError={(m) => setToast(m)}
+        />
+      )}
+      {newCapaOpen && (
+        <NewCapaModal
+          clients={clients ?? []}
+          defaultClientId={clientId || (clients ?? [])[0]?.id || ''}
+          onClose={() => setNewCapaOpen(false)}
+          onCreated={(id) => {
+            setNewCapaOpen(false);
+            setOpenGroupId(id);
+            setToast('Видео капата е создадена.');
           }}
           onError={(m) => setToast(m)}
         />
@@ -401,11 +422,107 @@ function NewTaskModal({
   );
 }
 
+// --- Режисер „Создај капа" модал (Парче 5) --------------------------------
+
+function NewCapaModal({
+  clients,
+  defaultClientId,
+  onClose,
+  onCreated,
+  onError,
+}: {
+  clients: Array<{ id: string; name: string }>;
+  defaultClientId: string;
+  onClose: () => void;
+  onCreated: (groupId: string) => void;
+  onError: (message: string) => void;
+}) {
+  const create = useCreateVideoCapa();
+  const [clientId, setClientId] = useState(defaultClientId);
+  const [month, setMonth] = useState('');
+  const valid = clientId && /^\d{4}-\d{2}$/.test(month);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div style={modalBackdrop} onClick={onClose}>
+      <div style={modalBox} className="gd-fade-up" onClick={(e) => e.stopPropagation()}>
+        <div style={{ fontSize: 16, lineHeight: '24px', fontWeight: 600, marginBottom: 4 }}>
+          Создај капа
+        </div>
+        <div
+          style={{
+            fontSize: 13,
+            lineHeight: '18px',
+            color: 'var(--gd-ink-muted)',
+            marginBottom: 16,
+          }}
+        >
+          Нормална видео капа со цела претпродукција (подготовка → сценарија → снимање), независно
+          од календарот. Стартува во „Подготовка".
+        </div>
+        <label style={ntLabel}>
+          Клиент
+          <select
+            className="gd-field"
+            value={clientId}
+            onChange={(e) => setClientId(e.target.value)}
+            style={{ marginTop: 4 }}
+          >
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label style={ntLabel}>
+          Месец
+          <input
+            type="month"
+            className="gd-field"
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+            style={{ marginTop: 4 }}
+          />
+        </label>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+          <Button variant="secondary" size="form" onClick={onClose}>
+            Откажи
+          </Button>
+          <Button
+            variant="primary"
+            size="form"
+            disabled={!valid || create.isPending}
+            onClick={() =>
+              create.mutate(
+                { clientId, month },
+                {
+                  onSuccess: (g) => onCreated((g as { id: string }).id),
+                  onError: (e) =>
+                    onError(e instanceof ApiRequestError ? e.message : 'Неуспешно создавање.'),
+                },
+              )
+            }
+          >
+            Создај капа
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // --- Toolbar --------------------------------------------------------------
 
 interface ToolbarProps {
   canCreateVideo: boolean;
   canCreateGraphic: boolean;
+  canCreateCapa: boolean;
   onCreate: (kind: string) => void;
   tab: Tab;
   groupBy: 'client' | 'status';
@@ -442,14 +559,14 @@ function Toolbar(p: ToolbarProps) {
               size="toolbar"
               onClick={() => p.onCreate('video')}
               style={
-                p.canCreateGraphic
+                p.canCreateGraphic || p.canCreateCapa
                   ? { borderTopRightRadius: 0, borderBottomRightRadius: 0 }
                   : undefined
               }
             >
               <Plus size={14} /> Ново видео
             </Button>
-            {p.canCreateGraphic && (
+            {(p.canCreateGraphic || p.canCreateCapa) && (
               <Button
                 size="toolbar"
                 onClick={() => setCreateOpen((o) => !o)}
@@ -466,15 +583,28 @@ function Toolbar(p: ToolbarProps) {
             )}
             {createOpen && (
               <div style={createMenu}>
-                <button
-                  style={createMenuItem}
-                  onClick={() => {
-                    p.onCreate('graphic');
-                    setCreateOpen(false);
-                  }}
-                >
-                  Нова графика
-                </button>
+                {p.canCreateGraphic && (
+                  <button
+                    style={createMenuItem}
+                    onClick={() => {
+                      p.onCreate('graphic');
+                      setCreateOpen(false);
+                    }}
+                  >
+                    Нова графика
+                  </button>
+                )}
+                {p.canCreateCapa && (
+                  <button
+                    style={createMenuItem}
+                    onClick={() => {
+                      p.onCreate('capa');
+                      setCreateOpen(false);
+                    }}
+                  >
+                    Создај капа
+                  </button>
+                )}
               </div>
             )}
           </>

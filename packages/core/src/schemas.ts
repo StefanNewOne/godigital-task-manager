@@ -114,6 +114,13 @@ export type SlotGenerateInput = z.infer<typeof slotGenerateSchema>;
 export const slotConfirmSchema = z.object({ month: monthKey });
 export type SlotConfirmInput = z.infer<typeof slotConfirmSchema>;
 
+// Режисер „Создај капа" (нормална видео капа, цела претпродукција — независно од календарот).
+export const videoCapaCreateSchema = z.object({
+  clientId: z.string().uuid(),
+  month: monthKey,
+});
+export type VideoCapaCreateInput = z.infer<typeof videoCapaCreateSchema>;
+
 export const slotPatchSchema = z.object({
   date: z.coerce.date(),
   orderInDay: z.number().int().min(1).max(2).optional(),

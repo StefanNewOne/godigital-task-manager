@@ -13,6 +13,7 @@ import { AppError } from '../../lib/errors.js';
 import { recordEvent } from '../../lib/events.js';
 import { createNotification, type NotifyInput } from '../notifications.js';
 import { resolveCalendar } from '../calendar.js';
+import { assertClientActiveForDate } from '../clientLifecycle.js';
 import { missingMessage } from './guards.js';
 import { parseToken } from './parse.js';
 
@@ -269,6 +270,59 @@ export async function bulkActivateGraphic(groupId: string, actor: { id: string; 
       narrative: `${ROLE_LABEL[actor.role]} активираше ${children.length} графички слотови за „${group.client.name} · ${group.monthKey}".`,
     });
     return { activated: children.length, frozen };
+  });
+}
+
+/**
+ * Режисер „Создај капа" (редизајн Парче 5): рачно создава НОРМАЛНА видео капа во `podgotovka`
+ * (цела претпродукција: podgotovka → scenarija → scenKajKlient → snimanje → zatvoren),
+ * независно од календарот. Различно од интервентно видео (кое стартува во chekaRezija).
+ * Една видео капа по (клиент, месец); деактивиран клиент со cutoff во тој месец → блокирано.
+ */
+export async function createVideoCapa(
+  input: { clientId: string; month: string },
+  actor: { id: string; role: Role },
+) {
+  if (actor.role !== 'rez' && actor.role !== 'dir') {
+    throw new AppError('FORBIDDEN_ROLE', 'Само Режисер може да создаде капа.', 403);
+  }
+  const client = await prisma.client.findUnique({ where: { id: input.clientId } });
+  if (!client) throw new AppError('NOT_FOUND', 'Клиентот не е пронајден.', 404);
+
+  const [y, m] = input.month.split('-').map(Number);
+  assertClientActiveForDate(client, new Date(Date.UTC(y!, m! - 1, 1)));
+
+  const existing = await prisma.taskGroup.findFirst({
+    where: { clientId: input.clientId, contentType: 'video', monthKey: input.month },
+  });
+  if (existing) {
+    throw new AppError('VALIDATION_FAILED', 'Веќе постои видео капа за тој месец.', 400);
+  }
+
+  const defaults = (client.defaultAssignees ?? {}) as Record<string, string>;
+  const rezId = actor.role === 'rez' ? actor.id : (defaults.rez ?? null);
+
+  return prisma.$transaction(async (tx) => {
+    const group = await tx.taskGroup.create({
+      data: {
+        clientId: input.clientId,
+        contentType: 'video',
+        monthKey: input.month,
+        status: 'podgotovka',
+        plannedCount: client.videosPerMonth,
+        rezId,
+      },
+    });
+    await recordEvent(tx, {
+      eventType: 'taskGroup.created',
+      objectType: 'group',
+      objectId: group.id,
+      groupId: group.id,
+      clientId: input.clientId,
+      newValue: { monthKey: input.month, status: 'podgotovka' },
+      narrative: `${ROLE_LABEL[actor.role]} создаде видео капа за „${client.name} · ${input.month}".`,
+    });
+    return group;
   });
 }
 

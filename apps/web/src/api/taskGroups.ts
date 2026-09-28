@@ -24,6 +24,16 @@ export function useTaskGroups(filters: TaskGroupFilters = {}) {
   });
 }
 
+/** Режисер „Создај капа" (Парче 5): нормална видео капа во podgotovka, независно од календарот. */
+export function useCreateVideoCapa() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { clientId: string; month: string }) =>
+      api.post<TaskGroupRow>('/task-groups', input),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['task-groups'] }),
+  });
+}
+
 /** Единечна капа (за Капа панелот). */
 export function useTaskGroup(id: string | null) {
   return useQuery({

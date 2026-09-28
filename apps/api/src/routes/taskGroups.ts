@@ -5,13 +5,18 @@ import {
   groupTransitionSchema,
   scenarioOutcomesSchema,
   scenarioSplitSchema,
+  videoCapaCreateSchema,
 } from '@gd/core';
 import type { Prisma } from '@gd/db';
 import { prisma } from '../db/tenantExtension.js';
 import { AppError } from '../lib/errors.js';
 import { parse } from '../lib/validate.js';
-import { requireAuth } from '../middleware/auth.js';
-import { bulkActivateGraphic, transitionTaskGroup } from '../services/workflow/groupTransition.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
+import {
+  bulkActivateGraphic,
+  createVideoCapa,
+  transitionTaskGroup,
+} from '../services/workflow/groupTransition.js';
 import { setScenarioOutcomes, splitScenarios } from '../services/scenarios.js';
 import { archiveLocally, extendRaw } from '../services/storage.js';
 
@@ -47,6 +52,13 @@ taskGroupsRouter.get('/', async (req, res) => {
     scenariosApproved: counts.get(g.id)?.approved ?? 0,
   }));
   res.json({ data });
+});
+
+// Режисер „Создај капа" (Парче 5): нормална видео капа во podgotovka, независно од календарот.
+taskGroupsRouter.post('/', requireRole('rez', 'dir'), async (req, res) => {
+  const input = parse(videoCapaCreateSchema, req.body);
+  const group = await createVideoCapa(input, { id: req.auth!.sub, role: req.auth!.role });
+  res.status(201).json({ data: group });
 });
 
 // Единечна капа за Капа панелот (read-only) + мал резиме на деца/заеднички фајлови.
