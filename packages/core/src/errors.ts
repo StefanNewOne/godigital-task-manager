@@ -24,6 +24,8 @@ export const ERROR_CODES = [
   'MONTH_NOT_APPROVED',
   // животен циклус на клиент (Директор гаси клиент → cutoff по крај на месец)
   'CLIENT_DEACTIVATED',
+  // таск замрзнат: датумот паѓа во непокриен/деактивиран период (аларм до АМ)
+  'TASK_FROZEN',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

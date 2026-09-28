@@ -3,6 +3,7 @@ import type { Client } from '@gd/db';
 import { prisma } from '../db/tenantExtension.js';
 import { AppError } from '../lib/errors.js';
 import { recordEvent } from '../lib/events.js';
+import { createNotification, type NotifyInput } from './notifications.js';
 
 const dmy = (d: Date) =>
   `${String(d.getUTCDate()).padStart(2, '0')}.${String(d.getUTCMonth() + 1).padStart(2, '0')}.${d.getUTCFullYear()}`;
@@ -23,6 +24,32 @@ export function assertClientActiveForDate(
     `Клиентот „${client.name}" е деактивиран — датуми може да се закажат само до ${cutoff ? dmy(cutoff) : 'крај на месецот'}.`,
     400,
   );
+}
+
+/**
+ * Аларм до сите активни Акаунт менаџери дека има замрзната работа (непокриен/деактивиран
+ * период) — треба да сетира календар / реактивира клиент (редизајн Парче 4). Best-effort.
+ */
+export async function alertAmFrozen(
+  clientId: string,
+  clientName: string,
+  body: string,
+): Promise<void> {
+  const managers = await prisma.employee.findMany({
+    where: { role: 'am', active: true },
+    select: { id: true },
+  });
+  for (const m of managers) {
+    const input: NotifyInput = {
+      recipientId: m.id,
+      level: 'alarm',
+      eventKey: 'frozen_work',
+      clientId,
+      title: 'Замрзната работа',
+      body,
+    };
+    await createNotification(input).catch(() => undefined);
+  }
 }
 
 /** Директор гаси клиент: сетира `deactivatedAt` (ако веќе не е). Идемпотентно. */

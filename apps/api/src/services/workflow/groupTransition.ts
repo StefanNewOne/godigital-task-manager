@@ -1,6 +1,7 @@
 import {
   GROUP_STATUS_META,
   ROLE_LABEL,
+  clientActiveForDate,
   findGroupTransition,
   type GroupStatus,
   type Role,
@@ -112,17 +113,24 @@ async function nextExtraSlotDate(
  * E_CREATE_EXTRA_SLOTS: ако одобрените сценарија се повеќе од резервираните слотови,
  * за секое вишок сценарио се создава нов резервиран слот + екстра таск (isExtra).
  */
-async function activateVideoChildren(ctx: GroupCtx): Promise<{ activated: number; extra: number }> {
+async function activateVideoChildren(
+  ctx: GroupCtx,
+): Promise<{ activated: number; extra: number; frozen: number }> {
   const { tx, group } = ctx;
   const approved = await tx.scenario.findMany({
     where: { groupId: group.id, status: { in: ['odobreno', 'odobrenoSoIzmeni'] } },
     orderBy: { ordinal: 'asc' },
   });
-  const children = await tx.task.findMany({
+  const allChildren = await tx.task.findMany({
     where: { groupId: group.id, status: 'mrtov' },
     orderBy: { slot: { date: 'asc' } },
     include: { slot: true },
   });
+  // Замрзнување (Парче 4): деактивиран клиент → деца со датум по cutoff остануваат мртви.
+  const children = allChildren.filter((c) =>
+    c.slot ? clientActiveForDate(group.client.deactivatedAt, c.slot.date) : true,
+  );
+  const frozen = allChildren.length - children.length;
   const n = Math.min(approved.length, children.length);
   for (let i = 0; i < n; i++) {
     await tx.task.update({
@@ -157,6 +165,8 @@ async function activateVideoChildren(ctx: GroupCtx): Promise<{ activated: number
     for (let i = children.length; i < approved.length; i++) {
       const date = await nextExtraSlotDate(tx, group.clientId, weekdays, cursor);
       cursor = date;
+      // Не создавај екстра слот по cutoff на деактивиран клиент (замрзни го вишокот).
+      if (!clientActiveForDate(group.client.deactivatedAt, date)) break;
       const monthKey = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
       const slot = await tx.publishingSlot.create({
         data: {
@@ -187,7 +197,7 @@ async function activateVideoChildren(ctx: GroupCtx): Promise<{ activated: number
     }
   }
 
-  return { activated: n, extra };
+  return { activated: n, extra, frozen };
 }
 
 /**
@@ -210,18 +220,44 @@ export async function bulkActivateGraphic(groupId: string, actor: { id: string; 
   const kreaId = actor.role === 'krea' ? actor.id : (defaults.krea ?? null);
 
   return prisma.$transaction(async (tx) => {
-    const children = await tx.task.findMany({ where: { groupId, status: 'mrtov' } });
+    const all = await tx.task.findMany({
+      where: { groupId, status: 'mrtov' },
+      include: { slot: true },
+    });
+    // Замрзнување (Парче 4): деца со датум по cutoff на деактивиран клиент остануваат мртви.
+    const children = all.filter((c) =>
+      c.slot ? clientActiveForDate(group.client.deactivatedAt, c.slot.date) : true,
+    );
+    const frozen = all.length - children.length;
     for (const c of children) {
       await tx.task.update({
         where: { id: c.id },
         data: { status: 'brifing', assigneeId: kreaId, kreaId },
       });
     }
-    if (group.status === 'gPodgotovka') {
+    // Затвори ја капата само ако нема замрзнати деца (инаку чека реактивација/нов месец).
+    if (group.status === 'gPodgotovka' && frozen === 0) {
       await tx.taskGroup.update({
         where: { id: group.id },
         data: { status: 'zatvoren', closedAt: new Date() },
       });
+    }
+    if (frozen > 0) {
+      const managers = await tx.employee.findMany({
+        where: { role: 'am', active: true },
+        select: { id: true },
+      });
+      for (const m of managers) {
+        await createNotification({
+          recipientId: m.id,
+          level: 'alarm',
+          eventKey: 'frozen_work',
+          groupId: group.id,
+          clientId: group.clientId,
+          title: 'Замрзната работа',
+          body: `${group.client.name}: ${frozen} графички таск(ови) замрзнати — датумот е по деактивацијата.`,
+        }).catch(() => undefined);
+      }
     }
     await recordEvent(tx, {
       eventType: 'taskGroup.bulkActivated',
@@ -229,10 +265,10 @@ export async function bulkActivateGraphic(groupId: string, actor: { id: string; 
       objectId: group.id,
       groupId: group.id,
       clientId: group.clientId,
-      newValue: { activated: children.length },
+      newValue: { activated: children.length, frozen },
       narrative: `${ROLE_LABEL[actor.role]} активираше ${children.length} графички слотови за „${group.client.name} · ${group.monthKey}".`,
     });
-    return { activated: children.length };
+    return { activated: children.length, frozen };
   });
 }
 
@@ -286,6 +322,7 @@ export async function transitionTaskGroup(
     const notify: NotifyInput[] = [];
     let activated = 0;
     let extra = 0;
+    let frozen = 0;
 
     for (const token of rule.effects) {
       const { name, args } = parseToken(token);
@@ -348,6 +385,7 @@ export async function transitionTaskGroup(
             const res = await activateVideoChildren(ctx);
             activated = res.activated;
             extra = res.extra;
+            frozen = res.frozen;
           } else if (args[0] === 'chekaRezija') {
             const kids = await tx.task.findMany({
               where: { groupId: group.id, status: 'cekaSnimanje' },
@@ -375,6 +413,25 @@ export async function transitionTaskGroup(
         // E_REVISION/E_CREATE_EXTRA_SLOTS/E_ALARM/E_NOTIFY — B/подоцна.
         default:
           break;
+      }
+    }
+
+    // Замрзнати деца (деактивиран клиент) → аларм до Акаунт менаџер (Парче 4).
+    if (frozen > 0) {
+      const managers = await tx.employee.findMany({
+        where: { role: 'am', active: true },
+        select: { id: true },
+      });
+      for (const m of managers) {
+        notify.push({
+          recipientId: m.id,
+          level: 'alarm',
+          eventKey: 'frozen_work',
+          groupId: group.id,
+          clientId: group.clientId,
+          title: 'Замрзната работа',
+          body: `${group.client.name}: ${frozen} таск(ови) замрзнати — датумот е по деактивацијата на клиентот.`,
+        });
       }
     }
 

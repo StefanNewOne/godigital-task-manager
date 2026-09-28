@@ -1,6 +1,7 @@
 import {
   ROLE_LABEL,
   TASK_STATUS_META,
+  clientActiveForDate,
   findTaskTransition,
   type Role,
   type TaskStatus,
@@ -13,8 +14,12 @@ import { recordEvent } from '../../lib/events.js';
 import { runTaskGuards, missingMessage } from './guards.js';
 import { resolveAssignee, runTaskEffects } from './effects.js';
 import { createNotification } from '../notifications.js';
+import { alertAmFrozen } from '../clientLifecycle.js';
 
 const label = (s: string) => TASK_STATUS_META[s as TaskStatus]?.label ?? s;
+
+// Преоди дозволени и на замрзнат таск (може да се откаже/паузира, PRD терминали).
+const FROZEN_EXEMPT: ReadonlySet<string> = new Set(['otkazano', 'pauza']);
 
 /**
  * Извршување на преод на таск преку матрицата (CLAUDE.md И2, PRD §4.3).
@@ -26,8 +31,28 @@ export async function transitionTask(
   payload: TransitionPayload,
   actor: { id: string; role: Role },
 ) {
-  const task = await prisma.task.findUnique({ where: { id: taskId }, include: { client: true } });
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: { client: true, slot: true },
+  });
   if (!task) throw new AppError('NOT_FOUND', 'Таскот не е пронајден.', 404);
+
+  // Замрзнување (редизајн Парче 4): деактивиран клиент + датум по cutoff → таскот не смее да
+  // напредува (освен откажување/пауза). Аларм до Акаунт менаџер да реши.
+  const publishDate = task.slot?.date ?? null;
+  const frozen = publishDate ? !clientActiveForDate(task.client.deactivatedAt, publishDate) : false;
+  if (frozen && !FROZEN_EXEMPT.has(to)) {
+    await alertAmFrozen(
+      task.clientId,
+      task.client.name,
+      `Замрзнат таск „${task.title}" — датумот е по деактивацијата на клиентот „${task.client.name}".`,
+    );
+    throw new AppError(
+      'TASK_FROZEN',
+      `Таскот е замрзнат — клиентот „${task.client.name}" е деактивиран за тој период. Акаунт менаџерот е известен.`,
+      409,
+    );
+  }
 
   const rule = findTaskTransition(task.status, to, task.contentType);
   if (!rule) {
