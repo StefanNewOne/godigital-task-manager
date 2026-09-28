@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pickCalendar } from './calendar.js';
+import { groupByCombination, pickCalendar } from './calendar.js';
 
 const PER = { id: 'per' };
 const STD = { id: 'std' };
@@ -25,5 +25,27 @@ describe('pickCalendar', () => {
   it('ништо → null', () => {
     expect(pickCalendar('standarden', null, null)).toBeNull();
     expect(pickCalendar('specificen', undefined, undefined)).toBeNull();
+  });
+});
+
+describe('groupByCombination', () => {
+  const c = (id: string, v: number, g: number) => ({ id, videosPerMonth: v, graphicsPerMonth: g });
+
+  it('групира по (видеа, графики) и сортира детерминистички', () => {
+    const combos = groupByCombination([c('a', 4, 12), c('b', 2, 8), c('c', 4, 12), c('d', 2, 8)]);
+    expect(combos).toHaveLength(2);
+    expect(combos[0]).toMatchObject({ videos: 2, graphics: 8 });
+    expect(combos[0]!.clients.map((x) => x.id)).toEqual(['b', 'd']);
+    expect(combos[1]).toMatchObject({ videos: 4, graphics: 12 });
+    expect(combos[1]!.clients.map((x) => x.id)).toEqual(['a', 'c']);
+  });
+
+  it('исти видеа, различни графики → сортира по графики', () => {
+    const combos = groupByCombination([c('a', 4, 24), c('b', 4, 12)]);
+    expect(combos.map((x) => x.graphics)).toEqual([12, 24]);
+  });
+
+  it('празен влез → празно', () => {
+    expect(groupByCombination([])).toEqual([]);
   });
 });

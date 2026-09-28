@@ -34,11 +34,23 @@ beforeAll(async () => {
     },
   });
   clientId = client.id;
+  // Месецот мора да е „одобрен" (има reserved слот) за да помине тврдиот гејт на createVideoCapa.
+  await db.publishingSlot.create({
+    data: {
+      clientId,
+      contentType: 'graphic',
+      date: new Date(`${MONTH}-05T00:00:00.000Z`),
+      orderInDay: 1,
+      status: 'reserved',
+      monthKey: MONTH,
+    },
+  });
 });
 
 afterAll(async () => {
   await db.task.deleteMany({ where: { clientId } });
   await db.taskGroup.deleteMany({ where: { clientId } });
+  await db.publishingSlot.deleteMany({ where: { clientId } });
   await db.client.delete({ where: { id: clientId } });
   await db.$disconnect();
 });

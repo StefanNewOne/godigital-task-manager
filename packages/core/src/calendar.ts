@@ -21,3 +21,27 @@ export function pickCalendar<T>(
   if (calendarType === 'specificen') return perClient ?? standard ?? null;
   return standard ?? perClient ?? null;
 }
+
+/** Пакетна комбинација на клиент: број видеа + број графики месечно. */
+export interface Combination<T> {
+  videos: number;
+  graphics: number;
+  clients: T[];
+}
+
+/**
+ * Групирај клиенти по пакетна комбинација (videosPerMonth, graphicsPerMonth) — за месечно
+ * одобрување групирано по комбинација (редизајн). Сортирано по видеа, потоа графики (детерминистички).
+ */
+export function groupByCombination<T extends { videosPerMonth: number; graphicsPerMonth: number }>(
+  clients: T[],
+): Array<Combination<T>> {
+  const map = new Map<string, Combination<T>>();
+  for (const c of clients) {
+    const key = `${c.videosPerMonth}x${c.graphicsPerMonth}`;
+    const existing = map.get(key);
+    if (existing) existing.clients.push(c);
+    else map.set(key, { videos: c.videosPerMonth, graphics: c.graphicsPerMonth, clients: [c] });
+  }
+  return [...map.values()].sort((a, b) => a.videos - b.videos || a.graphics - b.graphics);
+}

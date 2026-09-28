@@ -30,18 +30,17 @@ function autoTitle(clientName: string, contentType: ContentType, date: Date): st
   return `${clientName} · ${label} · ${dd}.${mm}`;
 }
 
-async function loadHolidaySet(
+export async function loadHolidaySet(
   clientId: string,
   year: number,
   month0: number,
 ): Promise<Set<string>> {
   const from = new Date(Date.UTC(year, month0, 1));
   const to = new Date(Date.UTC(year, month0 + 1, 0));
+  // Празен clientId (пр. стандарден календар) → само глобални празници (clientId е UUID колона).
+  const scope = clientId ? [{ clientId: null }, { clientId }] : [{ clientId: null }];
   const rows = await prisma.holiday.findMany({
-    where: {
-      date: { gte: from, lte: to },
-      OR: [{ clientId: null }, { clientId }],
-    },
+    where: { date: { gte: from, lte: to }, OR: scope },
   });
   return new Set(rows.map((h) => ymd(h.date)));
 }

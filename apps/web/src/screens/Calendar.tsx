@@ -17,6 +17,7 @@ import {
 import { useMe } from '../api/auth.js';
 import { useDateChange } from '../api/tasks.js';
 import { CalendarSettings } from './CalendarSettings.js';
+import { MonthApproval } from './MonthApproval.js';
 import { ApiRequestError } from '../lib/api.js';
 import { MONTH_LABELS, WEEKDAY_LABELS, buildMonthGrid, monthKeyOf, ymd } from '../lib/calendar.js';
 import type { SlotRow } from '../lib/types.js';
@@ -87,6 +88,7 @@ export function Calendar() {
   const me = useMe().data;
   const canGenerate = me?.role === 'am' || me?.role === 'dir';
   const [showSettings, setShowSettings] = useState(false);
+  const [showApproval, setShowApproval] = useState(false);
   const dateChange = useDateChange(dc?.taskId ?? '');
   const { data: calConfig } = useCalendarConfig(activeClient);
   const { data: holidays } = useHolidays();
@@ -192,6 +194,9 @@ export function Calendar() {
             >
               {showSettings ? 'Сокриј поставки' : 'Календарски поставки'}
             </Button>
+            <Button variant="secondary" size="toolbar" onClick={() => setShowApproval((s) => !s)}>
+              {showApproval ? 'Сокриј одобрување' : 'Одобри месец'}
+            </Button>
             <Button
               variant="secondary"
               size="toolbar"
@@ -210,6 +215,7 @@ export function Calendar() {
           clientName={clientById.get(clientId)?.name}
         />
       )}
+      {canGenerate && showApproval && <MonthApproval month={monthKey} />}
 
       {/* Легенда */}
       <div style={legendRow}>

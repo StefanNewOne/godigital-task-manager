@@ -14,6 +14,7 @@ import { recordEvent } from '../../lib/events.js';
 import { createNotification, type NotifyInput } from '../notifications.js';
 import { resolveCalendar } from '../calendar.js';
 import { assertClientActiveForDate } from '../clientLifecycle.js';
+import { assertMonthApproved } from '../monthlyCalendar.js';
 import { missingMessage } from './guards.js';
 import { parseToken } from './parse.js';
 
@@ -291,6 +292,8 @@ export async function createVideoCapa(
 
   const [y, m] = input.month.split('-').map(Number);
   assertClientActiveForDate(client, new Date(Date.UTC(y!, m! - 1, 1)));
+  // Тврд гејт (редизајн): месецот мора да е одобрен од АМ (reserved слотови) — инаку аларм до АМ.
+  await assertMonthApproved(client, input.month);
 
   const existing = await prisma.taskGroup.findFirst({
     where: { clientId: input.clientId, contentType: 'video', monthKey: input.month },
