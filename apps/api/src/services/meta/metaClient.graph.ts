@@ -1,6 +1,7 @@
 import type {
   AccountMediaItem,
   AdCampaignItem,
+  AdInsightRow,
   MetaAccount,
   MetaAdAccount,
   MetaClient,
@@ -210,6 +211,43 @@ export class GraphMetaClient implements MetaClient {
       reactions: val('page_actions_post_reactions_total'),
       raw,
     };
+  }
+
+  async fetchAdInsightsTree(
+    adAccountId: string,
+    since: string,
+    until: string,
+  ): Promise<AdInsightRow[]> {
+    const enc = encodeURIComponent(this.token);
+    const fields =
+      'campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name,spend,reach,impressions,ctr';
+    const tr = encodeURIComponent(JSON.stringify({ since, until }));
+    const out: AdInsightRow[] = [];
+    let url: string | null =
+      `${this.base}/${adAccountId}/insights?level=ad&fields=${fields}&time_increment=monthly&time_range=${tr}&limit=200&access_token=${enc}`;
+    for (let i = 0; i < 25 && url; i++) {
+      const page = (await this.get(url)) as {
+        data?: Array<Record<string, string>>;
+        paging?: { next?: string };
+      };
+      for (const r of page.data ?? []) {
+        out.push({
+          campaignId: r.campaign_id ?? '',
+          campaignName: r.campaign_name ?? '',
+          adsetId: r.adset_id ?? '',
+          adsetName: r.adset_name ?? '',
+          adId: r.ad_id ?? '',
+          adName: r.ad_name ?? '',
+          month: (r.date_start ?? '').slice(0, 7),
+          spend: Number(r.spend ?? 0),
+          reach: Number(r.reach ?? 0),
+          impressions: Number(r.impressions ?? 0),
+          ctr: Number(r.ctr ?? 0),
+        });
+      }
+      url = page.paging?.next ?? null;
+    }
+    return out;
   }
 
   private async get(url: string): Promise<unknown> {

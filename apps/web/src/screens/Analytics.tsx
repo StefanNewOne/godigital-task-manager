@@ -1,23 +1,38 @@
 import type React from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@gd/ui';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useMe } from '../api/auth.js';
-import { useAnalytics, type AnalyticsCampaign, type AnalyticsPost } from '../api/analytics.js';
-import { usePageSnapshots, type PageSnapshotRow } from '../api/meta.js';
+import { useClients } from '../api/admin.js';
+import { useClientAnalytics, type AdNode, type ClientAnalytics } from '../api/analytics.js';
 import { CampaignsManager } from './CampaignsManager.js';
 import { ReportModal } from './ReportModal.js';
 
 /**
- * Аналитика (Handoff §9). Распоредот е финален; бројките доаѓаат од `/analytics` (B2),
- * агрегирани од `MetricSnapshot` (Meta insights на секои 6ч). Празна состојба додека нема
- * снимени метрики за месецот.
+ * Аналитика (редизајн, Handoff §9). Избор на КЛИЕНТ + ПЕРИОД; метриките поделени по извор
+ * (Instagram · Facebook · Реклами) со разбивка по месец. IG/FB од снимени метрики (cron на 6ч
+ * + рачно копче), рекламите во живо од Meta (кампања→adset→ад).
  */
+const MK_MONTHS = [
+  'Јан',
+  'Фев',
+  'Мар',
+  'Апр',
+  'Мај',
+  'Јун',
+  'Јул',
+  'Авг',
+  'Сеп',
+  'Окт',
+  'Ное',
+  'Дек',
+];
 function currentMonth(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
-
-const fmtNum = (n: number): string => {
+const fmtNum = (n: number | null | undefined): string => {
+  if (n == null) return '—';
   if (n >= 1000) {
     const k = n / 1000;
     return `${k >= 100 ? Math.round(k) : k.toFixed(1).replace(/\.0$/, '')}k`;
@@ -25,314 +40,319 @@ const fmtNum = (n: number): string => {
   return String(Math.round(n));
 };
 const fmtEur = (n: number): string => `${Math.round(n).toLocaleString('mk-MK')} €`;
-const fmtCpr = (n: number | null): string => (n == null ? '—' : `${n.toFixed(2)} €`);
-const fmtDay = (iso: string): string => {
-  const d = new Date(iso);
-  return `${d.getUTCDate()}.${d.getUTCMonth() + 1}`;
+const monthLabel = (mk: string): string => {
+  const [y, m] = mk.split('-');
+  return `${MK_MONTHS[Number(m) - 1] ?? m} ${y?.slice(2)}`;
 };
 
 export function Analytics() {
-  const month = currentMonth();
-  const { data, isLoading } = useAnalytics(month);
   const { data: me } = useMe();
-  const canMeta = me?.role === 'dir' || me?.role === 'am';
-  const pageSnaps = usePageSnapshots(!!canMeta);
+  const { data: clients } = useClients();
+  const [clientId, setClientId] = useState('');
+  const [from, setFrom] = useState(currentMonth());
+  const [to, setTo] = useState(currentMonth());
   const [managing, setManaging] = useState(false);
   const [reporting, setReporting] = useState(false);
+
+  // Default клиент = прв во листата.
+  useEffect(() => {
+    if (!clientId && clients && clients.length) setClientId(clients[0]!.id);
+  }, [clients, clientId]);
+
+  const { data, isLoading, isError } = useClientAnalytics(clientId, from, to);
   const canManage = me?.role === 'ana' || me?.role === 'dir';
   const canReport = me?.role === 'ana' || me?.role === 'dir' || me?.role === 'am';
 
-  const header = (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
-      {canReport && (
-        <Button variant="secondary" size="form" onClick={() => setReporting(true)}>
-          Извештај
-        </Button>
-      )}
-      {canManage && (
-        <Button variant="secondary" size="form" onClick={() => setManaging(true)}>
-          Кампањи
-        </Button>
-      )}
-    </div>
-  );
-  const modals = (
-    <>
-      {managing && <CampaignsManager onClose={() => setManaging(false)} />}
-      {reporting && <ReportModal month={month} onClose={() => setReporting(false)} />}
-    </>
-  );
-
-  if (isLoading) {
-    return (
-      <div style={{ padding: '24px 20px 48px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {header}
-        <div style={{ color: 'var(--gd-ink-muted)' }}>Вчитување…</div>
-        {modals}
-      </div>
-    );
-  }
-
-  if (!data || !data.hasData) {
-    return (
-      <div style={{ padding: '24px 20px 48px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {header}
-        <div style={emptyState} role="note">
-          Сè уште нема снимени метрики за овој месец. Метриките се влечат автоматски од Meta по
-          објавување (на секои 6 часа).
-        </div>
-        {modals}
-      </div>
-    );
-  }
-
-  const { kpis, split, campaigns, topPosts } = data;
-  const kpiCards = [
-    { label: 'Досег', value: fmtNum(kpis.reach), hint: `${fmtNum(kpis.impressions)} импресии` },
-    { label: 'Прегледи', value: fmtNum(kpis.views), hint: '' },
-    {
-      label: 'Ангажман',
-      value: fmtNum(kpis.engagement),
-      hint: kpis.ctr != null ? `CTR ${kpis.ctr}%` : '',
-    },
-    { label: 'Потрошено', value: fmtEur(kpis.spend), hint: '' },
-    { label: 'Цена по резултат', value: fmtCpr(kpis.cpr), hint: '' },
-    {
-      label: 'Објави',
-      value: String(kpis.posts),
-      hint: `${split.organicPosts} орг · ${split.paidPosts} плат`,
-    },
-  ];
-
-  const totalReach = split.organicReach + split.paidReach;
-  const orgPct = totalReach > 0 ? Math.round((split.organicReach / totalReach) * 100) : 0;
-  const paidPct = 100 - orgPct;
-  const maxPostReach = topPosts.reduce((m, p) => Math.max(m, p.reach), 0) || 1;
-
   return (
     <div style={{ padding: '24px 20px 48px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {header}
-      <div style={kpiGrid}>
-        {kpiCards.map((k) => (
-          <div key={k.label} style={card}>
-            <div style={{ fontSize: 13, color: 'var(--gd-ink-muted)' }}>{k.label}</div>
-            <div
-              style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em', margin: '4px 0' }}
-            >
-              {k.value}
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>{k.hint}</div>
-          </div>
-        ))}
+      {/* Контроли */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <select
+          className="gd-field"
+          style={{ width: 220, height: 36 }}
+          value={clientId}
+          onChange={(e) => setClientId(e.target.value)}
+        >
+          {(clients ?? []).map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+          Од
+          <input
+            type="month"
+            className="gd-field"
+            style={{ height: 36 }}
+            value={from}
+            max={to}
+            onChange={(e) => setFrom(e.target.value)}
+          />
+        </label>
+        <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+          До
+          <input
+            type="month"
+            className="gd-field"
+            style={{ height: 36 }}
+            value={to}
+            min={from}
+            onChange={(e) => setTo(e.target.value)}
+          />
+        </label>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          {canReport && (
+            <Button variant="secondary" size="form" onClick={() => setReporting(true)}>
+              Извештај
+            </Button>
+          )}
+          {canManage && (
+            <Button variant="secondary" size="form" onClick={() => setManaging(true)}>
+              Кампањи
+            </Button>
+          )}
+        </div>
       </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
-          gap: 16,
-        }}
-      >
-        <section style={card}>
-          <h2 style={cardTitle}>Органски наспроти платено</h2>
-          <div
-            style={{
-              display: 'flex',
-              height: 10,
-              borderRadius: 9999,
-              overflow: 'hidden',
-              margin: '4px 0 16px',
-            }}
-          >
-            <div style={{ width: `${orgPct}%`, background: '#0D9488' }} />
-            <div style={{ width: `${paidPct}%`, background: '#DB2777' }} />
-          </div>
-          <Split
-            color="#0D9488"
-            title={`Органски · ${orgPct}%`}
-            lines={[`${split.organicPosts} објави · досег ${fmtNum(split.organicReach)}`]}
-          />
-          <div style={{ height: 12 }} />
-          <Split
-            color="#DB2777"
-            title={`Платено · ${paidPct}%`}
-            lines={[
-              `${split.paidPosts} објави · досег ${fmtNum(split.paidReach)}`,
-              kpis.cpr != null
-                ? `Просечна цена по резултат ${fmtCpr(kpis.cpr)}`
-                : 'Нема платени резултати',
-            ]}
-          />
-        </section>
+      {isLoading && <div style={{ color: 'var(--gd-ink-muted)' }}>Вчитување…</div>}
+      {isError && (
+        <div style={emptyState}>Грешка при вчитување на аналитиката за овој клиент/период.</div>
+      )}
+      {data && <ClientAnalyticsView data={data} />}
 
-        <section style={card}>
-          <h2 style={{ ...cardTitle, margin: 0 }}>Кампањи во тек</h2>
-          {campaigns.length === 0 ? (
-            <p style={{ fontSize: 13, color: 'var(--gd-ink-muted)', marginTop: 12 }}>
-              Нема активни кампањи во месецот.
-            </p>
-          ) : (
-            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {campaigns.map((c) => (
-                <CampaignRow key={c.id} c={c} />
+      {managing && <CampaignsManager onClose={() => setManaging(false)} />}
+      {reporting && <ReportModal month={from} onClose={() => setReporting(false)} />}
+    </div>
+  );
+}
+
+function ClientAnalyticsView({ data }: { data: ClientAnalytics }) {
+  const { instagram: ig, facebook: fb, ads } = data;
+  return (
+    <>
+      {/* Instagram */}
+      <section style={card}>
+        <h2 style={cardTitle}>Instagram (органски)</h2>
+        {!ig.connected ? (
+          <p style={muted}>Нема поврзана Instagram сметка.</p>
+        ) : ig.totals.posts === 0 ? (
+          <p style={muted}>Нема објави во периодот.</p>
+        ) : (
+          <>
+            <div style={kpiGrid}>
+              <Kpi label="Досег" value={fmtNum(ig.totals.reach)} />
+              <Kpi label="Ангажман" value={fmtNum(ig.totals.engagement)} />
+              <Kpi label="Прегледи" value={fmtNum(ig.totals.views)} />
+              <Kpi label="Објави" value={String(ig.totals.posts)} />
+            </div>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
+              {ig.byKind.map((k) => (
+                <div key={k.kind} style={kindCard}>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>
+                    {k.kind === 'video' ? '🎬 Видео' : '🖼 Слика'} · {k.posts}
+                  </div>
+                  <div style={muted}>
+                    досег {fmtNum(k.reach)} · ангажман {fmtNum(k.engagement)}
+                    {k.kind === 'video' ? ` · прегледи ${fmtNum(k.views)}` : ''}
+                  </div>
+                </div>
               ))}
             </div>
-          )}
-        </section>
-      </div>
-
-      <section style={card}>
-        <h2 style={cardTitle}>Топ објави по ангажман</h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {topPosts.map((p) => (
-            <PostRow key={p.publicationId} p={p} maxReach={maxPostReach} />
-          ))}
-        </div>
+            <MonthTable
+              rows={ig.byMonth}
+              cols={[
+                ['Досег', (m) => fmtNum(m.reach)],
+                ['Ангажман', (m) => fmtNum(m.engagement)],
+                ['Прегледи', (m) => fmtNum(m.views)],
+                ['Објави', (m) => String(m.posts)],
+              ]}
+            />
+          </>
+        )}
       </section>
 
-      {(pageSnaps.data?.length ?? 0) > 0 && (
-        <section style={card}>
-          <h2 style={cardTitle}>FB страници</h2>
-          <p style={{ fontSize: 12, color: 'var(--gd-ink-muted)', margin: '0 0 12px' }}>
-            Досегот по страница е укинат од Meta — прикажани се достапните метрики (последни 28
-            дена).
+      {/* Facebook */}
+      <section style={card}>
+        <h2 style={cardTitle}>Facebook (страница)</h2>
+        {!fb.connected ? (
+          <p style={muted}>Нема поврзана Facebook страница.</p>
+        ) : fb.byMonth.length === 0 ? (
+          <p style={muted}>
+            Нема снимени метрики за периодот. Кликни „Повлечи метрики" во Клиенти.
           </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {(pageSnaps.data ?? []).map((s) => (
-              <PageRow key={s.clientId} s={s} />
-            ))}
-          </div>
-        </section>
-      )}
-      {modals}
-    </div>
+        ) : (
+          <>
+            <p style={{ ...muted, margin: '0 0 8px' }}>{fb.note}</p>
+            <div style={tableWrap}>
+              <table style={tbl}>
+                <thead>
+                  <tr>
+                    <th style={th}>Месец</th>
+                    <th style={thR}>Следбеници</th>
+                    <th style={thR}>Ангажман</th>
+                    <th style={thR}>Прегледи</th>
+                    <th style={thR}>Нови</th>
+                    <th style={thR}>Видео</th>
+                    <th style={thR}>Реакции</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {fb.byMonth.map((m) => (
+                    <tr key={m.month}>
+                      <td style={td}>{monthLabel(m.month)}</td>
+                      <td style={tdR}>{fmtNum(m.followers)}</td>
+                      <td style={tdR}>{fmtNum(m.engagement)}</td>
+                      <td style={tdR}>{fmtNum(m.pageViews)}</td>
+                      <td style={tdR}>{fmtNum(m.newFollows)}</td>
+                      <td style={tdR}>{fmtNum(m.videoViews)}</td>
+                      <td style={tdR}>{fmtNum(m.reactions)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </section>
+
+      {/* Реклами */}
+      <section style={card}>
+        <h2 style={cardTitle}>Реклами (платено)</h2>
+        {!ads.connected ? (
+          <p style={muted}>Нема поврзана рекламна сметка.</p>
+        ) : ads.campaigns.length === 0 ? (
+          <p style={muted}>Нема реклами во периодот.</p>
+        ) : (
+          <>
+            <div style={kpiGrid}>
+              <Kpi label="Потрошено" value={fmtEur(ads.totals.spend)} />
+              <Kpi label="Досег" value={fmtNum(ads.totals.reach)} />
+              <Kpi label="Импресии" value={fmtNum(ads.totals.impressions)} />
+              <Kpi label="Кампањи" value={String(ads.campaigns.length)} />
+            </div>
+            <MonthTable
+              rows={ads.byMonth.filter((m) => m.spend > 0)}
+              cols={[
+                ['Потрошено', (m) => fmtEur(m.spend)],
+                ['Досег', (m) => fmtNum(m.reach)],
+                ['Импресии', (m) => fmtNum(m.impressions)],
+              ]}
+            />
+            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <div style={{ ...treeRow, fontWeight: 600, color: 'var(--gd-ink-muted)' }}>
+                <span style={{ flex: 1 }}>Кампања · публика · ад</span>
+                <span style={treeCol}>Потрошено</span>
+                <span style={treeCol}>Досег</span>
+                <span style={treeCol}>CTR</span>
+              </div>
+              {ads.campaigns.map((c) => (
+                <AdTreeRow key={c.id} node={c} depth={0} />
+              ))}
+            </div>
+          </>
+        )}
+      </section>
+    </>
   );
 }
 
-function PageRow({ s }: { s: PageSnapshotRow }) {
-  const stats: Array<[string, number | null]> = [
-    ['Следбеници', s.followers],
-    ['Ангажман', s.engagement],
-    ['Прегледи', s.pageViews],
-    ['Нови', s.newFollows],
-    ['Видео', s.videoViews],
-    ['Реакции', s.reactions],
-  ];
+function AdTreeRow({ node, depth }: { node: AdNode; depth: number }) {
+  const [open, setOpen] = useState(false);
+  const hasChildren = !!node.children?.length;
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-      <span
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 6,
-          fontWeight: 500,
-          fontSize: 13,
-          minWidth: 140,
-        }}
-      >
-        <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.client.color }} />
-        {s.client.name}
-      </span>
-      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-        {stats.map(([label, v]) => (
-          <span key={label} style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>
-            {label}:{' '}
-            <strong style={{ color: 'var(--gd-ink)', fontVariantNumeric: 'tabular-nums' }}>
-              {v == null ? '—' : fmtNum(v)}
-            </strong>
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function CampaignRow({ c }: { c: AnalyticsCampaign }) {
-  const pct = c.budget > 0 ? Math.min(100, (c.spent / c.budget) * 100) : 0;
-  return (
-    <div>
+    <>
       <div
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          fontSize: 13,
+          ...treeRow,
+          paddingLeft: 8 + depth * 18,
+          cursor: hasChildren ? 'pointer' : 'default',
         }}
+        onClick={() => hasChildren && setOpen((o) => !o)}
       >
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 500 }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.color }} />
-          {c.name}
+        <span style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+          {hasChildren ? (
+            open ? (
+              <ChevronDown size={13} />
+            ) : (
+              <ChevronRight size={13} />
+            )
+          ) : (
+            <span style={{ width: 13 }} />
+          )}
+          <span
+            style={{
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              fontWeight: depth === 0 ? 500 : 400,
+            }}
+          >
+            {node.name}
+          </span>
         </span>
-        <span style={{ color: 'var(--gd-ink-muted)' }}>
-          {fmtDay(c.periodFrom)}–{fmtDay(c.periodTo)}
-        </span>
+        <span style={treeCol}>{fmtEur(node.spend)}</span>
+        <span style={treeCol}>{fmtNum(node.reach)}</span>
+        <span style={treeCol}>{node.ctr == null ? '—' : `${node.ctr}%`}</span>
       </div>
-      <div style={barTrack}>
-        <div style={{ height: '100%', width: `${pct}%`, background: c.color }} />
-      </div>
-      <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)', marginTop: 4 }}>
-        {fmtEur(c.spent)} од {fmtEur(c.budget)} · досег {fmtNum(c.reach)} · цена/резултат{' '}
-        {fmtCpr(c.cpr)}
-      </div>
-    </div>
+      {open && node.children?.map((ch) => <AdTreeRow key={ch.id} node={ch} depth={depth + 1} />)}
+    </>
   );
 }
 
-function PostRow({ p, maxReach }: { p: AnalyticsPost; maxReach: number }) {
-  const pct = Math.round((p.reach / maxReach) * 100);
+function Kpi({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            fontSize: 14,
-            fontWeight: 500,
-          }}
-        >
-          <span style={{ width: 3, height: 16, borderRadius: 2, background: p.color }} />
-          {p.name}
-        </span>
-        <span style={tag}>{p.paid ? 'Платено' : 'Органски'}</span>
-      </div>
-      <div style={{ ...barTrack, height: 8, marginTop: 6 }}>
-        <div style={{ height: '100%', width: `${pct}%`, background: p.color }} />
-      </div>
-      <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)', marginTop: 4, textAlign: 'right' }}>
-        досег {fmtNum(p.reach)} · ангажман {fmtNum(p.engagement)}
-        {p.rate != null ? ` · ${p.rate}%` : ''}
+    <div style={card}>
+      <div style={{ fontSize: 13, color: 'var(--gd-ink-muted)' }}>{label}</div>
+      <div style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em', marginTop: 4 }}>
+        {value}
       </div>
     </div>
   );
 }
 
-function Split({ color, title, lines }: { color: string; title: string; lines: string[] }) {
+interface AnyMonthRow {
+  month: string;
+}
+function MonthTable<T extends AnyMonthRow>({
+  rows,
+  cols,
+}: {
+  rows: T[];
+  cols: Array<[string, (m: T) => string]>;
+}) {
+  if (rows.length <= 1) return null;
   return (
-    <div style={{ display: 'flex', gap: 8 }}>
-      <span
-        style={{
-          width: 10,
-          height: 10,
-          borderRadius: '50%',
-          background: color,
-          marginTop: 4,
-          flex: '0 0 auto',
-        }}
-      />
-      <div>
-        <div style={{ fontSize: 14, fontWeight: 500 }}>{title}</div>
-        {lines.map((l) => (
-          <div key={l} style={{ fontSize: 13, color: 'var(--gd-ink-muted)' }}>
-            {l}
-          </div>
-        ))}
-      </div>
+    <div style={{ ...tableWrap, marginTop: 12 }}>
+      <table style={tbl}>
+        <thead>
+          <tr>
+            <th style={th}>Месец</th>
+            {cols.map(([h]) => (
+              <th key={h} style={thR}>
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((m) => (
+            <tr key={m.month}>
+              <td style={td}>{monthLabel(m.month)}</td>
+              {cols.map(([h, f]) => (
+                <td key={h} style={tdR}>
+                  {f(m)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
 
+const muted: React.CSSProperties = { fontSize: 13, color: 'var(--gd-ink-muted)' };
 const emptyState: React.CSSProperties = {
   background: 'var(--gd-surface)',
   border: '1px dashed var(--gd-border)',
@@ -344,8 +364,8 @@ const emptyState: React.CSSProperties = {
 };
 const kpiGrid: React.CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-  gap: 16,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+  gap: 12,
 };
 const card: React.CSSProperties = {
   background: 'var(--gd-surface)',
@@ -357,21 +377,41 @@ const cardTitle: React.CSSProperties = {
   fontSize: 16,
   lineHeight: '24px',
   fontWeight: 600,
-  margin: '0 0 8px',
+  margin: '0 0 12px',
 };
-const barTrack: React.CSSProperties = {
-  height: 6,
-  borderRadius: 9999,
-  background: 'var(--gd-surface-alt)',
-  overflow: 'hidden',
-  marginTop: 6,
-};
-const tag: React.CSSProperties = {
-  fontSize: 11,
-  fontWeight: 500,
-  color: 'var(--gd-ink-muted)',
-  background: 'var(--gd-surface-alt)',
+const kindCard: React.CSSProperties = {
+  flex: '1 1 200px',
   border: '1px solid var(--gd-border)',
-  borderRadius: 9999,
-  padding: '1px 8px',
+  borderRadius: 8,
+  padding: '10px 12px',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 2,
 };
+const tableWrap: React.CSSProperties = { overflowX: 'auto' };
+const tbl: React.CSSProperties = {
+  width: '100%',
+  borderCollapse: 'collapse',
+  fontSize: 13,
+  fontVariantNumeric: 'tabular-nums',
+};
+const th: React.CSSProperties = {
+  textAlign: 'left',
+  padding: '6px 8px',
+  borderBottom: '1px solid var(--gd-border)',
+  color: 'var(--gd-ink-muted)',
+  fontWeight: 500,
+};
+const thR: React.CSSProperties = { ...th, textAlign: 'right' };
+const td: React.CSSProperties = { padding: '6px 8px', borderBottom: '1px solid var(--gd-border)' };
+const tdR: React.CSSProperties = { ...td, textAlign: 'right' };
+const treeRow: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  fontSize: 13,
+  padding: '5px 8px',
+  borderBottom: '1px solid var(--gd-border)',
+  fontVariantNumeric: 'tabular-nums',
+};
+const treeCol: React.CSSProperties = { width: 90, textAlign: 'right', flex: '0 0 auto' };

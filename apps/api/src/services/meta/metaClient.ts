@@ -45,6 +45,22 @@ export interface AdCampaignItem {
   stopTime: string | null;
 }
 
+/** Еден ред ад-insight по (ад × месец) со родителски имиња — за хиерархија кампања→adset→ад. */
+export interface AdInsightRow {
+  campaignId: string;
+  campaignName: string;
+  adsetId: string;
+  adsetName: string;
+  adId: string;
+  adName: string;
+  /** YYYY-MM (месец на редот). */
+  month: string;
+  spend: number;
+  reach: number;
+  impressions: number;
+  ctr: number;
+}
+
 /** FB page-ниво метрики (reach е укинат од Meta v21 — недостапно). */
 export interface PageMetrics {
   followers: number | null;
@@ -82,6 +98,8 @@ export interface MetaClient {
   fetchCampaigns(adAccountId: string, limit: number): Promise<AdCampaignItem[]>;
   /** FB page-ниво метрики (followers, ангажман, page views…). */
   fetchPageMetrics(pageId: string): Promise<PageMetrics>;
+  /** Ад insights по (ад × месец) за период — за хиерархија во Аналитика. */
+  fetchAdInsightsTree(adAccountId: string, since: string, until: string): Promise<AdInsightRow[]>;
 }
 
 let singleton: MetaClient | null = null;

@@ -1,6 +1,7 @@
 import type {
   AccountMediaItem,
   AdCampaignItem,
+  AdInsightRow,
   MetaAccount,
   MetaAdAccount,
   MetaClient,
@@ -89,6 +90,32 @@ export class StubMetaClient implements MetaClient {
       reactions: h % 2_000,
       raw: { stub: true },
     };
+  }
+
+  async fetchAdInsightsTree(
+    adAccountId: string,
+    since: string,
+    _until: string,
+  ): Promise<AdInsightRow[]> {
+    const month = since.slice(0, 7);
+    const rows: AdInsightRow[] = [];
+    for (let c = 1; c <= 2; c++) {
+      const h = hash(`${adAccountId}_${c}_${month}`);
+      rows.push({
+        campaignId: `camp_${c}`,
+        campaignName: `Stub Campaign ${c}`,
+        adsetId: `adset_${c}`,
+        adsetName: `Stub Adset ${c}`,
+        adId: `ad_${c}`,
+        adName: `Stub Ad ${c}`,
+        month,
+        spend: 20 + (h % 300),
+        reach: 5000 + (h % 40000),
+        impressions: 10000 + (h % 80000),
+        ctr: 1 + (h % 400) / 100,
+      });
+    }
+    return rows;
   }
 
   async fetchAdInsights(input: { metaCampaignId: string }): Promise<unknown> {

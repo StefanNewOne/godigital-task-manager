@@ -2,47 +2,77 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import { renderWithProviders, mockFetch } from '../test/utils.js';
 import { Analytics } from './Analytics.js';
-import type { AnalyticsData } from '../api/analytics.js';
+import type { ClientAnalytics } from '../api/analytics.js';
 
-const DATA: AnalyticsData = {
-  month: '2026-09',
-  kpis: {
-    reach: 586_000,
-    impressions: 720_000,
-    views: 405_000,
-    engagement: 21_100,
-    spend: 1_530,
-    cpr: 0.34,
-    ctr: 1.9,
-    posts: 58,
+const CLIENTS = [{ id: 'cl1', name: 'Алекс Дизајн', color: '#DB2777', status: 'aktiven' }];
+
+const DATA: ClientAnalytics = {
+  clientId: 'cl1',
+  clientName: 'Алекс Дизајн',
+  from: '2026-09',
+  to: '2026-09',
+  instagram: {
+    connected: true,
+    totals: { reach: 61_700, engagement: 4_400, views: 12_000, posts: 8 },
+    byKind: [
+      { kind: 'video', posts: 3, reach: 40_000, engagement: 3_000, views: 12_000 },
+      { kind: 'image', posts: 5, reach: 21_700, engagement: 1_400, views: 0 },
+    ],
+    byMonth: [
+      {
+        month: '2026-09',
+        reach: 61_700,
+        engagement: 4_400,
+        views: 12_000,
+        impressions: 0,
+        spend: 0,
+        posts: 8,
+      },
+    ],
+    topPosts: [],
   },
-  split: { organicReach: 364_000, paidReach: 222_000, organicPosts: 36, paidPosts: 22 },
-  campaigns: [
-    {
-      id: 'c1',
-      name: 'Астибо · Есенска колекција',
-      color: '#D97706',
-      periodFrom: '2026-09-15T00:00:00.000Z',
-      periodTo: '2026-09-30T00:00:00.000Z',
-      spent: 286,
-      budget: 450,
-      reach: 84_200,
-      cpr: 0.31,
-    },
-  ],
-  topPosts: [
-    {
-      publicationId: 'p1',
-      name: 'Алекс дизајн · Лежај Ена',
-      color: '#DB2777',
-      platform: 'ig',
-      paid: true,
-      reach: 61_700,
-      engagement: 4_400,
-      rate: 7.1,
-    },
-  ],
-  hasData: true,
+  facebook: {
+    connected: true,
+    note: 'Досегот по страница е укинат од Meta.',
+    byMonth: [
+      {
+        month: '2026-09',
+        followers: 23_441,
+        engagement: 17_183,
+        pageViews: 10_473,
+        newFollows: 262,
+        videoViews: 443_423,
+        reactions: 2_198,
+      },
+    ],
+  },
+  ads: {
+    connected: true,
+    totals: { spend: 1_655, reach: 193_569, impressions: 1_756_519 },
+    byMonth: [
+      {
+        month: '2026-09',
+        reach: 193_569,
+        engagement: 0,
+        views: 0,
+        impressions: 1_756_519,
+        spend: 1_655,
+        posts: 0,
+      },
+    ],
+    campaigns: [
+      {
+        id: 'camp1',
+        name: 'Промо недела',
+        spend: 1_655,
+        reach: 193_569,
+        impressions: 1_756_519,
+        ctr: 5.3,
+        byMonth: [],
+        children: [],
+      },
+    ],
+  },
 };
 
 afterEach(() => {
@@ -50,22 +80,13 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('Analytics', () => {
-  it('прикажува KPI картички и распоред од /analytics', async () => {
-    mockFetch({ '/analytics': DATA });
+describe('Analytics (редизајн)', () => {
+  it('прикажува секции по извор + ад хиерархија за избран клиент', async () => {
+    mockFetch({ '/clients': CLIENTS, '/analytics/client/cl1': DATA });
     renderWithProviders(<Analytics />);
-    expect(await screen.findByText('Досег')).toBeTruthy();
-    expect(screen.getByText('Органски наспроти платено')).toBeTruthy();
-    expect(screen.getByText('Кампањи во тек')).toBeTruthy();
-    expect(screen.getByText('Топ објави по ангажман')).toBeTruthy();
-    expect(screen.getByText('Астибо · Есенска колекција')).toBeTruthy();
-  });
-
-  it('празна состојба кога нема метрики', async () => {
-    mockFetch({
-      '/analytics': { ...DATA, hasData: false, campaigns: [], topPosts: [] },
-    });
-    renderWithProviders(<Analytics />);
-    expect(await screen.findByText(/Сè уште нема снимени метрики/)).toBeTruthy();
+    expect(await screen.findByText('Instagram (органски)')).toBeTruthy();
+    expect(screen.getByText('Facebook (страница)')).toBeTruthy();
+    expect(screen.getByText('Реклами (платено)')).toBeTruthy();
+    expect(screen.getByText('Промо недела')).toBeTruthy();
   });
 });

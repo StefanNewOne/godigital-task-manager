@@ -57,3 +57,79 @@ export function useAnalytics(month: string) {
     queryFn: () => api.get<AnalyticsData>(`/analytics?month=${month}`),
   });
 }
+
+// ── Редизајн: по клиент + период (Instagram · Facebook · Реклами) ──
+export interface MonthMetric {
+  month: string;
+  reach: number;
+  engagement: number;
+  views: number;
+  impressions: number;
+  spend: number;
+  posts: number;
+}
+export interface IgPost {
+  id: string;
+  permalink: string | null;
+  mediaKind: 'video' | 'image';
+  month: string | null;
+  reach: number;
+  engagement: number;
+  views: number;
+}
+export interface AdNode {
+  id: string;
+  name: string;
+  spend: number;
+  reach: number;
+  impressions: number;
+  ctr: number | null;
+  byMonth: MonthMetric[];
+  children?: AdNode[];
+}
+export interface ClientAnalytics {
+  clientId: string;
+  clientName: string;
+  from: string;
+  to: string;
+  instagram: {
+    connected: boolean;
+    totals: { reach: number; engagement: number; views: number; posts: number };
+    byKind: Array<{
+      kind: 'video' | 'image';
+      posts: number;
+      reach: number;
+      engagement: number;
+      views: number;
+    }>;
+    byMonth: MonthMetric[];
+    topPosts: IgPost[];
+  };
+  facebook: {
+    connected: boolean;
+    note: string;
+    byMonth: Array<{
+      month: string;
+      followers: number | null;
+      engagement: number | null;
+      pageViews: number | null;
+      newFollows: number | null;
+      videoViews: number | null;
+      reactions: number | null;
+    }>;
+  };
+  ads: {
+    connected: boolean;
+    totals: { spend: number; reach: number; impressions: number };
+    byMonth: MonthMetric[];
+    campaigns: AdNode[];
+  };
+}
+
+export function useClientAnalytics(clientId: string, from: string, to: string) {
+  return useQuery({
+    queryKey: ['client-analytics', clientId, from, to],
+    queryFn: () => api.get<ClientAnalytics>(`/analytics/client/${clientId}?from=${from}&to=${to}`),
+    enabled: !!clientId,
+  });
+}
