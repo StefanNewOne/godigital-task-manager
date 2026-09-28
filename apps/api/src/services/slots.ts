@@ -1,6 +1,7 @@
 import {
   ROLE_LABEL,
   canChangeDate,
+  clientActiveForDate,
   generateSlots,
   ymd,
   type CalendarSpec,
@@ -159,6 +160,62 @@ export async function generateForApprovedClients(month: string) {
     results.push({ clientId: id, slots: slots.length });
   }
   return { month, clients: results.length, results };
+}
+
+/**
+ * Редизајн Парче 3: Акаунт менаџер (или Директор) генерира НАРЕДНИОТ месец за сите активни
+ * клиенти — БЕЗ одобрување од Директор. Деактивираните клиенти (cutoff < нареден месец) се
+ * прескокнуваат. Месецот се обележува како потврден (за гејтот во Парче 4).
+ */
+export async function generateNextMonthForActiveClients(
+  actor: { id: string; role: Role },
+  now = new Date(),
+) {
+  if (actor.role !== 'am' && actor.role !== 'dir') {
+    throw new AppError('FORBIDDEN_ROLE', 'Само Акаунт менаџер или Директор може да генерира.', 403);
+  }
+  const month = nextMonthKey(now);
+  const { year, month0 } = parseMonthKey(month);
+  const firstDay = new Date(Date.UTC(year, month0, 1));
+
+  const clients = await prisma.client.findMany({ where: { status: 'aktiven', archivedAt: null } });
+  const eligible = clients.filter((c) => clientActiveForDate(c.deactivatedAt, firstDay));
+
+  const results: Array<{ clientId: string; name: string; slots: number }> = [];
+  for (const c of eligible) {
+    const slots = await generateProposalSlots(c.id, month);
+    results.push({ clientId: c.id, name: c.name, slots: slots.length });
+  }
+
+  // Обележи го месецот како потврден (АМ-сопственост) + материјализирај ги вклучените клиенти.
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.monthlyPlan.findFirst({ where: { monthKey: month } });
+    const plan = existing ?? (await tx.monthlyPlan.create({ data: { monthKey: month } }));
+    for (const c of eligible) {
+      await tx.monthlyPlanClient.upsert({
+        where: { monthlyPlanId_clientId: { monthlyPlanId: plan.id, clientId: c.id } },
+        create: { monthlyPlanId: plan.id, clientId: c.id, active: true },
+        update: { active: true },
+      });
+    }
+    await tx.monthlyPlan.update({
+      where: { id: plan.id },
+      data: { confirmedAt: new Date(), confirmedById: actor.id },
+    });
+    await recordEvent(
+      tx as TxClient,
+      {
+        eventType: 'monthlyPlan.generated',
+        objectType: 'monthlyPlan',
+        objectId: plan.id,
+        newValue: { monthKey: month, clients: eligible.length },
+        narrative: `Акаунт менаџерот генерираше нареден месец ${month} · ${eligible.length} клиенти.`,
+      },
+      ['realtime'],
+    );
+  });
+
+  return { month, clients: eligible.length, results };
 }
 
 /** Потврди месец: predlog→reserved, автоматска капа (D-7), мртви таскови по слот. */

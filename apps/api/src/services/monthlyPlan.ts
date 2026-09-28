@@ -152,8 +152,9 @@ function nextMonthKeyOf(base: Date): string {
 }
 
 /**
- * Cron (дневно): ако наредниот месец нема потврден план → потсети го Директорот.
- * До 15-ти: тивко. На 15-ти: `potsetnik`. По 15-ти: `kritichen` (аларм додека не потврди).
+ * Cron (дневно): ако наредниот месец не е генериран/потврден → потсети го Акаунт менаџерот
+ * (редизајн: АМ го поседува генерирањето, не Директорот).
+ * До 15-ти: тивко. На 15-ти: `potsetnik`. По 15-ти: `kritichen` (аларм додека не генерира).
  */
 export async function remindMonthlyPlan(now = new Date()) {
   const targetMonth = nextMonthKeyOf(now);
@@ -164,18 +165,18 @@ export async function remindMonthlyPlan(now = new Date()) {
   if (day < 15) return { targetMonth, confirmed: false, notified: 0, tooEarly: true };
 
   const level: NotificationLevel = day === 15 ? 'potsetnik' : 'kritichen';
-  const dirs = await prisma.employee.findMany({
-    where: { role: 'dir', active: true },
+  const managers = await prisma.employee.findMany({
+    where: { role: 'am', active: true },
     select: { id: true },
   });
   let notified = 0;
-  for (const d of dirs) {
+  for (const m of managers) {
     const created = await createNotification({
-      recipientId: d.id,
+      recipientId: m.id,
       level,
-      eventKey: 'monthly_plan_confirm',
-      title: level === 'potsetnik' ? 'Потврди месечна листа' : 'Месечната листа не е потврдена',
-      body: `Потврди ги активните клиенти за ${targetMonth} (рок 15-ти во месецот).`,
+      eventKey: 'monthly_next_generate',
+      title: level === 'potsetnik' ? 'Генерирај нареден месец' : 'Наредниот месец не е генериран',
+      body: `Генерирај го распоредот за ${targetMonth} (рок 15-ти во месецот).`,
     }).catch(() => null);
     if (created) notified++;
   }

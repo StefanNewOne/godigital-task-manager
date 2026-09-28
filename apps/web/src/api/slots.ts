@@ -59,6 +59,16 @@ export function useConfirmMonth(clientId: string, month: string) {
   });
 }
 
+/** Редизајн Парче 3: АМ/Директор генерира нареден месец за сите активни клиенти. */
+export function useGenerateNextMonth() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      api.post<{ month: string; clients: number }>('/slots/generate-next-month', {}),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['slots'] }),
+  });
+}
+
 export function usePatchSlot(clientId: string, month: string) {
   const qc = useQueryClient();
   return useMutation({

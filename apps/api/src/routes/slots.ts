@@ -6,7 +6,11 @@ import { AppError } from '../lib/errors.js';
 import { parse } from '../lib/validate.js';
 import { recordEvent } from '../lib/events.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
-import { confirmMonth, generateProposalSlots } from '../services/slots.js';
+import {
+  confirmMonth,
+  generateNextMonthForActiveClients,
+  generateProposalSlots,
+} from '../services/slots.js';
 
 // Mounted at /clients/:id/slots
 export const clientSlotsRouter: ExpressRouter = Router({ mergeParams: true });
@@ -40,6 +44,15 @@ clientSlotsRouter.post('/confirm', requireRole('dir', 'am'), async (req, res) =>
 // Mounted at /slots
 export const slotsRouter: ExpressRouter = Router();
 slotsRouter.use(requireAuth);
+
+// Редизајн Парче 3: АМ/Директор генерира нареден месец за сите активни клиенти (без одобрување).
+slotsRouter.post('/generate-next-month', requireRole('dir', 'am'), async (req, res) => {
+  const result = await generateNextMonthForActiveClients({
+    id: req.auth!.sub,
+    role: req.auth!.role,
+  });
+  res.status(201).json({ data: result });
+});
 
 // Глобален календар: слотови за сите клиенти за даден месец (tenant-scoped преку extension).
 slotsRouter.get('/all', async (req, res) => {
