@@ -5,7 +5,6 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useMe } from '../api/auth.js';
 import { useClients } from '../api/admin.js';
 import { useClientAnalytics, type AdNode, type ClientAnalytics } from '../api/analytics.js';
-import { CampaignsManager } from './CampaignsManager.js';
 import { ReportModal } from './ReportModal.js';
 
 /**
@@ -51,7 +50,6 @@ export function Analytics() {
   const [clientId, setClientId] = useState('');
   const [from, setFrom] = useState(currentMonth());
   const [to, setTo] = useState(currentMonth());
-  const [managing, setManaging] = useState(false);
   const [reporting, setReporting] = useState(false);
 
   // Default клиент = прв во листата.
@@ -60,7 +58,6 @@ export function Analytics() {
   }, [clients, clientId]);
 
   const { data, isLoading, isError } = useClientAnalytics(clientId, from, to);
-  const canManage = me?.role === 'ana' || me?.role === 'dir';
   const canReport = me?.role === 'ana' || me?.role === 'dir' || me?.role === 'am';
 
   return (
@@ -104,12 +101,7 @@ export function Analytics() {
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
           {canReport && (
             <Button variant="secondary" size="form" onClick={() => setReporting(true)}>
-              Извештај
-            </Button>
-          )}
-          {canManage && (
-            <Button variant="secondary" size="form" onClick={() => setManaging(true)}>
-              Кампањи
+              Месечен извештај
             </Button>
           )}
         </div>
@@ -121,7 +113,6 @@ export function Analytics() {
       )}
       {data && <ClientAnalyticsView data={data} />}
 
-      {managing && <CampaignsManager onClose={() => setManaging(false)} />}
       {reporting && <ReportModal month={from} onClose={() => setReporting(false)} />}
     </div>
   );
