@@ -1,4 +1,11 @@
-import type { AccountMediaItem, MetaAccount, MetaClient, PublicationRef } from './metaClient.js';
+import type {
+  AccountMediaItem,
+  AdCampaignItem,
+  MetaAccount,
+  MetaAdAccount,
+  MetaClient,
+  PublicationRef,
+} from './metaClient.js';
 
 /**
  * Реален Meta Graph API адаптер (B2). Се користи само во прод кога постои системски токен;
@@ -107,9 +114,57 @@ export class GraphMetaClient implements MetaClient {
   }
 
   async fetchAdInsights(input: { metaCampaignId: string }): Promise<unknown> {
+    // date_preset=maximum → вкупни (lifetime) метрики на кампањата (за backfill и тековно).
     const fields = 'reach,impressions,spend,ctr,frequency,cost_per_result';
-    const url = `${this.base}/${input.metaCampaignId}/insights?fields=${fields}&access_token=${encodeURIComponent(this.token)}`;
+    const url = `${this.base}/${input.metaCampaignId}/insights?fields=${fields}&date_preset=maximum&access_token=${encodeURIComponent(this.token)}`;
     return this.get(url);
+  }
+
+  async listAdAccounts(): Promise<MetaAdAccount[]> {
+    const enc = encodeURIComponent(this.token);
+    const out: MetaAdAccount[] = [];
+    let url: string | null = `${this.base}/me/adaccounts?fields=name&limit=200&access_token=${enc}`;
+    for (let i = 0; i < 10 && url; i++) {
+      const page = (await this.get(url)) as {
+        data?: Array<{ id: string; name: string }>;
+        paging?: { next?: string };
+      };
+      for (const a of page.data ?? []) out.push({ id: a.id, name: a.name });
+      url = page.paging?.next ?? null;
+    }
+    return out;
+  }
+
+  async fetchCampaigns(adAccountId: string, limit: number): Promise<AdCampaignItem[]> {
+    const enc = encodeURIComponent(this.token);
+    const out: AdCampaignItem[] = [];
+    let url: string | null =
+      `${this.base}/${adAccountId}/campaigns?fields=id,name,status,objective,start_time,stop_time&limit=${Math.min(limit, 100)}&access_token=${enc}`;
+    for (let i = 0; i < 10 && url && out.length < limit; i++) {
+      const page = (await this.get(url)) as {
+        data?: Array<{
+          id: string;
+          name: string;
+          status?: string;
+          objective?: string;
+          start_time?: string;
+          stop_time?: string;
+        }>;
+        paging?: { next?: string };
+      };
+      for (const c of page.data ?? []) {
+        out.push({
+          campaignId: c.id,
+          name: c.name,
+          status: c.status ?? null,
+          objective: c.objective ?? null,
+          startTime: c.start_time ?? null,
+          stopTime: c.stop_time ?? null,
+        });
+      }
+      url = page.paging?.next ?? null;
+    }
+    return out.slice(0, limit);
   }
 
   private async get(url: string): Promise<unknown> {

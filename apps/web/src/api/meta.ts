@@ -8,6 +8,16 @@ export interface MetaAccount {
   igUsername: string | null;
 }
 
+export interface MetaAdAccount {
+  id: string;
+  name: string;
+}
+
+interface BackfillResult {
+  media: { created: number; updated: number; total: number };
+  campaigns: { created: number; updated: number; total: number; snapshots: number };
+}
+
 /** Достапни Meta страници + IG business сметки (dir/am) за доделба по клиент. */
 export function useMetaAccounts(enabled: boolean) {
   return useQuery({
@@ -18,15 +28,22 @@ export function useMetaAccounts(enabled: boolean) {
   });
 }
 
-/** Backfill постови од сметката на клиентот + повлечи метрики. */
+/** Достапни рекламни сметки (dir/am) за доделба metaAdAccountId. */
+export function useMetaAdAccounts(enabled: boolean) {
+  return useQuery({
+    queryKey: ['meta-ad-accounts'],
+    queryFn: () => api.get<MetaAdAccount[]>('/meta/ad-accounts'),
+    enabled,
+    staleTime: 5 * 60_000,
+  });
+}
+
+/** Backfill постови (IG) + кампањи (платено) од сметките на клиентот + повлечи метрики. */
 export function useBackfillClient() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (clientId: string) =>
-      api.post<{ backfill: { created: number; updated: number; total: number }; pulled: unknown }>(
-        `/meta/clients/${clientId}/backfill`,
-        {},
-      ),
+      api.post<BackfillResult>(`/meta/clients/${clientId}/backfill`, {}),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['analytics'] }),
   });
 }

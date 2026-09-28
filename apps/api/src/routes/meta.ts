@@ -2,7 +2,11 @@ import { Router } from 'express';
 import type { Router as ExpressRouter } from 'express';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { getMetaClient } from '../services/meta/metaClient.js';
-import { backfillClientMedia, pullMetrics } from '../services/meta/metrics.js';
+import {
+  backfillClientCampaigns,
+  backfillClientMedia,
+  pullMetrics,
+} from '../services/meta/metrics.js';
 
 /** Meta интеграција (B2). Mounted at /meta. Само dir/am. Токенот е само на backend. */
 export const metaRouter: ExpressRouter = Router();
@@ -15,11 +19,18 @@ metaRouter.get('/accounts', requireRole('dir', 'am'), async (_req, res) => {
   res.json({ data: accounts });
 });
 
-// Backfill на постоечки постови од сметката на клиентот + веднаш повлечи метрики.
+// Достапни рекламни сметки (за доделба metaAdAccountId по клиент).
+metaRouter.get('/ad-accounts', requireRole('dir', 'am'), async (_req, res) => {
+  const accounts = await getMetaClient().listAdAccounts();
+  res.json({ data: accounts });
+});
+
+// Backfill: IG органски постови + платени кампањи (ако има ад-акаунт) + повлечи метрики.
 metaRouter.post('/clients/:id/backfill', requireRole('dir', 'am'), async (req, res) => {
   const clientId = (req.params as { id: string }).id;
   const limit = Math.min(Number((req.body as { limit?: number })?.limit) || 25, 100);
-  const backfill = await backfillClientMedia(clientId, limit);
+  const media = await backfillClientMedia(clientId, limit);
+  const campaigns = await backfillClientCampaigns(clientId, 50);
   const pulled = await pullMetrics();
-  res.json({ data: { backfill, pulled } });
+  res.json({ data: { media, campaigns, pulled } });
 });

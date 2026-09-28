@@ -155,3 +155,65 @@ export async function backfillClientMedia(clientId: string, limit = 25) {
   }
   return { created, updated, total: media.length };
 }
+
+/** FB статус на кампања → наш CampaignStatus. */
+function campaignStatusOf(status: string | null): 'planned' | 'active' | 'closed' {
+  if (status === 'ACTIVE') return 'active';
+  if (status === 'PAUSED' || status === 'IN_PROCESS' || status === 'WITH_ISSUES') return 'planned';
+  return 'closed';
+}
+
+/**
+ * Backfill (B2 платено): повлечи ги кампањите од рекламната сметка на клиентот + нивните insights
+ * → upsert `Campaign` + `MetricSnapshot` (spend/reach/impressions/ctr). Идемпотентно по
+ * (clientId, metaCampaignId).
+ */
+export async function backfillClientCampaigns(clientId: string, limit = 50) {
+  const clientRow = await prisma.client.findUnique({ where: { id: clientId } });
+  if (!clientRow) throw new AppError('NOT_FOUND', 'Клиентот не е пронајден.', 404);
+  if (!clientRow.metaAdAccountId) {
+    return { created: 0, updated: 0, total: 0, snapshots: 0 };
+  }
+
+  const client = getMetaClient();
+  const list = await client.fetchCampaigns(clientRow.metaAdAccountId, limit);
+  let created = 0;
+  let updated = 0;
+  let snapshots = 0;
+  for (const c of list) {
+    const from = c.startTime ? new Date(c.startTime) : new Date();
+    const to = c.stopTime ? new Date(c.stopTime) : new Date();
+    const base = {
+      name: c.name,
+      objective: c.objective ?? 'UNKNOWN',
+      periodFrom: from,
+      periodTo: to,
+      status: campaignStatusOf(c.status),
+    };
+    const existing = await prisma.campaign.findFirst({
+      where: { clientId, metaCampaignId: c.campaignId },
+    });
+    let campaign;
+    if (existing) {
+      campaign = await prisma.campaign.update({ where: { id: existing.id }, data: base });
+      updated++;
+    } else {
+      campaign = await prisma.campaign.create({
+        data: { clientId, metaCampaignId: c.campaignId, budget: 0, ...base },
+      });
+      created++;
+    }
+
+    try {
+      const raw = await client.fetchAdInsights({ metaCampaignId: c.campaignId });
+      const m = deriveMetrics(normalizeMetaInsights(raw));
+      await prisma.metricSnapshot.create({
+        data: { campaignId: campaign.id, raw: raw as Prisma.InputJsonValue, ...metricColumns(m) },
+      });
+      snapshots++;
+    } catch {
+      // best-effort по кампања
+    }
+  }
+  return { created, updated, total: list.length, snapshots };
+}

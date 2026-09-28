@@ -20,7 +20,12 @@ import {
   useUpdateContact,
 } from '../../api/admin.js';
 import { useMe } from '../../api/auth.js';
-import { useBackfillClient, useMetaAccounts, type MetaAccount } from '../../api/meta.js';
+import {
+  useBackfillClient,
+  useMetaAccounts,
+  useMetaAdAccounts,
+  type MetaAccount,
+} from '../../api/meta.js';
 import { ApiRequestError } from '../../lib/api.js';
 import type { ClientRow } from '../../lib/types.js';
 
@@ -49,7 +54,7 @@ export function AdminClients() {
     backfill.mutate(c.id, {
       onSuccess: (r) =>
         setToast(
-          `${c.name}: повлечени ${r.backfill.total} постови (${r.backfill.created} нови). Метриките се освежени.`,
+          `${c.name}: ${r.media.total} IG постови + ${r.campaigns.total} кампањи. Метриките се освежени.`,
         ),
       onError: (e) => setToast(e instanceof ApiRequestError ? e.message : 'Грешка.'),
     });
@@ -327,6 +332,10 @@ function ClientModal({ client, onClose }: { client?: ClientRow; onClose: () => v
         </label>
         {watchMeta && (
           <div style={{ display: 'grid', gap: 8 }}>
+            <AdAccountPicker
+              current={watch('metaAdAccountId')}
+              onPick={(id) => setValue('metaAdAccountId', id ?? '')}
+            />
             <Field label="Meta Ad Account ID" error={errors.metaAdAccountId?.message}>
               <input
                 className={fieldCls(false)}
@@ -381,6 +390,39 @@ function MetaAccountPicker({
           <option key={a.igId} value={a.igId ?? ''}>
             {a.pageName}
             {a.igUsername ? ` · @${a.igUsername}` : ''}
+          </option>
+        ))}
+      </select>
+    </Field>
+  );
+}
+
+/** Dropdown за поврзување со рекламна сметка — пополнува metaAdAccountId. */
+function AdAccountPicker({
+  current,
+  onPick,
+}: {
+  current?: string;
+  onPick: (id: string | null) => void;
+}) {
+  const { data: accounts, isLoading } = useMetaAdAccounts(true);
+  return (
+    <Field label="Рекламна сметка (Ads)">
+      <select
+        className={fieldCls(false)}
+        value={current ?? ''}
+        onChange={(e) => onPick(e.target.value || null)}
+      >
+        <option value="">
+          {isLoading
+            ? 'Вчитување…'
+            : (accounts?.length ?? 0)
+              ? '— избери рекламна сметка —'
+              : 'Нема достапни'}
+        </option>
+        {(accounts ?? []).map((a) => (
+          <option key={a.id} value={a.id}>
+            {a.name} · {a.id}
           </option>
         ))}
       </select>

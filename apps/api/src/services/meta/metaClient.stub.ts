@@ -1,4 +1,11 @@
-import type { AccountMediaItem, MetaAccount, MetaClient, PublicationRef } from './metaClient.js';
+import type {
+  AccountMediaItem,
+  AdCampaignItem,
+  MetaAccount,
+  MetaAdAccount,
+  MetaClient,
+  PublicationRef,
+} from './metaClient.js';
 
 /**
  * Детерминистички stub на Meta адаптерот за dev/тест (без надворешни повици). Бројките се
@@ -49,6 +56,25 @@ export class StubMetaClient implements MetaClient {
         timestamp: `2035-06-1${i}T10:00:00+0000`,
       };
     });
+  }
+
+  async listAdAccounts(): Promise<MetaAdAccount[]> {
+    return [
+      { id: 'act_stub_1', name: 'Stub Ad Account A' },
+      { id: 'act_stub_2', name: 'Stub Ad Account B' },
+    ];
+  }
+
+  async fetchCampaigns(adAccountId: string, limit: number): Promise<AdCampaignItem[]> {
+    const n = Math.min(limit, 2);
+    return Array.from({ length: n }, (_, i) => ({
+      campaignId: `stub_camp_${adAccountId}_${i}`,
+      name: `Stub Campaign ${i + 1}`,
+      status: 'ACTIVE',
+      objective: 'OUTCOME_TRAFFIC',
+      startTime: `2035-06-0${i + 1}T00:00:00+0000`,
+      stopTime: `2035-06-2${i}T00:00:00+0000`,
+    }));
   }
 
   async fetchAdInsights(input: { metaCampaignId: string }): Promise<unknown> {

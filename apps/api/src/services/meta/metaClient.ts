@@ -28,6 +28,23 @@ export interface AccountMediaItem {
   timestamp: string | null;
 }
 
+/** Рекламна сметка достапна со системскиот токен. */
+export interface MetaAdAccount {
+  /** Node id со префикс, пр. `act_123`. */
+  id: string;
+  name: string;
+}
+
+/** Кампања од рекламна сметка (за backfill на платени метрики). */
+export interface AdCampaignItem {
+  campaignId: string;
+  name: string;
+  status: string | null;
+  objective: string | null;
+  startTime: string | null;
+  stopTime: string | null;
+}
+
 /**
  * Адаптер кон Meta Graph API (B2). Враќа СУРОВ Graph одговор — нормализацијата ја прави
  * `@gd/core` (`normalizeMetaInsights`/`deriveMetrics`). Никогаш не се повикува од frontend.
@@ -43,6 +60,10 @@ export interface MetaClient {
   listAccounts(): Promise<MetaAccount[]>;
   /** Последни N медиа од IG business сметка (за backfill). */
   fetchAccountMedia(igId: string, limit: number): Promise<AccountMediaItem[]>;
+  /** Листа на достапни рекламни сметки (за доделба по клиент). */
+  listAdAccounts(): Promise<MetaAdAccount[]>;
+  /** Кампањи од рекламна сметка (за backfill на платени метрики). */
+  fetchCampaigns(adAccountId: string, limit: number): Promise<AdCampaignItem[]>;
 }
 
 let singleton: MetaClient | null = null;

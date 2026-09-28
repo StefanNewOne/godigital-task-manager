@@ -1,6 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PrismaClient } from '@gd/db';
-import { backfillClientMedia, pullMetrics } from '../services/meta/metrics.js';
+import {
+  backfillClientCampaigns,
+  backfillClientMedia,
+  pullMetrics,
+} from '../services/meta/metrics.js';
 import { getAnalytics } from '../services/analytics.js';
 import { setMetaClient } from '../services/meta/metaClient.js';
 import { StubMetaClient } from '../services/meta/metaClient.stub.js';
@@ -21,6 +25,7 @@ beforeAll(async () => {
       contractStart: new Date(Date.UTC(2026, 0, 1)),
       contractMonths: 12,
       metaIgId: 'stub_ig_test',
+      metaAdAccountId: 'act_stub_test',
     },
   });
   clientId = c.id;
@@ -28,6 +33,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await db.publication.deleteMany({ where: { clientId } });
+  await db.campaign.deleteMany({ where: { clientId } });
   await db.client.delete({ where: { id: clientId } });
   setMetaClient(null);
   await db.$disconnect();
@@ -61,5 +67,23 @@ describe('Meta backfill → Аналитика (B2)', () => {
     expect(mine.length).toBeGreaterThan(0);
     expect(mine[0]!.reach).toBeGreaterThan(0);
     expect(a.hasData).toBe(true);
+  });
+});
+
+describe('Meta ад-акаунт backfill (B2 платено)', () => {
+  it('backfill на кампањи создава Campaign + MetricSnapshot со spend', async () => {
+    const r = await backfillClientCampaigns(clientId, 5);
+    expect(r.total).toBeGreaterThan(0);
+    expect(r.snapshots).toBeGreaterThan(0);
+
+    const camps = await db.campaign.findMany({ where: { clientId } });
+    expect(camps.length).toBeGreaterThan(0);
+    expect(camps.every((c) => c.metaCampaignId)).toBe(true);
+
+    const snaps = await db.metricSnapshot.findMany({
+      where: { campaignId: { in: camps.map((c) => c.id) } },
+    });
+    expect(snaps.length).toBeGreaterThan(0);
+    expect(snaps.some((s) => Number(s.spend) > 0)).toBe(true);
   });
 });
