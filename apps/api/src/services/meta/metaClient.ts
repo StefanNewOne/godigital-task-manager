@@ -7,6 +7,25 @@ export interface PublicationRef {
   platform: 'fb' | 'ig' | 'tiktok';
   externalRef: string | null;
   permalink: string | null;
+  /** IG business account id на клиентот (за match на media edge, B2). */
+  igId?: string | null;
+}
+
+/** Meta сметка достапна со системскиот токен (страница + поврзана IG business сметка). */
+export interface MetaAccount {
+  pageId: string;
+  pageName: string;
+  igId: string | null;
+  igUsername: string | null;
+}
+
+/** Суров опис на медиа од сметка (за backfill). */
+export interface AccountMediaItem {
+  mediaId: string;
+  shortcode: string | null;
+  permalink: string | null;
+  mediaType: string | null;
+  timestamp: string | null;
 }
 
 /**
@@ -20,6 +39,10 @@ export interface MetaClient {
   fetchMediaInsights(input: { platform: string; mediaId: string }): Promise<unknown>;
   /** Суров insights одговор за платена кампања. */
   fetchAdInsights(input: { metaCampaignId: string }): Promise<unknown>;
+  /** Листа на достапни страници + IG business сметки (за доделба по клиент). */
+  listAccounts(): Promise<MetaAccount[]>;
+  /** Последни N медиа од IG business сметка (за backfill). */
+  fetchAccountMedia(igId: string, limit: number): Promise<AccountMediaItem[]>;
 }
 
 let singleton: MetaClient | null = null;

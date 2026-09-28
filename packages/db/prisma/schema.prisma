@@ -294,6 +294,7 @@ model Client {
   tasks             Task[]
   campaigns         Campaign[]
   moduleAssignments ModuleAssignment[]
+  publications      Publication[]
 
   @@index([tenantId])
 }
@@ -536,8 +537,12 @@ model Comment {
 model Publication {
   id            String              @id @default(uuid(7)) @db.Uuid
   tenantId      String              @default("godigital")
-  taskId        String              @db.Uuid
-  task          Task                @relation(fields: [taskId], references: [id])
+  // Објава преку апката е врзана за таск; backfill-ирана објава (директно од сметката, B2)
+  // е account-ниво — без таск, но со директен clientId.
+  taskId        String?             @db.Uuid
+  task          Task?               @relation(fields: [taskId], references: [id])
+  clientId      String?             @db.Uuid
+  client        Client?             @relation(fields: [clientId], references: [id])
   platform      PublicationPlatform
   postType      PostType
   publishedAt   DateTime?
@@ -550,6 +555,8 @@ model Publication {
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
 
+  // Task-објави: една по (task, платформа). Backfill unique (clientId, platform, externalRef)
+  // е партиален индекс во миграцијата (Prisma нема филтриран unique).
   @@unique([taskId, platform])
 }
 

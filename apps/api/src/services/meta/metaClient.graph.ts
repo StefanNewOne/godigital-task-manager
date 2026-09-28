@@ -1,4 +1,4 @@
-import type { MetaClient, PublicationRef } from './metaClient.js';
+import type { AccountMediaItem, MetaAccount, MetaClient, PublicationRef } from './metaClient.js';
 
 /**
  * Реален Meta Graph API адаптер (B2). Се користи само во прод кога постои системски токен;
@@ -19,9 +19,74 @@ export class GraphMetaClient implements MetaClient {
   }
 
   async resolveMediaId(pub: PublicationRef): Promise<string | null> {
-    // externalRef е веќе извлечениот id од линкот (§4.8). За повеќето случаи е директно
-    // употреблив како node id; IG shortcode → media id lookup се додава со реални credentials.
+    // IG: shortcode (externalRef) не е употреблив како node id — се совпаѓа во media edge на
+    // сметката за да се добие нумеричкиот media id. FB: externalRef е директно node id.
+    if (pub.platform === 'ig' && pub.igId && pub.externalRef) {
+      const media = await this.fetchAccountMedia(pub.igId, 200);
+      const hit = media.find(
+        (m) => m.shortcode === pub.externalRef || (pub.permalink && m.permalink === pub.permalink),
+      );
+      return hit?.mediaId ?? null;
+    }
     return pub.externalRef;
+  }
+
+  async listAccounts(): Promise<MetaAccount[]> {
+    const enc = encodeURIComponent(this.token);
+    const out: MetaAccount[] = [];
+    let url: string | null =
+      `${this.base}/me/accounts?fields=name,instagram_business_account{id,username}&limit=100&access_token=${enc}`;
+    // Пагинирано; ограничено на 10 страници за безбедност.
+    for (let i = 0; i < 10 && url; i++) {
+      const page = (await this.get(url)) as {
+        data?: Array<{
+          id: string;
+          name: string;
+          instagram_business_account?: { id: string; username?: string };
+        }>;
+        paging?: { next?: string };
+      };
+      for (const p of page.data ?? []) {
+        out.push({
+          pageId: p.id,
+          pageName: p.name,
+          igId: p.instagram_business_account?.id ?? null,
+          igUsername: p.instagram_business_account?.username ?? null,
+        });
+      }
+      url = page.paging?.next ?? null;
+    }
+    return out;
+  }
+
+  async fetchAccountMedia(igId: string, limit: number): Promise<AccountMediaItem[]> {
+    const enc = encodeURIComponent(this.token);
+    const out: AccountMediaItem[] = [];
+    let url: string | null =
+      `${this.base}/${igId}/media?fields=id,shortcode,permalink,media_type,timestamp&limit=${Math.min(limit, 100)}&access_token=${enc}`;
+    for (let i = 0; i < 10 && url && out.length < limit; i++) {
+      const page = (await this.get(url)) as {
+        data?: Array<{
+          id: string;
+          shortcode?: string;
+          permalink?: string;
+          media_type?: string;
+          timestamp?: string;
+        }>;
+        paging?: { next?: string };
+      };
+      for (const m of page.data ?? []) {
+        out.push({
+          mediaId: m.id,
+          shortcode: m.shortcode ?? null,
+          permalink: m.permalink ?? null,
+          mediaType: m.media_type ?? null,
+          timestamp: m.timestamp ?? null,
+        });
+      }
+      url = page.paging?.next ?? null;
+    }
+    return out.slice(0, limit);
   }
 
   async fetchMediaInsights(input: { platform: string; mediaId: string }): Promise<unknown> {

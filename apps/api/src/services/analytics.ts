@@ -65,11 +65,19 @@ function monthRange(month: string): { start: Date; end: Date } {
  * е spend-пондериран просек на кампањите, `ctr` impression-пондериран просек на објавите.
  */
 export async function getAnalytics(month: string): Promise<AnalyticsData> {
-  // Објави во месецот = task.group.monthKey === month.
+  const { start, end } = monthRange(month);
+  // Објави во месецот: врзани за таск (task.group.monthKey) ИЛИ account-ниво backfill
+  // (директен clientId + publishedAt во месецот).
   const pubs = await prisma.publication.findMany({
-    where: { task: { group: { monthKey: month } } },
+    where: {
+      OR: [
+        { task: { group: { monthKey: month } } },
+        { taskId: null, clientId: { not: null }, publishedAt: { gte: start, lt: end } },
+      ],
+    },
     include: {
       task: { include: { client: { select: { name: true, color: true } } } },
+      client: { select: { name: true, color: true } },
       promotion: { select: { decision: true } },
     },
   });
@@ -111,10 +119,13 @@ export async function getAnalytics(month: string): Promise<AnalyticsData> {
       split.organicReach += pReach;
       split.organicPosts++;
     }
+    const cl = p.task?.client ?? p.client;
     posts.push({
       publicationId: p.id,
-      name: `${p.task.client.name} · ${p.task.title}`,
-      color: p.task.client.color,
+      name: p.task
+        ? `${p.task.client.name} · ${p.task.title}`
+        : `${cl?.name ?? 'Клиент'} · ${p.externalRef ?? 'објава'}`,
+      color: cl?.color ?? '#6B7280',
       platform: p.platform,
       paid,
       reach: pReach,
@@ -124,7 +135,6 @@ export async function getAnalytics(month: string): Promise<AnalyticsData> {
   }
 
   // Кампањи што се преклопуваат со месецот.
-  const { start, end } = monthRange(month);
   const campaignRows = await prisma.campaign.findMany({
     where: { periodFrom: { lt: end }, periodTo: { gte: start } },
     include: { client: { select: { color: true } } },

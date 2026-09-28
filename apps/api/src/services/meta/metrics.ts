@@ -1,7 +1,15 @@
-import type { Prisma } from '@gd/db';
+import type { Prisma, PostType } from '@gd/db';
 import { deriveMetrics, normalizeMetaInsights, type NormalizedMetrics } from '@gd/core';
 import { prisma } from '../../db/tenantExtension.js';
+import { AppError } from '../../lib/errors.js';
 import { getMetaClient } from './metaClient.js';
+
+/** IG media_type → наш PostType (за backfill-ирани објави). */
+function postTypeOf(mediaType: string | null): PostType {
+  if (mediaType === 'VIDEO') return 'reel';
+  if (mediaType === 'CAROUSEL_ALBUM') return 'carousel';
+  return 'post';
+}
 
 /** Само колонските метрики од `MetricSnapshot` (останатите полиња на core се помошни). */
 function metricColumns(m: NormalizedMetrics) {
@@ -29,14 +37,20 @@ export async function resolvePublications() {
       externalRef: { not: null },
       resolveStatus: { in: ['pending', 'failed'] },
     },
+    include: {
+      task: { include: { client: { select: { metaIgId: true } } } },
+      client: { select: { metaIgId: true } },
+    },
   });
   let resolved = 0;
   let failed = 0;
   for (const p of pending) {
+    const igId = p.task?.client?.metaIgId ?? p.client?.metaIgId ?? null;
     const mediaId = await client.resolveMediaId({
       platform: p.platform,
       externalRef: p.externalRef,
       permalink: p.permalink,
+      igId,
     });
     if (mediaId) {
       await prisma.publication.update({
@@ -95,4 +109,49 @@ export async function pullMetrics() {
   }
 
   return { snapshots, errors };
+}
+
+/**
+ * Backfill (B2): повлечи ги последните `limit` постови директно од IG-сметката на клиентот и
+ * материјализирај account-ниво `Publication` (без таск, со clientId + resolved media id).
+ * Идемпотентно по (clientId, platform, externalRef). Потоа `pullMetrics` ги покрива.
+ */
+export async function backfillClientMedia(clientId: string, limit = 25) {
+  const clientRow = await prisma.client.findUnique({ where: { id: clientId } });
+  if (!clientRow) throw new AppError('NOT_FOUND', 'Клиентот не е пронајден.', 404);
+  if (!clientRow.metaIgId) {
+    throw new AppError(
+      'VALIDATION_FAILED',
+      'Клиентот нема поврзана Instagram сметка (metaIgId).',
+      400,
+    );
+  }
+
+  const client = getMetaClient();
+  const media = await client.fetchAccountMedia(clientRow.metaIgId, limit);
+  let created = 0;
+  let updated = 0;
+  for (const m of media) {
+    const externalRef = m.shortcode ?? m.mediaId;
+    const existing = await prisma.publication.findFirst({
+      where: { clientId, platform: 'ig', externalRef, taskId: null },
+    });
+    const data = {
+      permalink: m.permalink,
+      metaMediaId: m.mediaId,
+      resolveStatus: 'resolved' as const,
+      postType: postTypeOf(m.mediaType),
+      publishedAt: m.timestamp ? new Date(m.timestamp) : null,
+    };
+    if (existing) {
+      await prisma.publication.update({ where: { id: existing.id }, data });
+      updated++;
+    } else {
+      await prisma.publication.create({
+        data: { clientId, platform: 'ig', externalRef, ...data },
+      });
+      created++;
+    }
+  }
+  return { created, updated, total: media.length };
 }

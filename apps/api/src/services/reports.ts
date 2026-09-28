@@ -31,7 +31,12 @@ export async function getClientReport(month: string): Promise<ClientReportRow[]>
   const rows: ClientReportRow[] = [];
   for (const c of clients) {
     const pubs = await prisma.publication.findMany({
-      where: { task: { clientId: c.id, group: { monthKey: month } } },
+      where: {
+        OR: [
+          { task: { clientId: c.id, group: { monthKey: month } } },
+          { taskId: null, clientId: c.id, publishedAt: { gte: monthStart, lt: monthEnd } },
+        ],
+      },
       include: { task: { select: { contentType: true } } },
     });
     const pubIds = pubs.map((p) => p.id);
@@ -50,7 +55,9 @@ export async function getClientReport(month: string): Promise<ClientReportRow[]>
     let videoPosts = 0;
     let graphicPosts = 0;
     for (const p of pubs) {
-      if (p.task.contentType === 'video') videoPosts++;
+      // Task-објава: по contentType. Account-објава (backfill): reel → видео, инаку графика.
+      const isVideo = p.task ? p.task.contentType === 'video' : p.postType === 'reel';
+      if (isVideo) videoPosts++;
       else graphicPosts++;
       const s = byPub.get(p.id);
       if (s) {

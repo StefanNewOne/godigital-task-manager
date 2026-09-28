@@ -42,7 +42,7 @@ publicationsRouter.post('/:id/promotion', async (req, res) => {
       objectType: 'publication',
       objectId: publicationId,
       taskId: pub.taskId,
-      clientId: pub.task.clientId,
+      clientId: pub.task?.clientId ?? pub.clientId,
       newValue: { decision: input.decision },
       narrative: `Одлука за промоција: ${DECISION_LABEL[input.decision]}.`,
     });

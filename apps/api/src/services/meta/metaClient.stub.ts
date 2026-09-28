@@ -1,4 +1,4 @@
-import type { MetaClient, PublicationRef } from './metaClient.js';
+import type { AccountMediaItem, MetaAccount, MetaClient, PublicationRef } from './metaClient.js';
 
 /**
  * Детерминистички stub на Meta адаптерот за dev/тест (без надворешни повици). Бројките се
@@ -27,6 +27,28 @@ export class StubMetaClient implements MetaClient {
       inline_link_clicks: clicks,
       // frequency/ctr ги пресметува core (deriveMetrics); тука ги немаме намерно.
     };
+  }
+
+  async listAccounts(): Promise<MetaAccount[]> {
+    return [
+      { pageId: 'stub_page_1', pageName: 'Stub Client A', igId: 'stub_ig_1', igUsername: 'stub_a' },
+      { pageId: 'stub_page_2', pageName: 'Stub Client B', igId: 'stub_ig_2', igUsername: 'stub_b' },
+    ];
+  }
+
+  async fetchAccountMedia(igId: string, limit: number): Promise<AccountMediaItem[]> {
+    const n = Math.min(limit, 3);
+    return Array.from({ length: n }, (_, i) => {
+      const code = `stub${hash(igId + i)}`;
+      return {
+        mediaId: `stub_media_${igId}_${i}`,
+        shortcode: code,
+        permalink: `https://www.instagram.com/p/${code}/`,
+        mediaType: i % 2 === 0 ? 'VIDEO' : 'IMAGE',
+        // Детерминистички далечен месец (2035-06) за репродуцибилни backfill тестови.
+        timestamp: `2035-06-1${i}T10:00:00+0000`,
+      };
+    });
   }
 
   async fetchAdInsights(input: { metaCampaignId: string }): Promise<unknown> {

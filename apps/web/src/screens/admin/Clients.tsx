@@ -20,6 +20,7 @@ import {
   useUpdateContact,
 } from '../../api/admin.js';
 import { useMe } from '../../api/auth.js';
+import { useBackfillClient, useMetaAccounts, type MetaAccount } from '../../api/meta.js';
 import { ApiRequestError } from '../../lib/api.js';
 import type { ClientRow } from '../../lib/types.js';
 
@@ -37,10 +38,21 @@ export function AdminClients() {
   const { data, isLoading } = useClients();
   const me = useMe().data;
   const toggle = useToggleClientActive();
+  const backfill = useBackfillClient();
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<ClientRow | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const isDirector = me?.role === 'dir';
+  const canMeta = me?.role === 'dir' || me?.role === 'am';
+
+  const runBackfill = (c: ClientRow) =>
+    backfill.mutate(c.id, {
+      onSuccess: (r) =>
+        setToast(
+          `${c.name}: повлечени ${r.backfill.total} постови (${r.backfill.created} нови). Метриките се освежени.`,
+        ),
+      onError: (e) => setToast(e instanceof ApiRequestError ? e.message : 'Грешка.'),
+    });
 
   const cutoffLabel = (iso: string) => {
     const d = new Date(iso);
@@ -126,6 +138,16 @@ export function AdminClients() {
                     Деактивирај
                   </Button>
                 ))}
+              {canMeta && c.metaIgId && (
+                <Button
+                  variant="ghost"
+                  size="toolbar"
+                  disabled={backfill.isPending}
+                  onClick={() => runBackfill(c)}
+                >
+                  {backfill.isPending ? 'Влечење…' : 'Повлечи метрики'}
+                </Button>
+              )}
             </div>
           </div>
         ))}
@@ -152,6 +174,7 @@ function ClientModal({ client, onClose }: { client?: ClientRow; onClose: () => v
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<ClientCreateInput>({
     resolver: zodResolver(isEdit ? clientUpdateSchema : clientCreateSchema),
@@ -292,6 +315,13 @@ function ClientModal({ client, onClose }: { client?: ClientRow; onClose: () => v
             </select>
           </Field>
         </div>
+        <MetaAccountPicker
+          currentIg={watch('metaIgId')}
+          onPick={(a) => {
+            setValue('metaPageId', a?.pageId ?? '');
+            setValue('metaIgId', a?.igId ?? '');
+          }}
+        />
         <label style={checkRow}>
           <input type="checkbox" {...register('usesMetaAds')} /> Користи Meta Ads
         </label>
@@ -324,6 +354,37 @@ function ClientModal({ client, onClose }: { client?: ClientRow; onClose: () => v
         </div>
       )}
     </Modal>
+  );
+}
+
+/** Dropdown за поврзување со Meta (IG) сметка — пополнува metaPageId + metaIgId. */
+function MetaAccountPicker({
+  currentIg,
+  onPick,
+}: {
+  currentIg?: string;
+  onPick: (a: MetaAccount | null) => void;
+}) {
+  const { data: accounts, isLoading } = useMetaAccounts(true);
+  const withIg = (accounts ?? []).filter((a) => a.igId);
+  return (
+    <Field label="Meta сметка (Instagram)">
+      <select
+        className={fieldCls(false)}
+        value={currentIg ?? ''}
+        onChange={(e) => onPick(withIg.find((a) => a.igId === e.target.value) ?? null)}
+      >
+        <option value="">
+          {isLoading ? 'Вчитување…' : withIg.length ? '— избери сметка —' : 'Нема достапни сметки'}
+        </option>
+        {withIg.map((a) => (
+          <option key={a.igId} value={a.igId ?? ''}>
+            {a.pageName}
+            {a.igUsername ? ` · @${a.igUsername}` : ''}
+          </option>
+        ))}
+      </select>
+    </Field>
   );
 }
 
