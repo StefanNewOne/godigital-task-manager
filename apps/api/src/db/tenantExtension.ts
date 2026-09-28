@@ -29,6 +29,7 @@ const TENANT_MODELS = new Set<string>([
   'Campaign',
   'Promotion',
   'MetricSnapshot',
+  'ShootSession',
   'FileAsset',
   'UploadSession',
   'DateChange',

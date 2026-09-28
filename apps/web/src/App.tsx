@@ -5,6 +5,7 @@ import { useMe } from './api/auth.js';
 import { AppShell } from './components/AppShell.js';
 import { Analytics } from './screens/Analytics.js';
 import { Calendar } from './screens/Calendar.js';
+import { ShootCalendar } from './screens/ShootCalendar.js';
 import { Clients } from './screens/Clients.js';
 import { Login } from './screens/Login.js';
 import { Overview } from './screens/Overview.js';
@@ -24,6 +25,7 @@ const SCREEN_PATH: Record<Screen, string> = {
   director: '/',
   list: '/tasks',
   calendar: '/calendar',
+  shootCalendar: '/shoot-calendar',
   clients: '/clients',
   analytics: '/analytics',
   admin: '/admin',
@@ -87,6 +89,14 @@ export function App() {
             element={
               <Guard screen="calendar" role={me.role}>
                 <Calendar />
+              </Guard>
+            }
+          />
+          <Route
+            path="shoot-calendar"
+            element={
+              <Guard screen="shootCalendar" role={me.role}>
+                <ShootCalendar />
               </Guard>
             }
           />

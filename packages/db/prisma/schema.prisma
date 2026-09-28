@@ -416,8 +416,33 @@ model TaskGroup {
   tasks     Task[]
   scenarios Scenario[]
   comments  Comment[]
+  shoots    ShootSession[]
 
   @@unique([clientId, contentType, monthKey])
+}
+
+enum ShootKind {
+  primary
+  additional
+}
+
+/**
+ * Термин на снимање за видео капа (B-редизајн). Основниот се создава при podgotovka→scenarija;
+ * дополнителните ги додава Камерман во статус snimanje. „Календар на снимање" чита од тука.
+ */
+model ShootSession {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  tenantId   String    @default("godigital")
+  groupId    String    @db.Uuid
+  group      TaskGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  clientId   String    @db.Uuid
+  date       DateTime // timestamptz (датум + час), Europe/Skopje
+  location   String
+  kind       ShootKind @default(additional)
+  createdAt  DateTime  @default(now())
+
+  @@index([tenantId, date])
+  @@index([groupId])
 }
 
 model Task {

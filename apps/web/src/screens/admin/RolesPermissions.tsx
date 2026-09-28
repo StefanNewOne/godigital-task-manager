@@ -5,6 +5,7 @@ const SCREEN_LABEL: Record<Screen, string> = {
   director: 'Преглед',
   list: 'Задачи',
   calendar: 'Календар',
+  shootCalendar: 'Снимања',
   clients: 'Клиенти',
   analytics: 'Аналитика',
   admin: 'Админ',

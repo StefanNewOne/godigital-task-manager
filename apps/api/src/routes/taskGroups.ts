@@ -17,6 +17,7 @@ import {
   createVideoCapa,
   transitionTaskGroup,
 } from '../services/workflow/groupTransition.js';
+import { addShootSession, listGroupShoots } from '../services/shoots.js';
 import { setScenarioOutcomes, splitScenarios } from '../services/scenarios.js';
 import { archiveLocally, extendRaw } from '../services/storage.js';
 
@@ -82,6 +83,23 @@ taskGroupsRouter.get('/:id', async (req, res) => {
     prisma.fileAsset.count({ where: { ownerType: 'group', ownerId: id } }),
   ]);
   res.json({ data: { ...group, totalChildren, activeChildren, sharedFiles } });
+});
+
+// Термини на снимање за капата (Капа панел).
+taskGroupsRouter.get('/:id/shoots', async (req, res) => {
+  const shoots = await listGroupShoots((req.params as { id: string }).id);
+  res.json({ data: shoots });
+});
+
+// Дополнително снимање (Камерман, статус snimanje).
+taskGroupsRouter.post('/:id/shoots', async (req, res) => {
+  const body = req.body as { date?: string; location?: string };
+  const shoot = await addShootSession(
+    (req.params as { id: string }).id,
+    { date: new Date(body.date ?? ''), location: body.location ?? '' },
+    { id: req.auth!.sub, role: req.auth!.role },
+  );
+  res.status(201).json({ data: shoot });
 });
 
 // Bulk активација на графички слотови (D-3).

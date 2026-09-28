@@ -2,7 +2,15 @@ import type { ContentType, Role } from './roles.js';
 import type { GroupStatus, TaskStatus } from './statuses.js';
 
 /** Екрани во навигацијата (Handoff `ROLE_CFG.nav`). */
-export const SCREENS = ['director', 'list', 'calendar', 'clients', 'analytics', 'admin'] as const;
+export const SCREENS = [
+  'director',
+  'list',
+  'calendar',
+  'shootCalendar',
+  'clients',
+  'analytics',
+  'admin',
+] as const;
 
 export type Screen = (typeof SCREENS)[number];
 
@@ -27,7 +35,7 @@ export interface RolePermissions {
 
 export const PERMISSIONS: Record<Role, RolePermissions> = {
   dir: {
-    nav: ['director', 'list', 'calendar', 'clients', 'analytics', 'admin'],
+    nav: ['director', 'list', 'calendar', 'shootCalendar', 'clients', 'analytics', 'admin'],
     scope: 'all',
     canCreate: [],
     canChangeDate: ['video', 'graphic'],
@@ -44,7 +52,7 @@ export const PERMISSIONS: Record<Role, RolePermissions> = {
     ownsCapaStatuses: [],
   },
   rez: {
-    nav: ['director', 'list', 'calendar', 'clients', 'analytics'],
+    nav: ['director', 'list', 'calendar', 'shootCalendar', 'clients', 'analytics'],
     scope: 'all',
     canCreate: ['video'],
     canChangeDate: ['video'],
@@ -60,7 +68,7 @@ export const PERMISSIONS: Record<Role, RolePermissions> = {
     ownsCapaStatuses: ['scenarija'],
   },
   kam: {
-    nav: ['list'],
+    nav: ['list', 'shootCalendar'],
     scope: 'own',
     canCreate: [],
     canChangeDate: [],

@@ -9,31 +9,8 @@ import { parse } from '../lib/validate.js';
 import { requireAuth } from '../middleware/auth.js';
 import { assertFileOwnerAccess } from '../services/fileAccess.js';
 import { generatePreview } from '../services/previews.js';
-import { transitionTaskGroup } from '../services/workflow/groupTransition.js';
-import type { FileKind, FileOwnerType } from '@gd/db';
-import type { Role } from '@gd/core';
+import type { FileOwnerType } from '@gd/db';
 
-/**
- * #7: суров материјал качен на видео капа во статус „snimanje" ја затвора капата автоматски
- * (matrix note: „При прикачување суров материјал капата→zatvoren"). Системски преод (kam/dir).
- * Best-effort: ако guard-от сè уште не поминува, тивко прескокнува.
- */
-async function maybeCloseCapaOnRaw(
-  ownerType: FileOwnerType,
-  ownerId: string,
-  kind: FileKind,
-  actor: { sub: string; role: Role },
-): Promise<void> {
-  if (ownerType !== 'group' || kind !== 'raw') return;
-  const group = await prisma.taskGroup.findUnique({
-    where: { id: ownerId },
-    select: { status: true },
-  });
-  if (group?.status !== 'snimanje') return;
-  await transitionTaskGroup(ownerId, 'zatvoren', {}, { id: actor.sub, role: actor.role }).catch(
-    () => undefined,
-  );
-}
 import {
   PART_SIZE,
   abortMultipart,
@@ -99,8 +76,6 @@ filesRouter.post('/presign', async (req, res) => {
 
   if (input.size <= PART_SIZE) {
     const url = await presignPut(key, input.mime);
-    // Мал суров материјал (single PUT) нема /complete callback → авто-затворање тука (#7).
-    await maybeCloseCapaOnRaw(input.ownerType, input.ownerId, input.kind, req.auth!);
     res.status(201).json({ data: { fileId: file.id, mode: 'single', url } });
     return;
   }
@@ -139,8 +114,6 @@ filesRouter.post('/:id/complete', async (req, res) => {
 
   // Преглед (B3): видео/слика → генерирај preview (best-effort, не го паѓа завршувањето).
   await generatePreview(file.id).catch(() => null);
-  // #7: качување суров материјал на капа во „snimanje" ја затвора автоматски (матрица note).
-  await maybeCloseCapaOnRaw(file.ownerType, file.ownerId, file.kind, req.auth!);
   res.json({ data: file });
 });
 

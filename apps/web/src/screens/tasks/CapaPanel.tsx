@@ -16,6 +16,7 @@ import {
   useTaskGroup,
 } from '../../api/taskGroups.js';
 import { useGroupUpload } from '../../api/files.js';
+import { useAddShoot, useGroupShoots, type ShootSessionRow } from '../../api/shoots.js';
 import { ApiRequestError } from '../../lib/api.js';
 import type { ScenarioRow } from '../../lib/types.js';
 
@@ -342,26 +343,16 @@ function Zone(p: ZoneProps) {
 
   // ── Снимање (видео) ──
   if (status === 'snimanje') {
-    const canClose = p.meRole === 'kam' || p.meRole === 'dir';
     return (
-      <>
-        <p style={sectionText}>Прикачи го суровиот материјал, потоа затвори ја капата.</p>
-        <UploadButton
-          label="Прикачи суров материјал"
-          onChange={doUpload('raw')}
-          pending={upload.isPending}
-        />{' '}
-        {canClose && (
-          <Button
-            variant="primary"
-            size="form"
-            disabled={transition.isPending}
-            onClick={() => move('zatvoren', undefined, 'Капата е затворена.')}
-          >
-            Затвори снимање
-          </Button>
-        )}
-      </>
+      <SnimanjeZone
+        groupId={group.id}
+        canManage={p.meRole === 'kam' || p.meRole === 'dir'}
+        onUploadRaw={doUpload('raw')}
+        uploadPending={upload.isPending}
+        onConfirm={() => move('zatvoren', undefined, 'Снимањето е потврдено, капата затворена.')}
+        confirmPending={transition.isPending}
+        onErr={p.onErr}
+      />
     );
   }
 
@@ -681,6 +672,118 @@ function ScenKajKlientZone({
           </Button>
         </div>
       </div>
+    </>
+  );
+}
+
+/** Снимање: термини (основен + дополнителни), суров материјал, и Камерман „Потврди снимање". */
+function SnimanjeZone({
+  groupId,
+  canManage,
+  onUploadRaw,
+  uploadPending,
+  onConfirm,
+  confirmPending,
+  onErr,
+}: {
+  groupId: string;
+  canManage: boolean;
+  onUploadRaw: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  uploadPending: boolean;
+  onConfirm: () => void;
+  confirmPending: boolean;
+  onErr: (e: unknown) => void;
+}) {
+  const { data: shoots } = useGroupShoots(groupId);
+  const addShoot = useAddShoot(groupId);
+  const [date, setDate] = useState('');
+  const [time, setTime] = useState('');
+  const [loc, setLoc] = useState('');
+
+  const fmt = (s: ShootSessionRow) => {
+    const d = new Date(s.date);
+    const t =
+      d.getUTCHours() || d.getUTCMinutes()
+        ? ` ${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`
+        : '';
+    return `${d.getUTCDate()}.${d.getUTCMonth() + 1}${t}`;
+  };
+
+  const submit = () => {
+    if (!date || !loc.trim()) {
+      onErr(new Error('Датум и локација се задолжителни.'));
+      return;
+    }
+    addShoot.mutate(
+      { date: `${date}T${time || '00:00'}:00.000Z`, location: loc.trim() },
+      {
+        onSuccess: () => {
+          setDate('');
+          setTime('');
+          setLoc('');
+        },
+        onError: onErr,
+      },
+    );
+  };
+
+  return (
+    <>
+      <p style={sectionText}>Термини на снимање:</p>
+      <ul style={{ margin: '0 0 10px', paddingLeft: 18, fontSize: 13 }}>
+        {(shoots ?? []).map((s) => (
+          <li key={s.id}>
+            {fmt(s)} · {s.location || '—'}
+            {s.kind === 'additional' ? ' (доп.)' : ''}
+          </li>
+        ))}
+        {(shoots ?? []).length === 0 && <li style={{ color: 'var(--gd-ink-muted)' }}>Нема.</li>}
+      </ul>
+      {canManage && (
+        <div
+          style={{
+            display: 'flex',
+            gap: 6,
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            marginBottom: 12,
+          }}
+        >
+          <input
+            type="date"
+            className="gd-field"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+          <input
+            type="time"
+            className="gd-field"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+          />
+          <input
+            className="gd-field"
+            placeholder="Локација"
+            value={loc}
+            onChange={(e) => setLoc(e.target.value)}
+            style={{ minWidth: 140 }}
+          />
+          <Button variant="secondary" size="form" disabled={addShoot.isPending} onClick={submit}>
+            + Дополнително снимање
+          </Button>
+        </div>
+      )}
+      <p style={sectionText}>Прикачи суров материјал, потоа потврди го снимањето.</p>
+      <UploadButton
+        label="Прикачи суров материјал"
+        onChange={onUploadRaw}
+        pending={uploadPending}
+      />{' '}
+      {canManage && (
+        <Button variant="primary" size="form" disabled={confirmPending} onClick={onConfirm}>
+          Потврди снимање
+        </Button>
+      )}
     </>
   );
 }

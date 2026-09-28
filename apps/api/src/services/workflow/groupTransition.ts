@@ -15,6 +15,7 @@ import { createNotification, type NotifyInput } from '../notifications.js';
 import { resolveCalendar } from '../calendar.js';
 import { assertClientActiveForDate } from '../clientLifecycle.js';
 import { assertMonthApproved } from '../monthlyCalendar.js';
+import { ensurePrimaryShoot } from '../shoots.js';
 import { missingMessage } from './guards.js';
 import { parseToken } from './parse.js';
 
@@ -499,6 +500,16 @@ export async function transitionTaskGroup(
     if (payload.scenaristNotes !== undefined) upd.scenaristNotes = payload.scenaristNotes;
 
     await tx.taskGroup.update({ where: { id: group.id }, data: upd });
+
+    // Основен термин на снимање кога капата влегува во „scenarija" (Режисер потврди датум+локација).
+    if (to === 'scenarija') {
+      await ensurePrimaryShoot(tx, {
+        id: group.id,
+        clientId: group.clientId,
+        shootDate: (payload.shootDate ?? group.shootDate) as Date | null,
+        shootLocation: (payload.shootLocation ?? group.shootLocation) as string | null,
+      });
+    }
 
     const onBehalfNote = onBehalf ? ` (наместо ${ROLE_LABEL[rule.actor as Role]})` : '';
     await recordEvent(tx, {

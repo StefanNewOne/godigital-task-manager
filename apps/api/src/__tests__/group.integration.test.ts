@@ -169,19 +169,26 @@ describe('A4 капа преоди', () => {
     expect(kids.every((k) => k.status === 'chekaRezija' && k.assigneeId === empId.rez)).toBe(true);
   });
 
-  it('авто-затворање (#7): качување суров материјал преку presign ја затвора капата', async () => {
+  it('суров материјал НЕ авто-затвора; Камерман потврдува → zatvoren (редизајн)', async () => {
     const g = await mkGroup(MONTHS[5]!, 'snimanje', { kamId: empId.kam });
     await mkChild(g.id, MONTHS[5]!, new Date(Date.UTC(2027, 8, 20)), 'cekaSnimanje');
 
-    // Камерманот качува суров материјал — без рачен transition повик.
-    const r = await request(app)
+    // Камерманот качува суров материјал — капата НЕ се затвора автоматски (2-дневно снимање).
+    const up = await request(app)
       .post('/api/files/presign')
       .set(bearer('kam'))
       .send({ ownerType: 'group', ownerId: g.id, kind: 'raw', mime: 'video/mp4', size: 2048 });
-    expect(r.status).toBe(201);
+    expect(up.status).toBe(201);
+    const still = await db.taskGroup.findUnique({ where: { id: g.id } });
+    expect(still!.status, 'останува во снимање до потврда').toBe('snimanje');
 
-    const group = await db.taskGroup.findUnique({ where: { id: g.id } });
-    expect(group!.status, 'капата авто-се затвора при качување суров материјал').toBe('zatvoren');
+    // Камерман потврдува снимање → zatvoren, децата → chekaRezija.
+    const r = await request(app)
+      .post(`/api/task-groups/${g.id}/transition`)
+      .set(bearer('kam'))
+      .send({ to: 'zatvoren' });
+    expect(r.status).toBe(200);
+    expect(r.body.data.status).toBe('zatvoren');
     const kids = await db.task.findMany({ where: { groupId: g.id } });
     expect(kids.every((k) => k.status === 'chekaRezija' && k.assigneeId === empId.rez)).toBe(true);
   });

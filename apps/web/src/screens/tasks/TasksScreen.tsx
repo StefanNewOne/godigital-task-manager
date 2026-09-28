@@ -442,6 +442,22 @@ function NewCapaModal({
   const [month, setMonth] = useState('');
   const valid = clientId && /^\d{4}-\d{2}$/.test(month);
 
+  // Авто-предлог: месец по последната капа за клиентот (Септември → Октомври), инаку нареден.
+  const capasQ = useTaskGroups(clientId ? { clientId, type: 'video' } : {});
+  const nextMonth = useMemo(() => {
+    const months = (capasQ.data ?? [])
+      .map((g) => g.monthKey)
+      .filter(Boolean)
+      .sort();
+    const base = months.length ? months[months.length - 1]! : null;
+    const d = base ? new Date(`${base}-01T00:00:00.000Z`) : new Date();
+    d.setUTCMonth(d.getUTCMonth() + 1);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+  }, [capasQ.data]);
+  useEffect(() => {
+    setMonth(nextMonth);
+  }, [nextMonth]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
