@@ -35,7 +35,7 @@ test.describe('Најава и навигација', () => {
     await expect(page).toHaveURL(/\/calendar/);
 
     await page.getByRole('link', { name: 'Аналитика' }).click();
-    await expect(page.getByText(/Фаза B2/)).toBeVisible();
+    await expect(page).toHaveURL(/\/analytics/);
 
     await page.getByRole('link', { name: 'Админ' }).click();
     await expect(page).toHaveURL(/\/admin/);
