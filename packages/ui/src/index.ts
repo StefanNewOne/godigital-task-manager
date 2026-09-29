@@ -4,6 +4,7 @@
  */
 export * as tokens from './tokens.js';
 export { default as mk } from './i18n/mk.json' with { type: 'json' };
+export { t, plural } from './i18n/t.js';
 
 // Базни компоненти (Handoff §5) — се шират при реизградбата екран-по-екран.
 export { Button } from './components/Button.js';
