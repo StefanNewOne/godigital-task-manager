@@ -564,148 +564,407 @@ function TagBar({
   );
 }
 
+const ALERT_FILTERS: Array<[string, string]> = [
+  ['', 'Сите'],
+  ['crit', 'Критично'],
+  ['high', 'Високо'],
+  ['mid', 'Средно'],
+];
+
 function OverviewView({ clientId }: { clientId?: string }) {
   const { data: ov } = useMetaOverview();
   const { data: alerts = [] } = useMetaAlerts(clientId);
   const patch = usePatchAlert();
+  const [sev, setSev] = useState('');
+  const [, setParams] = useSearchParams();
   if (!ov) return <Loading />;
 
-  return (
-    <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* KPI картички */}
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        <Card title="Отворени алерти" value={String(ov.alerts.total)} />
-        <Card title="Активни кампањи" value={String(ov.kpi.activeCampaigns)} />
-        <Card title="Потрошено денес" value={fmtMoney(ov.kpi.todaySpend)} />
-        <Card
-          title="Последен sync"
-          value={
-            ov.sync.lastSyncAt ? new Date(ov.sync.lastSyncAt).toLocaleTimeString('mk-MK') : '—'
-          }
-          sub={`${ov.sync.accounts} акаунти · ${ov.sync.readOnly} read-only`}
-        />
-      </div>
+  const shown = sev ? alerts.filter((a) => a.severity === sev) : alerts;
+  const seenAll = () =>
+    alerts
+      .filter((a) => a.state !== 'seen')
+      .forEach((a) => patch.mutate({ id: a.id, state: 'seen' }));
 
-      {/* Алерти по сериозност */}
-      <div style={{ display: 'flex', gap: 8 }}>
-        {(['crit', 'high', 'mid', 'info'] as const).map((s) => (
-          <span
-            key={s}
-            style={{ ...sevPill, background: `${SEV_COLOR[s]}1A`, color: SEV_COLOR[s] }}
-          >
-            {SEV_LABEL[s]}: {ov.alerts[s]}
+  return (
+    <div
+      style={{
+        padding: 20,
+        display: 'grid',
+        gridTemplateColumns: 'minmax(0,2fr) minmax(280px,1fr)',
+        gap: 16,
+        alignItems: 'start',
+      }}
+    >
+      {/* Лево: „Што бара внимание" */}
+      <div style={{ background: '#fff', border: '1px solid var(--gd-border)', borderRadius: 8 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '12px 16px',
+            borderBottom: '1px solid var(--gd-border)',
+            flexWrap: 'wrap',
+          }}
+        >
+          <span style={{ fontSize: 16, fontWeight: 600, flex: 1, minWidth: 140 }}>
+            {t('meta.overview.attention')}
           </span>
+          {ALERT_FILTERS.map(([s, label]) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setSev(s)}
+              style={{
+                ...sevPill,
+                cursor: 'pointer',
+                border: '1px solid var(--gd-border)',
+                background: sev === s ? '#0866FF' : '#fff',
+                color: sev === s ? '#fff' : 'var(--gd-ink)',
+              }}
+            >
+              {label}
+            </button>
+          ))}
+          <button type="button" style={ghostBtn} onClick={seenAll} disabled={patch.isPending}>
+            {t('meta.overview.seenAll')}
+          </button>
+        </div>
+        {shown.length === 0 && <Empty text={t('meta.overview.empty')} />}
+        {shown.map((a) => (
+          <AlertRow key={a.id} alert={a} onPatch={(state) => patch.mutate({ id: a.id, state })} />
         ))}
       </div>
 
-      {/* Листа алерти */}
-      <div>
-        <div style={sectionTitle}>Алерти</div>
-        {alerts.length === 0 && <Empty text="Нема отворени алерти." />}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {alerts.map((a) => (
-            <AlertRow key={a.id} alert={a} onPatch={(state) => patch.mutate({ id: a.id, state })} />
-          ))}
+      {/* Десно: sidebar */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={sideCard}>
+          <div style={{ fontSize: 14, fontWeight: 600 }}>{t('meta.overview.syncTitle')}</div>
+          <SideRow
+            k={t('meta.overview.syncLast')}
+            v={ov.sync.lastSyncAt ? new Date(ov.sync.lastSyncAt).toLocaleString('mk-MK') : '—'}
+          />
+          <SideRow k={t('meta.overview.syncAccounts')} v={String(ov.sync.accounts)} />
+          <SideRow k={t('meta.overview.syncFailing')} v={String(ov.sync.failing)} />
+        </div>
+        <div style={sideCard}>
+          <div style={{ fontSize: 14, fontWeight: 600 }}>{t('meta.overview.accessTitle')}</div>
+          <SideRow
+            k={t('meta.overview.accessManage')}
+            v={`${ov.sync.accounts - ov.sync.readOnly} ${t('meta.overview.accounts')}`}
+          />
+          <SideRow
+            k={t('meta.overview.accessRead')}
+            v={`${ov.sync.readOnly} ${t('meta.overview.accounts')}`}
+          />
+          <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>
+            {t('meta.overview.accessNote')}
+          </div>
+        </div>
+        <div style={sideCard}>
+          <div style={{ fontSize: 14, fontWeight: 600 }}>{t('meta.overview.askTitle')}</div>
+          <div style={{ fontSize: 13, color: 'var(--gd-ink-secondary)' }}>
+            {t('meta.overview.askExample')}
+          </div>
+          <button
+            type="button"
+            style={{ ...ghostBtn, alignSelf: 'flex-start' }}
+            onClick={() =>
+              setParams((p) => {
+                const n = new URLSearchParams(p);
+                n.set('tab', 'assistant');
+                return n;
+              })
+            }
+          >
+            {t('meta.overview.ask')}
+          </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function SideRow({ k, v }: { k: string; v: string }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+      <span style={{ color: 'var(--gd-ink-muted)' }}>{k}</span>
+      <span>{v}</span>
     </div>
   );
 }
 
 function AlertRow({ alert, onPatch }: { alert: MetaAlertRow; onPatch: (state: string) => void }) {
   return (
-    <div style={{ ...rowCard, borderLeft: `3px solid ${SEV_COLOR[alert.severity]}` }}>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 12,
+        padding: '12px 16px',
+        borderBottom: '1px solid var(--gd-border)',
+      }}
+    >
+      <span
+        style={{
+          flex: '0 0 auto',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 5,
+          height: 22,
+          padding: '0 8px',
+          borderRadius: 4,
+          fontSize: 11,
+          fontWeight: 600,
+          background: `${SEV_COLOR[alert.severity]}1A`,
+          color: SEV_COLOR[alert.severity],
+        }}
+      >
+        <span
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            background: SEV_COLOR[alert.severity],
+          }}
+        />
+        {SEV_LABEL[alert.severity]}
+      </span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 600, fontSize: 13 }}>
+        <div style={{ fontWeight: alert.state === 'new' ? 600 : 500, fontSize: 14 }}>
           {alert.title}
-          <span style={{ color: 'var(--gd-ink-muted)', fontWeight: 400, marginLeft: 8 }}>
-            {alert.code}
-            {alert.occurrences > 1 ? ` · ${alert.occurrences} дена` : ''}
-          </span>
         </div>
-        <div style={{ color: 'var(--gd-ink-secondary)', fontSize: 12, marginTop: 2 }}>
-          {alert.detail}
+        {alert.detail && (
+          <div style={{ color: 'var(--gd-ink-secondary)', fontSize: 13, marginTop: 2 }}>
+            {alert.detail}
+          </div>
+        )}
+        <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)', marginTop: 2 }}>
+          {alert.code}
+          {alert.occurrences > 1 ? ` · ${alert.occurrences} дена` : ''}
         </div>
       </div>
-      {alert.state !== 'seen' && (
-        <button type="button" style={ghostBtn} onClick={() => onPatch('seen')}>
-          Видено
-        </button>
-      )}
-      <button type="button" style={ghostBtn} onClick={() => onPatch('snoozed')}>
-        Одложи
-      </button>
+      <div style={{ display: 'flex', gap: 6, flex: '0 0 auto' }}>
+        {alert.state === 'snoozed' ? (
+          <button type="button" style={ghostBtn} onClick={() => onPatch('new')}>
+            {t('meta.overview.unsnooze')}
+          </button>
+        ) : (
+          <button type="button" style={ghostBtn} onClick={() => onPatch('snoozed')}>
+            {t('meta.overview.snooze')}
+          </button>
+        )}
+        {alert.state !== 'seen' && (
+          <button
+            type="button"
+            style={{ ...ghostBtn, borderColor: '#C7DCFF', color: '#0052D9' }}
+            onClick={() => onPatch('seen')}
+          >
+            {t('meta.overview.seen')}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
+
+const CLIENT_COLS = '1.5fr 1.6fr .8fr .9fr .6fr .8fr .6fr 1.3fr';
 
 function ClientsView({ onOpen }: { onOpen: (id: string) => void }) {
   const { data: clients = [] } = useMetaClients();
   if (clients.length === 0) return <Empty text="Нема клиенти со Meta реклами." />;
   return (
-    <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {clients.map((c) => (
-        <button key={c.id} type="button" onClick={() => onOpen(c.id)} style={rowCard}>
-          <span
-            style={{ width: 8, height: 8, borderRadius: '50%', background: c.color }}
-            aria-hidden
-          />
-          <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-            <div style={{ fontWeight: 600, fontSize: 13 }}>{c.name}</div>
-            <div style={{ color: 'var(--gd-ink-muted)', fontSize: 12 }}>
-              {c.target ?? 'без цел'} · {c.campaigns} кампањи · {c.currency ?? '—'}
-              {c.accessLevel === 'read' ? ' · само читање' : ''}
-            </div>
+    <div style={{ padding: 20 }}>
+      <div
+        style={{
+          border: '1px solid var(--gd-border)',
+          borderRadius: 8,
+          overflow: 'auto',
+          background: '#fff',
+        }}
+      >
+        <div style={{ minWidth: 980 }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: CLIENT_COLS,
+              gap: 12,
+              padding: '10px 16px',
+              background: '#F7F8FA',
+              borderBottom: '1px solid var(--gd-border)',
+              fontSize: 12,
+              fontWeight: 500,
+              color: 'var(--gd-ink-muted)',
+            }}
+          >
+            <span>{t('meta.clients.colClient')}</span>
+            <span>{t('meta.clients.colGoal')}</span>
+            <span>{t('meta.clients.colToday')}</span>
+            <span>{t('meta.clients.colMonth')}</span>
+            <span>{t('meta.clients.colCampaigns')}</span>
+            <span>{t('meta.clients.colAlerts')}</span>
+            <span>{t('meta.clients.colMessages')}</span>
+            <span>{t('meta.clients.colLast')}</span>
           </div>
-          {c.alerts > 0 && (
-            <span style={{ ...sevPill, background: '#FEF2F2', color: '#B91C1C' }}>
-              {c.alerts} алерти
-            </span>
-          )}
-          <span style={{ color: 'var(--gd-ink-muted)', fontSize: 11 }}>
-            {fmtDate(c.lastSyncAt)}
-          </span>
-        </button>
-      ))}
-      <div style={{ fontSize: 13, color: 'var(--gd-ink-muted)', marginTop: 4 }}>
+          {clients.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => onOpen(c.id)}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: CLIENT_COLS,
+                gap: 12,
+                width: '100%',
+                padding: '12px 16px',
+                border: 'none',
+                borderBottom: '1px solid var(--gd-border)',
+                background: '#fff',
+                textAlign: 'left',
+                alignItems: 'center',
+                fontSize: 14,
+                cursor: 'pointer',
+              }}
+            >
+              <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 500 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.color }} />
+                  {c.name}
+                </span>
+                <span style={{ fontSize: 12, color: 'var(--gd-ink-muted)', marginLeft: 16 }}>
+                  {c.accessLevel === 'read' ? 'само читање' : 'управување'}
+                </span>
+              </span>
+              <span style={{ fontSize: 13, color: 'var(--gd-ink-secondary)' }}>
+                {c.target ?? '—'}
+              </span>
+              <span>{fmtMoney(c.todaySpend, c.currency === 'USD' ? '$' : '€')}</span>
+              <span>{fmtMoney(c.monthSpend, c.currency === 'USD' ? '$' : '€')}</span>
+              <span>{c.campaigns}</span>
+              <span
+                style={{ fontWeight: 500, color: c.alerts > 0 ? '#B91C1C' : 'var(--gd-ink-muted)' }}
+              >
+                {c.alerts || '—'}
+              </span>
+              <span>{c.messages || '—'}</span>
+              <span style={{ fontSize: 13, color: 'var(--gd-ink-muted)' }}>
+                {fmtDate(c.lastSyncAt)}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{ fontSize: 13, color: 'var(--gd-ink-muted)', marginTop: 12 }}>
         {t('meta.clients.footer')}
       </div>
     </div>
   );
 }
 
+const CROSS_COLS = '1.8fr 1.3fr .9fr 1.1fr 1fr .7fr 1.2fr';
+
 function CrossView({ period }: { period: string }) {
   const { data } = useMetaCross(period);
+  if (!data) return <Loading />;
+  const hasData = data.groups.length > 0;
   return (
     <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {!data && <Loading />}
-      {data?.groups.length === 0 && <Empty text="Нема податоци за периодот." />}
-      {data?.groups.map((g) => (
-        <div key={g.objectiveKey}>
-          <div style={sectionTitle}>
-            {g.objectiveLabel}
-            {g.aggregatable && (
-              <span style={{ ...sevPill, background: '#EBF2FF', color: '#0052D9', marginLeft: 8 }}>
-                Збир: {fmtMoney(g.spend)} · {g.results.toLocaleString('mk-MK')} рез.
-              </span>
+      {/* KPI */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))',
+          gap: 12,
+        }}
+      >
+        <Card title={t('meta.cross.kpiSpend')} value={fmtMoney(data.kpis.spend)} />
+        <Card title={t('meta.cross.kpiCampaigns')} value={String(data.kpis.campaigns)} />
+      </div>
+
+      {!hasData && <Empty text="Нема податоци за периодот." />}
+      {hasData && (
+        <div
+          style={{
+            background: '#fff',
+            border: '1px solid var(--gd-border)',
+            borderRadius: 8,
+            overflow: 'auto',
+          }}
+        >
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--gd-border)' }}>
+            <div style={{ fontSize: 16, fontWeight: 600 }}>{t('meta.cross.title')}</div>
+            <div style={{ fontSize: 13, color: 'var(--gd-ink-muted)' }}>
+              {t('meta.cross.subtitle')}
+            </div>
+          </div>
+          <div style={{ minWidth: 960 }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: CROSS_COLS,
+                gap: 12,
+                padding: '10px 16px',
+                background: '#F7F8FA',
+                borderBottom: '1px solid var(--gd-border)',
+                fontSize: 12,
+                fontWeight: 500,
+                color: 'var(--gd-ink-muted)',
+              }}
+            >
+              <span>{t('meta.cross.colCampaign')}</span>
+              <span>{t('meta.cross.colObjective')}</span>
+              <span>{t('meta.cross.colSpend')}</span>
+              <span>{t('meta.cross.colResults')}</span>
+              <span>{t('meta.cross.colCpr')}</span>
+              <span>{t('meta.cross.colChange')}</span>
+              <span>{t('meta.cross.colGoal')}</span>
+            </div>
+            {data.groups.flatMap((g) =>
+              g.items.map((it) => (
+                <div
+                  key={it.campaignMetaId}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: CROSS_COLS,
+                    gap: 12,
+                    padding: '12px 16px',
+                    borderBottom: '1px solid var(--gd-border)',
+                    fontSize: 14,
+                    alignItems: 'center',
+                  }}
+                >
+                  <span style={{ fontWeight: 500, minWidth: 0 }}>{it.name}</span>
+                  <span style={{ fontSize: 13, color: 'var(--gd-ink-muted)' }}>
+                    {g.objectiveLabel}
+                  </span>
+                  <span>{fmtMoney(it.spend)}</span>
+                  <span>{it.results.toLocaleString('mk-MK')}</span>
+                  <span>{it.cpr != null ? fmtMoney(it.cpr) : '—'}</span>
+                  <span
+                    style={{
+                      fontWeight: 600,
+                      color:
+                        it.cprChangePct == null
+                          ? 'var(--gd-ink-muted)'
+                          : it.cprChangePct > 0
+                            ? '#B91C1C'
+                            : '#15803D',
+                    }}
+                  >
+                    {it.cprChangePct == null
+                      ? '—'
+                      : `${it.cprChangePct > 0 ? '↑' : '↓'} ${Math.abs(it.cprChangePct)}%`}
+                  </span>
+                  <span style={{ fontSize: 13, color: 'var(--gd-ink-muted)' }}>
+                    {it.goal ?? '—'}
+                  </span>
+                </div>
+              )),
             )}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {g.items.map((it) => (
-              <div key={it.campaignMetaId} style={rowCard}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13 }}>{it.name}</div>
-                  <div style={{ color: 'var(--gd-ink-muted)', fontSize: 12 }}>
-                    {fmtMoney(it.spend)} · {it.results.toLocaleString('mk-MK')} {it.resultLabel} ·{' '}
-                    {it.cpr != null ? `${it.costLabel}: ${fmtMoney(it.cpr)}` : 'без резултати'}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
-      ))}
-      {data && data.groups.length > 0 && (
+      )}
+      {hasData && (
         <div style={{ fontSize: 13, color: 'var(--gd-ink-muted)' }}>{t('meta.cross.footer')}</div>
       )}
     </div>
@@ -1694,6 +1953,15 @@ const ghostBtn: React.CSSProperties = {
   background: '#fff',
   fontSize: 12,
   cursor: 'pointer',
+};
+const sideCard: React.CSSProperties = {
+  background: '#fff',
+  border: '1px solid var(--gd-border)',
+  borderRadius: 8,
+  padding: 16,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 8,
 };
 const connHeadRow: React.CSSProperties = {
   display: 'grid',

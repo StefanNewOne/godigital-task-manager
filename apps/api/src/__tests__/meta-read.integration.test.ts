@@ -78,21 +78,31 @@ describe('Meta read API (М2c)', () => {
     expect((await get('/api/meta/overview', am)).status).toBe(403);
   });
 
-  it('clients: ред по клиент со кампањи/цел/валута', async () => {
+  it('clients: ред по клиент со кампањи/цел/валута + Денес/Месец/Пораки (MF4)', async () => {
     const r = await get('/api/meta/clients', ana);
     expect(r.status).toBe(200);
     const row = r.body.data.find((x: { id: string }) => x.id === clientId);
     expect(row.target).toBe('€0,80 по разговор');
     expect(row.campaigns).toBeGreaterThan(0);
     expect(row.currency).toBe('EUR');
+    expect(row).toHaveProperty('todaySpend');
+    expect(row).toHaveProperty('monthSpend');
+    expect(row).toHaveProperty('messages');
   });
 
-  it('cross: групирано по Objective (не собира различни)', async () => {
+  it('cross: групирано по Objective + kpis + Промена/Цел (MF4)', async () => {
     const r = await get('/api/meta/cross?period=30', ana);
     expect(r.status).toBe(200);
     expect(Array.isArray(r.body.data.groups)).toBe(true);
+    expect(r.body.data.kpis).toHaveProperty('spend');
+    expect(r.body.data.kpis).toHaveProperty('campaigns');
     // секоја група има еден Objective и е aggregatable
     for (const g of r.body.data.groups) expect(g.aggregatable).toBe(true);
+    const item = r.body.data.groups[0]?.items?.[0];
+    if (item) {
+      expect(item).toHaveProperty('cprChangePct');
+      expect(item).toHaveProperty('goal');
+    }
   });
 
   it('structure: кампања → ad set → ад со KPI', async () => {

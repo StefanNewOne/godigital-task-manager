@@ -105,15 +105,27 @@ export async function metaClientsRows() {
       metaAdAccountId: true,
     },
   });
+  const todayStr = iso(new Date());
+  const today = new Date(`${todayStr}T00:00:00.000Z`);
+  const monthStart = new Date(`${todayStr.slice(0, 7)}-01T00:00:00.000Z`);
   const rows = [];
   for (const c of clients) {
-    const [campaigns, alerts, conn] = await Promise.all([
+    const [campaigns, alerts, conn, todayAgg, monthAgg, messages] = await Promise.all([
       prisma.metaCampaign.count({ where: { clientId: c.id } }),
       prisma.metaAlert.count({ where: { clientId: c.id, state: { in: ['new', 'seen'] } } }),
       prisma.metaConnection.findFirst({
         where: { clientId: c.id, kind: 'adAccount' },
         select: { lastSyncAt: true, currency: true, accessLevel: true },
       }),
+      prisma.metaInsightDaily.aggregate({
+        where: { clientId: c.id, level: 'campaign', date: today },
+        _sum: { spend: true },
+      }),
+      prisma.metaInsightDaily.aggregate({
+        where: { clientId: c.id, level: 'campaign', date: { gte: monthStart, lte: today } },
+        _sum: { spend: true },
+      }),
+      prisma.metaConversation.count({ where: { clientId: c.id, unread: true } }),
     ]);
     rows.push({
       id: c.id,
@@ -122,6 +134,9 @@ export async function metaClientsRows() {
       target: c.metaTargetText,
       campaigns,
       alerts,
+      messages,
+      todaySpend: n(todayAgg._sum.spend),
+      monthSpend: n(monthAgg._sum.spend),
       currency: conn?.currency ?? null,
       accessLevel: conn?.accessLevel ?? null,
       lastSyncAt: conn?.lastSyncAt ?? null,
@@ -133,24 +148,54 @@ export async function metaClientsRows() {
 /** Пресек низ клиенти по кампања за период — групиран по Objective (никогаш собран меѓу Objective). */
 export async function metaCross(period: string) {
   const { from, to } = periodRange(period);
+  // Претходен период со иста должина (за „Промена" на CPR).
+  const spanMs = to.getTime() - from.getTime();
+  const prevTo = new Date(from.getTime() - 24 * 60 * 60 * 1000);
+  const prevFrom = new Date(prevTo.getTime() - spanMs);
   const campaigns = await prisma.metaCampaign.findMany({
     select: { metaId: true, name: true, clientId: true, objectiveKey: true, objective: true },
   });
+  const clientTargets = new Map(
+    (
+      await prisma.client.findMany({
+        where: { usesMetaAds: true },
+        select: { id: true, metaTargetText: true },
+      })
+    ).map((c) => [c.id, c.metaTargetText]),
+  );
   const rows = [];
   for (const c of campaigns) {
-    const agg = await prisma.metaInsightDaily.aggregate({
-      where: {
-        level: 'campaign',
-        objectMetaId: c.metaId,
-        date: {
-          gte: new Date(`${iso(from)}T00:00:00.000Z`),
-          lte: new Date(`${iso(to)}T00:00:00.000Z`),
+    const [agg, prevAgg] = await Promise.all([
+      prisma.metaInsightDaily.aggregate({
+        where: {
+          level: 'campaign',
+          objectMetaId: c.metaId,
+          date: {
+            gte: new Date(`${iso(from)}T00:00:00.000Z`),
+            lte: new Date(`${iso(to)}T00:00:00.000Z`),
+          },
         },
-      },
-      _sum: { spend: true, results: true, reach: true },
-    });
+        _sum: { spend: true, results: true, reach: true },
+      }),
+      prisma.metaInsightDaily.aggregate({
+        where: {
+          level: 'campaign',
+          objectMetaId: c.metaId,
+          date: {
+            gte: new Date(`${iso(prevFrom)}T00:00:00.000Z`),
+            lte: new Date(`${iso(prevTo)}T00:00:00.000Z`),
+          },
+        },
+        _sum: { spend: true, results: true },
+      }),
+    ]);
     const spend = n(agg._sum.spend);
     const results = n(agg._sum.results);
+    const cpr = costPerResult(spend, results);
+    const prevCpr = costPerResult(n(prevAgg._sum.spend), n(prevAgg._sum.results));
+    // „Промена" = % пораст на CPR наспроти претходниот период (позитивно = влошување).
+    const cprChangePct =
+      cpr != null && prevCpr != null && prevCpr > 0 ? ((cpr - prevCpr) / prevCpr) * 100 : null;
     const key = (c.objectiveKey as ObjectiveKey | null) ?? null;
     rows.push({
       campaignMetaId: c.metaId,
@@ -162,9 +207,14 @@ export async function metaCross(period: string) {
       costLabel: key ? objectiveMeta(key).costLabel : 'Цена по резултат',
       spend,
       results,
-      cpr: costPerResult(spend, results),
+      cpr,
+      cprChangePct: cprChangePct != null ? Math.round(cprChangePct) : null,
+      goal: clientTargets.get(c.clientId) ?? null,
     });
   }
+  // Сортирај по влошување (најголем пораст на CPR прв; null последни).
+  rows.sort((a, b) => (b.cprChangePct ?? -Infinity) - (a.cprChangePct ?? -Infinity));
+
   // Групи по Objective (за да не се собираат различни Objective).
   const groups = new Map<string, typeof rows>();
   for (const r of rows) {
@@ -175,6 +225,11 @@ export async function metaCross(period: string) {
     period,
     from: iso(from),
     to: iso(to),
+    // KPI: вкупен spend (валута — собирливо) + број активни кампањи. Резултати НЕ се собираат меѓу Objective.
+    kpis: {
+      spend: rows.reduce((s, r) => s + r.spend, 0),
+      campaigns: rows.length,
+    },
     groups: [...groups.entries()].map(([objectiveKey, items]) => ({
       objectiveKey,
       objectiveLabel: items[0]?.objectiveLabel ?? 'Непознат Objective',
