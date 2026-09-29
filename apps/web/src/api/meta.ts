@@ -400,6 +400,80 @@ export function useMetaAssistant() {
   });
 }
 
+// ─────────────────────────── Модул 3 · Мета (Клиент детал — MF2) ───────────────────────────
+
+export interface MetaClientProfile {
+  id: string;
+  name: string;
+  color: string;
+  accessLevel: string | null;
+  currency: string | null;
+  adAccountId: string | null;
+  pageId: string | null;
+  igId: string | null;
+  profile: {
+    targetText: string | null;
+    targetValue: number | null;
+    targetMetric: string | null;
+    maxDailyBudget: number | null;
+    freqThreshold: number;
+    cprAlertPct: number;
+    namingConvention: string | null;
+    notes: string | null;
+  };
+}
+export interface OrganicPost {
+  id: string;
+  taskId: string | null;
+  mediaType: string | null;
+  caption: string | null;
+  thumbnailFileId: string | null;
+  permalink: string | null;
+  publishedAt: string | null;
+  inAd: boolean;
+  reach: number | null;
+  views: number | null;
+  engagement: number | null;
+}
+export interface OrganicData {
+  clientId: string;
+  period: string;
+  connected: boolean;
+  totals: { posts: number; reach: number; views: number; engagement: number };
+  posts: OrganicPost[];
+}
+export interface ProfileUpdateBody {
+  targetText?: string | null;
+  maxDailyBudget?: number | null;
+  freqThreshold?: number;
+  cprAlertPct?: number;
+  namingConvention?: string | null;
+  notes?: string | null;
+}
+
+export function useMetaClientProfile(clientId: string | null) {
+  return useQuery({
+    queryKey: ['meta', 'client-profile', clientId],
+    queryFn: () => api.get<MetaClientProfile>(`/meta/clients/${clientId}/profile`),
+    enabled: !!clientId,
+  });
+}
+export function useUpdateMetaProfile(clientId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: ProfileUpdateBody) =>
+      api.patch<unknown>(`/meta/clients/${clientId}/profile`, body),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['meta', 'client-profile', clientId] }),
+  });
+}
+export function useMetaClientOrganic(clientId: string | null, period: string) {
+  return useQuery({
+    queryKey: ['meta', 'organic', clientId, period],
+    queryFn: () => api.get<OrganicData>(`/meta/clients/${clientId}/organic?period=${period}`),
+    enabled: !!clientId,
+  });
+}
+
 /** „Освежи сега" — закажува sync во позадина + invalidate на сите meta прегледи. */
 export function useMetaRefresh() {
   const qc = useQueryClient();
