@@ -203,3 +203,11 @@ export function useUpdateTeam(leadId: string) {
     onSuccess: () => invalidate(leadId),
   });
 }
+
+export function useReassignAgent(leadId: string) {
+  const invalidate = useLeadInvalidate();
+  return useMutation({
+    mutationFn: (agentId: string) => api.put<LeadRow>(`/crm/leads/${leadId}/agent`, { agentId }),
+    onSuccess: () => invalidate(leadId),
+  });
+}

@@ -6,6 +6,7 @@ import {
   crmMeetingSchema,
   crmPackageSchema,
   crmPlanPutSchema,
+  crmReassignSchema,
   crmTeamSchema,
   crmTransitionSchema,
 } from '@gd/core';
@@ -18,6 +19,7 @@ import {
   getLead,
   listLeads,
   meetingNoShow,
+  reassignAgent,
   setContentPlan,
   updateMeeting,
   updatePackage,
@@ -103,5 +105,11 @@ crmRouter.put('/leads/:id/plan', async (req, res) => {
 crmRouter.put('/leads/:id/team', async (req, res) => {
   const input = parse(crmTeamSchema, req.body);
   const lead = await updateTeam((req.params as { id: string }).id, input, actorOf(req));
+  res.json({ data: lead });
+});
+
+crmRouter.put('/leads/:id/agent', async (req, res) => {
+  const { agentId } = parse(crmReassignSchema, req.body);
+  const lead = await reassignAgent((req.params as { id: string }).id, agentId, actorOf(req));
   res.json({ data: lead });
 });

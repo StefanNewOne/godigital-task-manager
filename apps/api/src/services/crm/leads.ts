@@ -335,4 +335,36 @@ export async function updateTeam(
   });
 }
 
+/** Додели/презадоли лид на друг продажен агент — само Директор, само нетерминален (ADDENDUM §Видливост). */
+export async function reassignAgent(
+  leadId: string,
+  agentId: string,
+  actor: { id: string; role: Role },
+) {
+  if (actor.role !== 'dir') {
+    throw new AppError('FORBIDDEN_ROLE', 'Само Директорот доделува лид на агент.', 403);
+  }
+  const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+  if (!lead) throw new AppError('NOT_FOUND', 'Лидот не е пронајден.', 404);
+  if (lead.status === 'aktiviran' || lead.status === 'izguben') {
+    throw new AppError('VALIDATION_FAILED', 'Терминален лид не се презадоделува.', 400);
+  }
+  const agent = await prisma.employee.findFirst({
+    where: { id: agentId, role: 'sales', active: true },
+    select: { id: true, name: true },
+  });
+  if (!agent) throw new AppError('VALIDATION_FAILED', 'Избраниот агент не е валиден.', 400);
+
+  return prisma.$transaction(async (tx) => {
+    await tx.lead.update({ where: { id: leadId }, data: { agentId: agent.id } });
+    await recordEvent(tx, {
+      eventType: 'lead.reassigned',
+      objectType: 'lead',
+      objectId: leadId,
+      narrative: `Лидот е доделен на ${agent.name}.`,
+    });
+    return tx.lead.findUnique({ where: { id: leadId }, include: withChildren });
+  });
+}
+
 export { CRM_STALE_DAYS };
