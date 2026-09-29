@@ -1,6 +1,7 @@
 import type React from 'react';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { t } from '@gd/ui';
 import { useMe } from '../../api/auth.js';
 import {
   useMetaAlerts,
@@ -92,21 +93,18 @@ export function MetaScreen() {
 
   // Инбокс + Коментари се достапни за сите три улоги; управувачките табови само за dir/ana (§3).
   const isManager = me.role === 'dir' || me.role === 'ana';
-  const tabs: Array<[MetaTab, string]> = isManager
-    ? [
-        ['overview', 'Утрински преглед'],
-        ['clients', 'Клиенти'],
-        ['cross', 'Пресек'],
-        ['plans', 'Планови'],
-        ['archive', 'Архива'],
-        ['assistant', 'Помошник'],
-        ['inbox', 'Инбокс'],
-        ['comments', 'Коментари'],
-      ]
-    : [
-        ['inbox', 'Инбокс'],
-        ['comments', 'Коментари'],
-      ];
+  const managerTabs: MetaTab[] = [
+    'overview',
+    'clients',
+    'cross',
+    'plans',
+    'archive',
+    'assistant',
+    'inbox',
+    'comments',
+  ];
+  const tabIds: MetaTab[] = isManager ? managerTabs : ['inbox', 'comments'];
+  const tabs: Array<[MetaTab, string]> = tabIds.map((id) => [id, t(`meta.tabs.${id}`)]);
 
   const fallbackTab: MetaTab = isManager ? 'overview' : 'inbox';
   const requested = params.get('tab') as MetaTab | null;
