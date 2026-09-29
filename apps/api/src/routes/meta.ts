@@ -24,6 +24,18 @@ import {
   setCommentTags,
   setConversationTags,
 } from '../services/meta/inboxRead.js';
+import {
+  approvePlan,
+  archiveCsv,
+  createPlan,
+  listArchive,
+  listPlans,
+  markPlanDone,
+  rejectPlan,
+  withdrawPlan,
+} from '../services/meta/plans.js';
+import type { OpCode } from '@gd/core';
+import { OP_CODES } from '@gd/core';
 import { AppError } from '../lib/errors.js';
 
 /** Meta интеграција (B2 + Модул 3). Mounted at /meta. Токенот е само на backend. */
@@ -91,6 +103,74 @@ metaRouter.get('/comments', requireRole('dir', 'ana', 'am'), async (req, res) =>
 metaRouter.patch('/comments/:id/tags', requireRole('dir', 'ana', 'am'), async (req, res) => {
   const tags = (req.body as { tags?: string[] }).tags ?? [];
   res.json({ data: await setCommentTags((req.params as { id: string }).id, tags) });
+});
+
+// ─── Планови за промена (§12) — dir/ana; создавање (dir→approved, ana→pending); одобрување само dir ───
+metaRouter.get('/plans', requireRole('dir', 'ana'), async (req, res) => {
+  const { clientId, status } = req.query as Record<string, string | undefined>;
+  res.json({ data: await listPlans({ clientId, status }) });
+});
+
+metaRouter.post('/plans', requireRole('dir', 'ana'), async (req, res) => {
+  const b = req.body as {
+    op?: string;
+    clientId?: string;
+    target?: Record<string, string>;
+    params?: Record<string, unknown>;
+    note?: string;
+    taskId?: string;
+    promotionId?: string;
+    via?: 'manual' | 'assistant';
+    command?: string;
+  };
+  if (!b.op || !OP_CODES.includes(b.op as OpCode)) {
+    throw new AppError('VALIDATION_FAILED', 'Невалидна операција.', 400);
+  }
+  if (!b.clientId) throw new AppError('VALIDATION_FAILED', 'Клиентот е задолжителен.', 400);
+  const plan = await createPlan({
+    op: b.op as OpCode,
+    clientId: b.clientId,
+    target: b.target ?? {},
+    params: b.params,
+    note: b.note,
+    taskId: b.taskId,
+    promotionId: b.promotionId,
+    via: b.via,
+    command: b.command,
+  });
+  res.status(201).json({ data: plan });
+});
+
+metaRouter.post('/plans/:id/approve', requireRole('dir'), async (req, res) => {
+  res.json({ data: await approvePlan((req.params as { id: string }).id) });
+});
+
+metaRouter.post('/plans/:id/reject', requireRole('dir'), async (req, res) => {
+  const note = ((req.body ?? {}) as { note?: string }).note ?? '';
+  res.json({ data: await rejectPlan((req.params as { id: string }).id, note) });
+});
+
+metaRouter.post('/plans/:id/mark-done', requireRole('dir'), async (req, res) => {
+  res.json({ data: await markPlanDone((req.params as { id: string }).id) });
+});
+
+metaRouter.post('/plans/:id/withdraw', requireRole('ana', 'dir'), async (req, res) => {
+  res.json({ data: await withdrawPlan((req.params as { id: string }).id) });
+});
+
+// Архива = EventLog meta.* (append-only). CSV извоз за Директор.
+metaRouter.get('/archive', requireRole('dir', 'ana'), async (req, res) => {
+  const { clientId, from, to } = req.query as Record<string, string | undefined>;
+  res.json({ data: await listArchive({ clientId, from, to }) });
+});
+
+metaRouter.get('/archive.csv', requireRole('dir'), async (req, res) => {
+  const { clientId, from, to } = req.query as Record<string, string | undefined>;
+  const csv = await archiveCsv({ clientId, from, to });
+  res
+    .type('text/csv')
+    .header('Content-Disposition', 'attachment; filename="meta-arhiva.csv"')
+    .send(csv);
 });
 
 // Достапни страници + IG business сметки (за доделба по клиент во Админ).

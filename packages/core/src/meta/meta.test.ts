@@ -17,10 +17,12 @@ import {
   alertDedupeKey,
   alertMeta,
   allowedPlanTargets,
+  buildPlanPreview,
   canAggregate,
   compareAlertSeverity,
   costPerResult,
   findPlanTransition,
+  isPlanVerifiable,
   groupByObjective,
   hasMetaAccess,
   isPlanTerminal,
@@ -197,6 +199,83 @@ describe('Meta · план state machine (§12)', () => {
   it('sync (system) не бара белешка', () => {
     for (const t of PLAN_TRANSITIONS.filter((x) => x.actor === 'system')) {
       expect(t.requiresNote).toBe(false);
+    }
+  });
+});
+
+describe('Meta · план preview + верификација (§12)', () => {
+  it('верификабилни: O1/O2/O9/O11; креативните не', () => {
+    for (const op of ['O1', 'O2', 'O9', 'O11'] as const) expect(isPlanVerifiable(op)).toBe(true);
+    for (const op of ['O5', 'O6', 'O7', 'O8', 'O12'] as const)
+      expect(isPlanVerifiable(op)).toBe(false);
+  });
+
+  it('O2 буџет: after + предупредување при Δ>20% и над максимум', () => {
+    const p = buildPlanPreview({
+      op: 'O2',
+      params: { amount: 200 },
+      before: { dailyBudget: 100 },
+      client: { metaMaxDailyBudget: 150 },
+    });
+    expect(p.after).toEqual({ dailyBudget: 200 });
+    expect(p.warnings.some((w) => w.includes('20%'))).toBe(true);
+    expect(p.warnings.some((w) => w.includes('максимум'))).toBe(true);
+  });
+
+  it('O2 буџет: мала промена во рамки → без предупредување', () => {
+    const p = buildPlanPreview({
+      op: 'O2',
+      params: { amount: 110 },
+      before: { dailyBudget: 100 },
+      client: { metaMaxDailyBudget: 500 },
+    });
+    expect(p.warnings).toHaveLength(0);
+  });
+
+  it('O1 активирање на pausedExternally → предупредување + after.status', () => {
+    const p = buildPlanPreview({
+      op: 'O1',
+      params: { status: 'ACTIVE' },
+      before: { pausedExternally: true },
+    });
+    expect(p.after).toEqual({ status: 'ACTIVE' });
+    expect(p.warnings).toHaveLength(1);
+  });
+
+  it('O11 име надвор од конвенција → предупредување', () => {
+    const p = buildPlanPreview({
+      op: 'O11',
+      params: { name: 'Тест кампања' },
+      client: { metaNamingConvention: '[GD]' },
+    });
+    expect(p.after).toEqual({ name: 'Тест кампања' });
+    expect(p.warnings).toHaveLength(1);
+  });
+
+  it('O6/O7 при learning → предупредување за learning + буџет', () => {
+    expect(buildPlanPreview({ op: 'O6', learning: true }).warnings).toHaveLength(1);
+    expect(buildPlanPreview({ op: 'O7', learning: false }).warnings).toHaveLength(0);
+  });
+
+  it('O4 со различни CTA → предупредување; O1 паузирање без before', () => {
+    expect(buildPlanPreview({ op: 'O4', before: { mixedCta: true } }).warnings).toHaveLength(1);
+    expect(buildPlanPreview({ op: 'O4', before: {} }).warnings).toHaveLength(0);
+    const pause = buildPlanPreview({ op: 'O1', params: { active: false } });
+    expect(pause.after).toEqual({ status: 'PAUSED' });
+    expect(pause.warnings).toHaveLength(0);
+  });
+
+  it('O2 без тековен буџет → без Δ предупредување; O9 краен датум', () => {
+    expect(buildPlanPreview({ op: 'O2', params: { amount: 50 } }).warnings).toHaveLength(0);
+    expect(buildPlanPreview({ op: 'O9', params: { stopTime: '2026-10-01' } }).after).toEqual({
+      stopTime: '2026-10-01',
+    });
+    expect(buildPlanPreview({ op: 'O9', params: {} }).after).toEqual({ stopTime: null });
+  });
+
+  it('секоја операција има барем една последица', () => {
+    for (const op of OP_CODES) {
+      expect(buildPlanPreview({ op }).consequences.length).toBeGreaterThan(0);
     }
   });
 });

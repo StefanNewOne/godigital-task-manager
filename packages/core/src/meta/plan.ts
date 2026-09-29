@@ -10,6 +10,8 @@
  *   dir креира → директно approved
  */
 
+import type { OpCode } from './operations.js';
+
 export const PLAN_STATUSES = [
   'pending',
   'approved',
@@ -93,4 +95,119 @@ export function allowedPlanTargets(from: PlanStatus): PlanStatus[] {
 
 export function isPlanTerminal(status: PlanStatus): boolean {
   return PLAN_TERMINAL.includes(status);
+}
+
+// ─────────────────────────── Preview + верификација (§12) ───────────────────────────
+
+/**
+ * Операции чии `after` вредности sync-от може машински да ги спореди со огледалото
+ * (status/буџет/краен датум/име). Само нив ги потврдува/означува mismatch по 24 ч; за
+ * креативните операции (нова кампања/ad set/видео…) нема детерминистичка споредба.
+ */
+export const OP_VERIFIABLE: ReadonlySet<OpCode> = new Set<OpCode>(['O1', 'O2', 'O9', 'O11']);
+
+export function isPlanVerifiable(op: OpCode): boolean {
+  return OP_VERIFIABLE.has(op);
+}
+
+export interface PlanPreviewInput {
+  op: OpCode;
+  /** Внес од модалот (нов буџет, ново име, статус, краен датум…). */
+  params?: Record<string, unknown>;
+  /** Тековни вредности од огледалото на целниот објект. */
+  before?: Record<string, unknown>;
+  /** За буџет/именување предупредувања. */
+  client?: { metaMaxDailyBudget?: number | null; metaNamingConvention?: string | null };
+  /** Дали целниот ad set/кампања сè уште учи (learning). */
+  learning?: boolean;
+}
+
+export interface PlanPreview {
+  consequences: string[];
+  warnings: string[];
+  /** Очекувана вредност по промената — sync ја споредува со огледалото. */
+  after: Record<string, unknown> | null;
+}
+
+/**
+ * Детерминистички ги гради последиците, предупредувањата и очекуваната `after` вредност
+ * за план. Чиста функција (без I/O) — сервисот ги дава `before`/`client` од базата.
+ */
+export function buildPlanPreview(input: PlanPreviewInput): PlanPreview {
+  const { op, params = {}, before = {}, client = {}, learning = false } = input;
+  const consequences: string[] = [];
+  const warnings: string[] = [];
+  let after: Record<string, unknown> | null = null;
+
+  switch (op) {
+    case 'O1': {
+      const activate = params.status === 'ACTIVE' || params.active === true;
+      after = { status: activate ? 'ACTIVE' : 'PAUSED' };
+      consequences.push(activate ? 'Објектот се активира.' : 'Објектот се паузира.');
+      if (activate && before.pausedExternally === true) {
+        warnings.push('Активирање на објект паузиран однадвор (pausedExternally).');
+      }
+      break;
+    }
+    case 'O2': {
+      const amount = Number(params.amount);
+      const current = Number(before.dailyBudget);
+      after = { dailyBudget: amount };
+      consequences.push(`Дневен буџет → €${amount}.`);
+      if (Number.isFinite(current) && current > 0) {
+        const delta = Math.abs(amount - current) / current;
+        if (delta > 0.2) {
+          warnings.push(
+            `Промена > 20% (од €${current} на €${amount}) — може да рестартира learning.`,
+          );
+        }
+      }
+      if (client.metaMaxDailyBudget != null && amount > client.metaMaxDailyBudget) {
+        warnings.push(`Над дозволениот максимум (€${client.metaMaxDailyBudget}).`);
+      }
+      break;
+    }
+    case 'O9': {
+      after = { stopTime: params.endDate ?? params.stopTime ?? null };
+      consequences.push('Се поставува краен датум на кампањата.');
+      break;
+    }
+    case 'O11': {
+      const name = String(params.name ?? '');
+      after = { name };
+      consequences.push(`Ново име: „${name}".`);
+      if (client.metaNamingConvention && !name.includes(client.metaNamingConvention)) {
+        warnings.push(`Името не ја следи конвенцијата „${client.metaNamingConvention}".`);
+      }
+      break;
+    }
+    case 'O6':
+    case 'O7': {
+      consequences.push(op === 'O6' ? 'Се копира ad set.' : 'Се создава нов ad set.');
+      if (learning) warnings.push('Ќе стартира нова learning фаза + ќе се дели буџетот.');
+      break;
+    }
+    case 'O4': {
+      consequences.push('Се прави реклама од органски пост.');
+      if (before.mixedCta === true) warnings.push('Различни CTA во ad set-от.');
+      break;
+    }
+    case 'O5':
+      consequences.push('Се додава ново видео во ad set.');
+      break;
+    case 'O3':
+      consequences.push('Се закажува буџет.');
+      break;
+    case 'O8':
+      consequences.push('Нова кампања (Auction · CBO · Highest volume · без Audience Network).');
+      break;
+    case 'O10':
+      consequences.push('Се менува CTA/линк/шаблон на рекламата.');
+      break;
+    case 'O12':
+      consequences.push('Се дуплира кампањата.');
+      break;
+  }
+
+  return { consequences, warnings, after };
 }

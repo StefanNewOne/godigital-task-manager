@@ -288,3 +288,84 @@ export function useSetCommentTags() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['meta', 'comments'] }),
   });
 }
+
+// ─────────────────────────── Модул 3 · Мета (Планови + Архива) ───────────────────────────
+
+export type PlanStatus =
+  'pending' | 'approved' | 'syncing' | 'done' | 'rejected' | 'mismatch' | 'withdrawn';
+
+export interface MetaPlanRow {
+  id: string;
+  clientId: string;
+  op: string;
+  target: { campaignId?: string; adSetId?: string; adId?: string };
+  params: Record<string, unknown> | null;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  consequences: string[];
+  warnings: string[];
+  status: PlanStatus;
+  createdById: string;
+  createdVia: 'manual' | 'assistant';
+  note: string | null;
+  rejectNote: string | null;
+  createdAt: string;
+}
+
+export interface CreatePlanBody {
+  op: string;
+  clientId: string;
+  target?: { campaignId?: string; adSetId?: string; adId?: string };
+  params?: Record<string, unknown>;
+  note?: string;
+}
+
+export function useMetaPlans(clientId?: string, status?: string) {
+  const params = new URLSearchParams();
+  if (clientId) params.set('clientId', clientId);
+  if (status) params.set('status', status);
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  return useQuery({
+    queryKey: ['meta', 'plans', clientId ?? '', status ?? ''],
+    queryFn: () => api.get<MetaPlanRow[]>(`/meta/plans${qs}`),
+  });
+}
+
+export function useCreatePlan() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreatePlanBody) => api.post<MetaPlanRow>('/meta/plans', body),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['meta', 'plans'] }),
+  });
+}
+
+export function usePlanAction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      id: string;
+      action: 'approve' | 'reject' | 'mark-done' | 'withdraw';
+      note?: string;
+    }) => api.post<MetaPlanRow>(`/meta/plans/${input.id}/${input.action}`, { note: input.note }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['meta', 'plans'] }),
+  });
+}
+
+export interface ArchiveRow {
+  id: string;
+  eventType: string;
+  narrative: string;
+  actorRole: string | null;
+  clientId: string | null;
+  objectType: string;
+  objectId: string;
+  occurredAt: string;
+}
+
+export function useMetaArchive(clientId?: string) {
+  const qs = clientId ? `?clientId=${clientId}` : '';
+  return useQuery({
+    queryKey: ['meta', 'archive', clientId ?? ''],
+    queryFn: () => api.get<ArchiveRow[]>(`/meta/archive${qs}`),
+  });
+}
