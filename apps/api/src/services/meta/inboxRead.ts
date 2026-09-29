@@ -2,11 +2,50 @@ import type { Prisma } from '@gd/db';
 import { prisma } from '../../db/tenantExtension.js';
 import { AppError } from '../../lib/errors.js';
 import { recordEvent } from '../../lib/events.js';
+import { periodRange } from './read.js';
 
 /**
  * Модул 3 · Мета — read за Инбокс + Коментари (§8). Достапно за dir/ana/am. Секое отворање на
  * разговор се логира (приватност, §15). Само читање; никогаш не праќа во Meta.
  */
+
+/**
+ * Резиме на пораките (§8 „Резиме на пораките") — теми, од кои реклами доаѓаат, колку чекаат.
+ * Составено од податоците (без проценки). Опционен клиент + период по `lastMessageAt`.
+ */
+export async function conversationsSummary(opts: { clientId?: string; period?: string }) {
+  const where: Prisma.MetaConversationWhereInput = {};
+  if (opts.clientId) where.clientId = opts.clientId;
+  if (opts.period) {
+    const { from, to } = periodRange(opts.period);
+    where.lastMessageAt = { gte: from, lte: to };
+  }
+  const convos = await prisma.metaConversation.findMany({
+    where,
+    select: { topic: true, sourceAdMetaId: true, waitingSince: true, unread: true },
+    take: 1000,
+  });
+
+  const topicMap = new Map<string, number>();
+  const adMap = new Map<string, number>();
+  let waiting = 0;
+  for (const c of convos) {
+    const topic = c.topic ?? 'друго';
+    topicMap.set(topic, (topicMap.get(topic) ?? 0) + 1);
+    if (c.sourceAdMetaId) adMap.set(c.sourceAdMetaId, (adMap.get(c.sourceAdMetaId) ?? 0) + 1);
+    if (c.waitingSince) waiting += 1;
+  }
+  const sortDesc = (m: Map<string, number>) =>
+    [...m.entries()].map(([k, count]) => ({ key: k, count })).sort((a, b) => b.count - a.count);
+
+  return {
+    total: convos.length,
+    unread: convos.filter((c) => c.unread).length,
+    waiting,
+    topics: sortDesc(topicMap).slice(0, 8),
+    fromAds: sortDesc(adMap).slice(0, 8),
+  };
+}
 
 /** Листа разговори (со филтри). */
 export async function listConversations(opts: { clientId?: string; unread?: boolean }) {

@@ -25,6 +25,7 @@ import {
   useUpdateMetaProfile,
   useMetaClientOrganic,
   useMetaConnections,
+  useConversationsSummary,
   type Kpi,
   type MetaAlertRow,
   type MetaCommentRow,
@@ -96,6 +97,12 @@ const SEV_LABEL: Record<string, string> = {
 const fmtMoney = (v: number, cur = '€') =>
   `${cur}${v.toLocaleString('mk-MK', { maximumFractionDigits: 0 })}`;
 const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleString('mk-MK') : '—');
+const fmtObj = (o: Record<string, unknown> | null): string =>
+  o && Object.keys(o).length
+    ? Object.entries(o)
+        .map(([k, v]) => `${k}: ${String(v)}`)
+        .join(', ')
+    : '—';
 
 export function MetaScreen() {
   const { data: me } = useMe();
@@ -328,6 +335,74 @@ function InboxView({ clientId }: { clientId?: string }) {
       <div style={{ flex: 1, minWidth: 0, overflowY: 'auto' }}>
         {openId ? <ConversationDetail id={openId} /> : <Empty text="Избери разговор." />}
       </div>
+      {/* Трета колона: Резиме на пораките (§8). */}
+      <InboxSummary clientId={clientId} />
+    </div>
+  );
+}
+
+function InboxSummary({ clientId }: { clientId?: string }) {
+  const { data } = useConversationsSummary(clientId);
+  return (
+    <div
+      style={{
+        width: 280,
+        borderLeft: '1px solid var(--gd-border)',
+        flexShrink: 0,
+        overflowY: 'auto',
+        padding: 16,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 16,
+      }}
+    >
+      <div style={{ fontSize: 14, fontWeight: 600 }}>{t('meta.inbox.summaryTitle')}</div>
+      {!data ? (
+        <Loading />
+      ) : (
+        <>
+          <SideRow k={t('meta.inbox.waiting')} v={String(data.waiting)} />
+          <div>
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: 'var(--gd-ink-secondary)',
+                marginBottom: 6,
+              }}
+            >
+              {t('meta.inbox.topics')}
+            </div>
+            {data.topics.length === 0 && (
+              <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>—</div>
+            )}
+            {data.topics.map((tp) => (
+              <SideRow key={tp.key} k={tp.key} v={String(tp.count)} />
+            ))}
+          </div>
+          <div>
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: 'var(--gd-ink-secondary)',
+                marginBottom: 6,
+              }}
+            >
+              {t('meta.inbox.fromAds')}
+            </div>
+            {data.fromAds.length === 0 && (
+              <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>—</div>
+            )}
+            {data.fromAds.map((ad) => (
+              <SideRow key={ad.key} k={ad.key} v={String(ad.count)} />
+            ))}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--gd-ink-muted)' }}>
+            {t('meta.inbox.summaryNote')}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -512,11 +587,21 @@ function CommentRow({ comment }: { comment: MetaCommentRow }) {
           </span>
         </div>
         <div style={{ fontSize: 13, marginTop: 4 }}>{comment.text ?? '—'}</div>
-        <TagBar
-          tags={comment.tags}
-          onToggle={(tags) => setTags.mutate({ id: comment.id, tags })}
-          disabled={setTags.isPending}
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <TagBar
+            tags={comment.tags}
+            onToggle={(tags) => setTags.mutate({ id: comment.id, tags })}
+            disabled={setTags.isPending}
+          />
+          <a
+            href="https://business.facebook.com/latest/content_calendar"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ fontSize: 11, color: '#0052D9', textDecoration: 'none', marginTop: 6 }}
+          >
+            {t('meta.common.openInMeta')} ›
+          </a>
+        </div>
       </div>
     </div>
   );
@@ -1862,9 +1947,36 @@ function AssistantView({ isDir }: { isDir: boolean }) {
     );
   };
 
+  const suggestions = [
+    t('meta.assistant.suggest1'),
+    t('meta.assistant.suggest2'),
+    t('meta.assistant.suggest3'),
+  ];
+  const ask = (text: string) => {
+    setMessages((m) => [...m, { role: 'user', text }]);
+    chat.mutate(
+      { message: text, clientId: clientId || undefined },
+      {
+        onSuccess: (res) =>
+          setMessages((m) => [...m, { role: 'assistant', text: res.answer, draft: res.draft }]),
+      },
+    );
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-      <div style={{ padding: 12, borderBottom: '1px solid var(--gd-border)' }}>
+      <div
+        style={{
+          padding: 12,
+          borderBottom: '1px solid var(--gd-border)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+        }}
+      >
+        <span style={{ fontSize: 14, fontWeight: 600, color: '#0052D9' }}>
+          {t('meta.assistant.header')}
+        </span>
         <select
           style={{ ...modalInput, width: 260 }}
           value={clientId}
@@ -1911,7 +2023,51 @@ function AssistantView({ isDir }: { isDir: boolean }) {
           >
             {m.text}
             {m.draft && (
-              <div style={{ marginTop: 8 }}>
+              <div
+                style={{
+                  marginTop: 8,
+                  background: '#fff',
+                  border: '1px solid var(--gd-border)',
+                  borderRadius: 8,
+                  padding: 10,
+                  color: 'var(--gd-ink)',
+                }}
+              >
+                <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 6 }}>
+                  {OP_LABELS[m.draft.op] ?? m.draft.op}
+                </div>
+                {(m.draft.before || m.draft.after) && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                    <span
+                      style={{
+                        flex: 1,
+                        background: '#F7F8FA',
+                        borderRadius: 6,
+                        padding: '4px 8px',
+                        fontSize: 11,
+                      }}
+                    >
+                      {fmtObj(m.draft.before)}
+                    </span>
+                    <span style={{ color: 'var(--gd-ink-muted)' }}>→</span>
+                    <span
+                      style={{
+                        flex: 1,
+                        background: '#EBF2FF',
+                        borderRadius: 6,
+                        padding: '4px 8px',
+                        fontSize: 11,
+                      }}
+                    >
+                      {fmtObj(m.draft.after)}
+                    </span>
+                  </div>
+                )}
+                {m.draft.warnings.length > 0 && (
+                  <div style={{ fontSize: 11, color: '#B45309', marginBottom: 6 }}>
+                    ⚠ {m.draft.warnings.join(' · ')}
+                  </div>
+                )}
                 <button
                   type="button"
                   style={{ ...ghostBtn, background: '#0866FF', color: '#fff', border: 'none' }}
@@ -1926,6 +2082,21 @@ function AssistantView({ isDir }: { isDir: boolean }) {
         {chat.isPending && (
           <div style={{ color: 'var(--gd-ink-muted)', fontSize: 12 }}>Пишува…</div>
         )}
+      </div>
+
+      {/* Предлог-прашања (§11) */}
+      <div style={{ display: 'flex', gap: 6, padding: '0 12px', flexWrap: 'wrap' }}>
+        {suggestions.map((s) => (
+          <button
+            key={s}
+            type="button"
+            disabled={chat.isPending}
+            onClick={() => ask(s)}
+            style={{ ...ghostBtn, borderColor: '#C7DCFF', color: '#0052D9', borderRadius: 9999 }}
+          >
+            {s}
+          </button>
+        ))}
       </div>
 
       <div
