@@ -111,6 +111,30 @@ export function roas(key: ObjectiveKey, value: number, spend: number): number | 
   return value / spend;
 }
 
+/**
+ * Мапирај Meta objective (ODAX, пр. `OUTCOME_ENGAGEMENT`) + optimization goal во наш ObjectiveKey.
+ * Objective сам по себе не е доволен (пораки vs ThruPlay имаат ист objective) → се користи и целта.
+ * Враќа null ако не може да се мапира (UI покажува „непознат Objective").
+ */
+export function metaObjectiveToKey(
+  objective: string | null | undefined,
+  optimizationGoal?: string | null,
+): ObjectiveKey | null {
+  const o = (objective ?? '').toUpperCase();
+  const g = (optimizationGoal ?? '').toUpperCase();
+  if (o.includes('AWARENESS') || g === 'REACH' || g === 'IMPRESSIONS') return 'reach';
+  if (o.includes('TRAFFIC') || g === 'LANDING_PAGE_VIEWS' || g === 'LINK_CLICKS') return 'traffic';
+  if (o.includes('LEAD'))
+    return g === 'LEAD_GENERATION' || g === 'QUALITY_LEAD' ? 'lead' : 'leadWeb';
+  if (o.includes('SALES') || o.includes('CONVERSION')) return g === 'ADD_TO_CART' ? 'cart' : 'buy';
+  if (o.includes('ENGAGEMENT')) {
+    if (g === 'CONVERSATIONS' || g === 'MESSAGING' || g.includes('MESSAG')) return 'msg';
+    if (g === 'THRUPLAY' || g.includes('VIDEO')) return 'thru';
+    return 'msg';
+  }
+  return null;
+}
+
 /** Групирај објекти по Objective (за Пресек — секоја група е збирлива посебно). */
 export function groupByObjective<T>(
   items: readonly T[],

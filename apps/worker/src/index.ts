@@ -46,6 +46,12 @@ const CRON_JOBS: CronJob[] = [
     pattern: '0 6 * * *',
     endpoint: '/api/cron/monthly-plan-reminder',
   },
+  // Модул 3 · Мета (§7) — само читање кон Meta.
+  { name: 'meta.connections', pattern: '*/30 * * * *', endpoint: '/api/cron/meta-connections' },
+  { name: 'meta.structure', pattern: '*/30 * * * *', endpoint: '/api/cron/meta-structure' },
+  { name: 'meta.account', pattern: '15 * * * *', endpoint: '/api/cron/meta-account' },
+  { name: 'meta.insights.today', pattern: '0 * * * *', endpoint: '/api/cron/meta-insights-today' },
+  { name: 'meta.status', pattern: '*/15 * * * *', endpoint: '/api/cron/meta-status' },
 ];
 
 const CRON_QUEUE = 'cron';
