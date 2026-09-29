@@ -33,6 +33,8 @@ import {
   type MetaPlanRow,
   type PlanDraft,
   type PlanStatus,
+  type StructureCampaign,
+  type StructureAdSet,
 } from '../../api/meta.js';
 
 type MetaTab =
@@ -1189,7 +1191,7 @@ function MetaClientDetail({
               {t('meta.client.readonly')}
             </div>
           )}
-          <StructureView clientId={clientId} period={period} />
+          <StructureView clientId={clientId} period={period} canPropose={!readOnly} />
         </>
       )}
       {ctab === 'organic' && <OrganicTab clientId={clientId} period={period} />}
@@ -1350,14 +1352,55 @@ function ProfileTab({ clientId, canEdit }: { clientId: string; canEdit: boolean 
   );
 }
 
-function StructureView({ clientId, period }: { clientId: string; period: string }) {
+function StructureView({
+  clientId,
+  period,
+  canPropose = false,
+}: {
+  clientId: string;
+  period: string;
+  canPropose?: boolean;
+}) {
   const { data } = useMetaStructure(clientId, period);
+  const [openSet, setOpenSet] = useState<string | null>(null);
+  const [planInit, setPlanInit] = useState<PlanModalInit | null>(null);
+
+  if (!data) return <Loading />;
+  if (data.campaigns.length === 0) return <Empty text="Нема кампањи." />;
+
+  // Најди го избраниот ad set + неговата кампања.
+  let selCampaign: StructureCampaign | undefined;
+  let selSet: StructureAdSet | undefined;
+  for (const c of data.campaigns) {
+    const s = c.adSets.find((x) => x.metaId === openSet);
+    if (s) {
+      selCampaign = c;
+      selSet = s;
+      break;
+    }
+  }
+
   return (
-    <div>
-      {!data && <Loading />}
-      {data?.campaigns.length === 0 && <Empty text="Нема кампањи." />}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {data?.campaigns.map((c) => (
+    <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+      {/* Лево: структура (кампањи → ad set-ови избирливи) */}
+      <div
+        style={{ flex: '1 1 0', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 12 }}
+      >
+        {canPropose && (
+          <button
+            type="button"
+            style={{
+              ...ghostBtn,
+              alignSelf: 'flex-start',
+              borderColor: '#C7DCFF',
+              color: '#0052D9',
+            }}
+            onClick={() => setPlanInit({ clientId, op: 'O8' })}
+          >
+            {t('meta.client.newCampaign')}
+          </button>
+        )}
+        {data.campaigns.map((c) => (
           <div
             key={c.metaId}
             style={{ border: '1px solid var(--gd-border)', borderRadius: 8, padding: 12 }}
@@ -1370,53 +1413,140 @@ function StructureView({ clientId, period }: { clientId: string; period: string 
                 <KpiInline kpi={c.kpi} resultLabel={c.resultLabel} />
               </span>
             </div>
-            {c.adSets.map((s) => (
-              <div
-                key={s.metaId}
-                style={{ marginTop: 8, paddingLeft: 12, borderLeft: '2px solid #E2E7EB' }}
-              >
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                  <span style={{ fontWeight: 600, fontSize: 13 }}>{s.name}</span>
-                  <StatusDot status={s.effectiveStatus} />
-                  {s.learningStage === 'LIMITED' && (
-                    <span style={{ ...sevPill, background: '#FEF3C7', color: '#B45309' }}>
-                      учи (LIMITED)
-                    </span>
-                  )}
-                  <span style={{ marginLeft: 'auto', fontSize: 12 }}>
-                    <KpiInline kpi={s.kpi} resultLabel={c.resultLabel} />
-                  </span>
-                </div>
-                {s.ads.map((ad) => (
-                  <div
-                    key={ad.metaId}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'baseline',
-                      gap: 8,
-                      marginTop: 4,
-                      paddingLeft: 12,
-                    }}
-                  >
-                    <span style={{ fontSize: 12 }}>{ad.name}</span>
-                    <StatusDot status={ad.effectiveStatus} />
-                    {ad.reviewStatus === 'rejected' && (
-                      <span style={{ ...sevPill, background: '#FEF2F2', color: '#B91C1C' }}>
-                        одбиена
-                      </span>
-                    )}
-                    <span
-                      style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--gd-ink-muted)' }}
-                    >
-                      <KpiInline kpi={ad.kpi} resultLabel={c.resultLabel} />
-                    </span>
-                  </div>
-                ))}
+            {canPropose && (
+              <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                <button
+                  type="button"
+                  style={miniBtn}
+                  onClick={() => setPlanInit({ clientId, op: 'O2', campaignId: c.metaId })}
+                >
+                  {t('meta.client.actBudget')}
+                </button>
+                <button
+                  type="button"
+                  style={miniBtn}
+                  onClick={() => setPlanInit({ clientId, op: 'O1', campaignId: c.metaId })}
+                >
+                  {t('meta.client.actPause')}
+                </button>
               </div>
+            )}
+            {c.adSets.map((s) => (
+              <button
+                key={s.metaId}
+                type="button"
+                onClick={() => setOpenSet(s.metaId)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  width: '100%',
+                  textAlign: 'left',
+                  marginTop: 8,
+                  padding: '6px 8px',
+                  border: 'none',
+                  borderLeft: `2px solid ${openSet === s.metaId ? '#0866FF' : '#E2E7EB'}`,
+                  background: openSet === s.metaId ? '#EBF2FF' : 'transparent',
+                  cursor: 'pointer',
+                }}
+              >
+                <span style={{ fontWeight: 600, fontSize: 13 }}>{s.name}</span>
+                <StatusDot status={s.effectiveStatus} />
+                {s.learningStage === 'LIMITED' && (
+                  <span style={{ ...sevPill, background: '#FEF3C7', color: '#B45309' }}>
+                    {t('meta.client.adLearning')}
+                  </span>
+                )}
+                <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--gd-ink-muted)' }}>
+                  <KpiInline kpi={s.kpi} resultLabel={c.resultLabel} />
+                </span>
+              </button>
             ))}
           </div>
         ))}
       </div>
+
+      {/* Десно: детал на избран ad set */}
+      <div style={{ flex: '1 1 0', minWidth: 0, position: 'sticky', top: 0 }}>
+        {selSet && selCampaign ? (
+          <div style={{ border: '1px solid var(--gd-border)', borderRadius: 8, padding: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontWeight: 700, fontSize: 15 }}>{selSet.name}</span>
+              <StatusDot status={selSet.effectiveStatus} />
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)', marginTop: 2 }}>
+              {selCampaign.name} · {selCampaign.objectiveLabel}
+            </div>
+            {/* KPI грид */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit,minmax(110px,1fr))',
+                gap: 8,
+                marginTop: 12,
+              }}
+            >
+              <Card title="Потрошено" value={fmtMoney(selSet.kpi.spend)} />
+              <Card
+                title={selCampaign.resultLabel}
+                value={selSet.kpi.results.toLocaleString('mk-MK')}
+              />
+              <Card title="Досег" value={selSet.kpi.reach.toLocaleString('mk-MK')} />
+              <Card
+                title="Цена/рез"
+                value={selSet.kpi.cpr != null ? fmtMoney(selSet.kpi.cpr) : '—'}
+              />
+            </div>
+            {canPropose && (
+              <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
+                <button
+                  type="button"
+                  style={miniBtn}
+                  onClick={() =>
+                    setPlanInit({ clientId, op: 'O1', campaignId: selCampaign!.metaId })
+                  }
+                >
+                  {t('meta.client.actPause')}
+                </button>
+              </div>
+            )}
+            {/* Реклами */}
+            <div style={{ fontSize: 13, fontWeight: 600, marginTop: 16, marginBottom: 6 }}>
+              {t('meta.client.adsInSet')}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {selSet.ads.map((ad) => (
+                <div
+                  key={ad.metaId}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    fontSize: 12,
+                    padding: '6px 0',
+                    borderBottom: '1px solid var(--gd-border)',
+                  }}
+                >
+                  <StatusDot status={ad.effectiveStatus} />
+                  <span style={{ flex: 1, minWidth: 0 }}>{ad.name}</span>
+                  {ad.reviewStatus === 'rejected' && (
+                    <span style={{ ...sevPill, background: '#FEF2F2', color: '#B91C1C' }}>
+                      {t('meta.client.adRejected')}
+                    </span>
+                  )}
+                  <span style={{ color: 'var(--gd-ink-muted)' }}>
+                    <KpiInline kpi={ad.kpi} resultLabel={selCampaign!.resultLabel} />
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <Empty text={t('meta.client.selectAdSet')} />
+        )}
+      </div>
+
+      {planInit && <CreatePlanModal init={planInit} onClose={() => setPlanInit(null)} />}
     </div>
   );
 }
@@ -1744,12 +1874,26 @@ function PlanRow({
   );
 }
 
-function CreatePlanModal({ onClose, draft }: { onClose: () => void; draft?: PlanDraft }) {
+interface PlanModalInit {
+  clientId?: string;
+  op?: string;
+  campaignId?: string;
+}
+
+function CreatePlanModal({
+  onClose,
+  draft,
+  init,
+}: {
+  onClose: () => void;
+  draft?: PlanDraft;
+  init?: PlanModalInit;
+}) {
   const { data: clients = [] } = useMetaClients();
   const create = useCreatePlan();
-  const [clientId, setClientId] = useState(draft?.clientId ?? '');
-  const [op, setOp] = useState(draft?.op ?? 'O2');
-  const [campaignId, setCampaignId] = useState(draft?.target.campaignId ?? '');
+  const [clientId, setClientId] = useState(draft?.clientId ?? init?.clientId ?? '');
+  const [op, setOp] = useState(draft?.op ?? init?.op ?? 'O2');
+  const [campaignId, setCampaignId] = useState(draft?.target.campaignId ?? init?.campaignId ?? '');
   const [amount, setAmount] = useState(
     draft?.params.amount != null ? String(draft.params.amount) : '',
   );
@@ -2324,6 +2468,15 @@ const ghostBtn: React.CSSProperties = {
   border: '1px solid var(--gd-border)',
   background: '#fff',
   fontSize: 12,
+  cursor: 'pointer',
+};
+const miniBtn: React.CSSProperties = {
+  padding: '4px 8px',
+  borderRadius: 6,
+  border: '1px solid #C7DCFF',
+  background: '#fff',
+  color: '#0052D9',
+  fontSize: 11,
   cursor: 'pointer',
 };
 const sideCard: React.CSSProperties = {
