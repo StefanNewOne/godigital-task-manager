@@ -8,6 +8,13 @@ import { purgeIdempotencyKeys } from '../middleware/idempotency.js';
 import { evaluateCoverageAlarms } from '../services/alarms.js';
 import { generateDailyDigest } from '../services/digest.js';
 import { pullMetrics, resolvePublications } from '../services/meta/metrics.js';
+import {
+  syncAccounts,
+  syncAllInsightsToday,
+  syncAllStructure,
+  syncConnections,
+} from '../services/meta/sync.js';
+import { evaluateAlerts } from '../services/meta/alertEval.js';
 import { evaluateStorageQuota, runStorageCleanup } from '../services/storage.js';
 import { backfillKnowledge, processPendingEmbeddings } from '../services/knowledge/index.js';
 
@@ -82,4 +89,31 @@ cronRouter.post('/knowledge-backfill', requireCronSecret, async (_req, res) => {
 cronRouter.post('/monthly-plan-reminder', requireCronSecret, async (_req, res) => {
   const result = await remindMonthlyPlan();
   res.json({ data: result });
+});
+
+// ── Модул 3 · Мета — sync jobs (§7). Само читање кон Meta. ──
+
+// Поврзувања (рекламен акаунт + страница + IG): детали, валута, пристап. BullMQ: 30м.
+cronRouter.post('/meta-connections', requireCronSecret, async (_req, res) => {
+  res.json({ data: await syncConnections() });
+});
+
+// Структура (кампањи→ad sets→ads) → огледало. BullMQ: 30м.
+cronRouter.post('/meta-structure', requireCronSecret, async (_req, res) => {
+  res.json({ data: await syncAllStructure() });
+});
+
+// Account-ниво (spend cap, статус, плаќање). BullMQ: :15 секој час.
+cronRouter.post('/meta-account', requireCronSecret, async (_req, res) => {
+  res.json({ data: await syncAccounts() });
+});
+
+// Дневни insights за денес (не се конечни). BullMQ: секој час.
+cronRouter.post('/meta-insights-today', requireCronSecret, async (_req, res) => {
+  res.json({ data: await syncAllInsightsToday() });
+});
+
+// Статус + евалуација на алерти (A01/A02/A04/A05/A06/A09/A10) → MetaAlert. BullMQ: 15м.
+cronRouter.post('/meta-status', requireCronSecret, async (_req, res) => {
+  res.json({ data: await evaluateAlerts() });
 });
