@@ -474,6 +474,39 @@ export function useMetaClientOrganic(clientId: string | null, period: string) {
   });
 }
 
+// ─────────────────────────── Модул 3 · Мета (Поврзувања — MF3) ───────────────────────────
+
+export interface MetaTokenCard {
+  name: string;
+  configured: boolean;
+  valid: boolean;
+  expiresAt: string | null;
+  scopes: string[];
+}
+export interface MetaConnectionRow {
+  clientId: string;
+  name: string;
+  color: string;
+  adAccount: string | null;
+  currency: string | null;
+  accessLevel: string | null;
+  page: string | null;
+  ig: string | null;
+  igMessages: boolean | null;
+}
+export interface MetaConnectionsData {
+  tokens: MetaTokenCard[];
+  rows: MetaConnectionRow[];
+}
+
+export function useMetaConnections() {
+  return useQuery({
+    queryKey: ['meta', 'connections'],
+    queryFn: () => api.get<MetaConnectionsData>('/meta/connections'),
+    staleTime: 5 * 60_000,
+  });
+}
+
 /** „Освежи сега" — закажува sync во позадина + invalidate на сите meta прегледи. */
 export function useMetaRefresh() {
   const qc = useQueryClient();
