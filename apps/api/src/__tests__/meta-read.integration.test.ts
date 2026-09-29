@@ -116,4 +116,17 @@ describe('Meta read API (М2c)', () => {
     expect((await get('/api/meta/comments', am)).status).toBe(200);
     expect((await get('/api/meta/comments?filter=q', ana)).status).toBe(200);
   });
+
+  it('refresh: dir → 202 (закажано, не блокира); am → 403 (MF1)', async () => {
+    const r = await request(app)
+      .post('/api/meta/refresh')
+      .set({ Authorization: `Bearer ${dir}` })
+      .send({ clientId });
+    expect(r.status).toBe(202);
+    expect(r.body.data.scheduled).toBe(true);
+    const rAm = await request(app)
+      .post('/api/meta/refresh')
+      .set({ Authorization: `Bearer ${am}` });
+    expect(rAm.status).toBe(403);
+  });
 });

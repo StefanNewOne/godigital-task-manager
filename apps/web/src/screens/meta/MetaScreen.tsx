@@ -20,6 +20,7 @@ import {
   useCreatePlan,
   usePlanAction,
   useMetaAssistant,
+  useMetaRefresh,
   type Kpi,
   type MetaAlertRow,
   type MetaCommentRow,
@@ -88,6 +89,9 @@ export function MetaScreen() {
   const { data: me } = useMe();
   const [params, setParams] = useSearchParams();
   const [openClient, setOpenClient] = useState<string | null>(null);
+  // Заеднички контроли од топ-барот (§8): период + филтер по клиент.
+  const [period, setPeriod] = useState('7');
+  const [filterClientId, setFilterClientId] = useState('');
 
   if (!me) return null;
 
@@ -136,27 +140,129 @@ export function MetaScreen() {
         </div>
       </header>
 
+      {/* Заеднички контроли (§8) — само за управувачки улоги (mNotAm во прототипот). */}
+      {isManager && (
+        <MetaControlsBar
+          period={period}
+          setPeriod={setPeriod}
+          filterClientId={filterClientId}
+          setFilterClientId={setFilterClientId}
+        />
+      )}
+
       <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
         {openClient ? (
-          <StructureView clientId={openClient} onBack={() => setOpenClient(null)} />
+          <StructureView clientId={openClient} onBack={() => setOpenClient(null)} period={period} />
         ) : tab === 'overview' ? (
-          <OverviewView />
+          <OverviewView clientId={filterClientId || undefined} />
         ) : tab === 'clients' ? (
           <ClientsView onOpen={setOpenClient} />
         ) : tab === 'cross' ? (
-          <CrossView />
+          <CrossView period={period} />
         ) : tab === 'plans' ? (
-          <PlansView canApprove={me.role === 'dir'} myId={me.id} />
+          <PlansView
+            canApprove={me.role === 'dir'}
+            myId={me.id}
+            clientId={filterClientId || undefined}
+          />
         ) : tab === 'archive' ? (
-          <ArchiveView canExport={me.role === 'dir'} />
+          <ArchiveView canExport={me.role === 'dir'} clientId={filterClientId || undefined} />
         ) : tab === 'assistant' ? (
           <AssistantView isDir={me.role === 'dir'} />
         ) : tab === 'inbox' ? (
-          <InboxView />
+          <InboxView clientId={filterClientId || undefined} />
         ) : (
-          <CommentsView />
+          <CommentsView clientId={filterClientId || undefined} />
         )}
       </div>
+    </div>
+  );
+}
+
+// ─────────────────────────── Заеднички контроли (§8) ───────────────────────────
+
+const PERIODS: Array<[string, string]> = [
+  ['7', t('meta.topbar.period7')],
+  ['30', t('meta.topbar.period30')],
+  ['month', t('meta.topbar.periodMonth')],
+];
+
+function MetaControlsBar({
+  period,
+  setPeriod,
+  filterClientId,
+  setFilterClientId,
+}: {
+  period: string;
+  setPeriod: (p: string) => void;
+  filterClientId: string;
+  setFilterClientId: (id: string) => void;
+}) {
+  const { data: clients = [] } = useMetaClients();
+  const { data: ov } = useMetaOverview();
+  const refresh = useMetaRefresh();
+  const selected = clients.find((c) => c.id === filterClientId);
+  const fresh = ov?.sync.lastSyncAt
+    ? t('meta.topbar.freshness', { time: new Date(ov.sync.lastSyncAt).toLocaleString('mk-MK') })
+    : t('meta.topbar.neverSynced');
+
+  return (
+    <div style={controlsBar}>
+      <div
+        style={{
+          display: 'flex',
+          border: '1px solid var(--gd-border)',
+          borderRadius: 6,
+          overflow: 'hidden',
+        }}
+      >
+        {PERIODS.map(([p, label]) => (
+          <button key={p} type="button" onClick={() => setPeriod(p)} style={segBtn(period === p)}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {selected ? (
+        <span style={filterChip}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: selected.color }} />
+          {selected.name}
+          <button
+            type="button"
+            title={t('meta.topbar.allClients')}
+            onClick={() => setFilterClientId('')}
+            style={chipClear}
+          >
+            ✕
+          </button>
+        </span>
+      ) : (
+        <select
+          value={filterClientId}
+          onChange={(e) => setFilterClientId(e.target.value)}
+          style={{ ...ghostBtn, height: 28 }}
+        >
+          <option value="">{t('meta.topbar.allClients')}</option>
+          {clients.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      )}
+
+      <span style={{ fontSize: 12, color: 'var(--gd-ink-muted)', whiteSpace: 'nowrap' }}>
+        {fresh}
+      </span>
+      <div style={{ flex: 1 }} />
+      <button
+        type="button"
+        style={ghostBtn}
+        disabled={refresh.isPending}
+        onClick={() => refresh.mutate(filterClientId || undefined)}
+      >
+        {refresh.isPending ? t('meta.topbar.refreshing') : t('meta.topbar.refresh')}
+      </button>
     </div>
   );
 }
@@ -165,10 +271,10 @@ export function MetaScreen() {
 
 const CHANNEL_LABEL: Record<string, string> = { messenger: 'Messenger', instagram: 'Instagram' };
 
-function InboxView() {
+function InboxView({ clientId }: { clientId?: string }) {
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
-  const { data: convos = [], isLoading } = useMetaConversations(undefined, unreadOnly);
+  const { data: convos = [], isLoading } = useMetaConversations(clientId, unreadOnly);
 
   return (
     <div style={{ display: 'flex', height: '100%', minHeight: 0 }}>
@@ -304,8 +410,18 @@ function ConversationDetail({ id }: { id: string }) {
           </div>
         ))}
       </div>
-      <div style={{ fontSize: 11, color: 'var(--gd-ink-muted)' }}>
-        Само читање — одговарај директно во Meta Business Suite.
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ fontSize: 11, color: 'var(--gd-ink-muted)', flex: 1 }}>
+          Само читање — одговарај директно во Meta Business Suite.
+        </span>
+        <a
+          href="https://business.facebook.com/latest/inbox"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ ...ghostBtn, textDecoration: 'none' }}
+        >
+          {t('meta.common.openInMeta')}
+        </a>
       </div>
     </div>
   );
@@ -321,9 +437,9 @@ const COMMENT_FILTERS: Array<[string, string]> = [
   ['bad', 'Поплаки'],
 ];
 
-function CommentsView() {
+function CommentsView({ clientId }: { clientId?: string }) {
   const [filter, setFilter] = useState('');
-  const { data: comments = [], isLoading } = useMetaComments(undefined, filter || undefined);
+  const { data: comments = [], isLoading } = useMetaComments(clientId, filter || undefined);
   return (
     <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', gap: 4 }}>
@@ -340,6 +456,11 @@ function CommentsView() {
           <CommentRow key={c.id} comment={c} />
         ))}
       </div>
+      {comments.length > 0 && (
+        <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>
+          {t('meta.comments.footer')}
+        </div>
+      )}
     </div>
   );
 }
@@ -352,13 +473,19 @@ function CommentRow({ comment }: { comment: MetaCommentRow }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontWeight: 600, fontSize: 13 }}>{comment.authorName ?? 'непознат'}</span>
           {comment.parentObjectType === 'ad' && (
-            <span style={{ ...sevPill, background: '#EBF2FF', color: '#0052D9' }}>реклама</span>
+            <span style={{ ...sevPill, background: '#EBF2FF', color: '#0052D9' }}>
+              {t('meta.comments.badgeAd')}
+            </span>
           )}
           {comment.isQuestion && (
-            <span style={{ ...sevPill, background: '#FEF3C7', color: '#B45309' }}>прашање</span>
+            <span style={{ ...sevPill, background: '#E0F2FE', color: '#0369A1' }}>
+              {t('meta.comments.badgeQuestion')}
+            </span>
           )}
           {comment.isComplaint && (
-            <span style={{ ...sevPill, background: '#FEF2F2', color: '#B91C1C' }}>поплака</span>
+            <span style={{ ...sevPill, background: '#FEF2F2', color: '#B91C1C' }}>
+              {t('meta.comments.badgeComplaint')}
+            </span>
           )}
           <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--gd-ink-muted)' }}>
             {fmtDate(comment.createdTime)}
@@ -417,9 +544,9 @@ function TagBar({
   );
 }
 
-function OverviewView() {
+function OverviewView({ clientId }: { clientId?: string }) {
   const { data: ov } = useMetaOverview();
-  const { data: alerts = [] } = useMetaAlerts();
+  const { data: alerts = [] } = useMetaAlerts(clientId);
   const patch = usePatchAlert();
   if (!ov) return <Loading />;
 
@@ -520,31 +647,17 @@ function ClientsView({ onOpen }: { onOpen: (id: string) => void }) {
           </span>
         </button>
       ))}
+      <div style={{ fontSize: 13, color: 'var(--gd-ink-muted)', marginTop: 4 }}>
+        {t('meta.clients.footer')}
+      </div>
     </div>
   );
 }
 
-function CrossView() {
-  const [period, setPeriod] = useState('7');
+function CrossView({ period }: { period: string }) {
   const { data } = useMetaCross(period);
   return (
     <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'flex', gap: 4 }}>
-        {[
-          ['7', '7 дена'],
-          ['30', '30 дена'],
-          ['month', 'Овој месец'],
-        ].map(([p, label]) => (
-          <button
-            key={p}
-            type="button"
-            onClick={() => setPeriod(p!)}
-            style={tabStyle(period === p)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
       {!data && <Loading />}
       {data?.groups.length === 0 && <Empty text="Нема податоци за периодот." />}
       {data?.groups.map((g) => (
@@ -572,34 +685,28 @@ function CrossView() {
           </div>
         </div>
       ))}
+      {data && data.groups.length > 0 && (
+        <div style={{ fontSize: 13, color: 'var(--gd-ink-muted)' }}>{t('meta.cross.footer')}</div>
+      )}
     </div>
   );
 }
 
-function StructureView({ clientId, onBack }: { clientId: string; onBack: () => void }) {
-  const [period, setPeriod] = useState('7');
+function StructureView({
+  clientId,
+  onBack,
+  period,
+}: {
+  clientId: string;
+  onBack: () => void;
+  period: string;
+}) {
   const { data } = useMetaStructure(clientId, period);
   return (
     <div style={{ padding: 20 }}>
       <button type="button" onClick={onBack} style={{ ...ghostBtn, marginBottom: 12 }}>
         ← Назад на клиенти
       </button>
-      <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
-        {[
-          ['7', '7 дена'],
-          ['30', '30 дена'],
-          ['month', 'Овој месец'],
-        ].map(([p, label]) => (
-          <button
-            key={p}
-            type="button"
-            onClick={() => setPeriod(p!)}
-            style={tabStyle(period === p)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
       {!data && <Loading />}
       {data?.campaigns.length === 0 && <Empty text="Нема кампањи." />}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -728,10 +835,18 @@ const PLAN_FILTERS: Array<[string, string]> = [
   ['mismatch', 'Несовпаѓања'],
 ];
 
-function PlansView({ canApprove, myId }: { canApprove: boolean; myId: string }) {
+function PlansView({
+  canApprove,
+  myId,
+  clientId,
+}: {
+  canApprove: boolean;
+  myId: string;
+  clientId?: string;
+}) {
   const [status, setStatus] = useState('');
   const [creating, setCreating] = useState(false);
-  const { data: plans = [], isLoading } = useMetaPlans(undefined, status || undefined);
+  const { data: plans = [], isLoading } = useMetaPlans(clientId, status || undefined);
   const action = usePlanAction();
 
   return (
@@ -852,14 +967,24 @@ function PlanRow({
             </button>
           </>
         )}
+        {canApprove && (plan.status === 'approved' || plan.status === 'syncing') && (
+          <a
+            href="https://business.facebook.com/adsmanager"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ ...ghostBtn, textDecoration: 'none', textAlign: 'center' }}
+          >
+            {t('meta.common.openInAds')}
+          </a>
+        )}
         {canApprove && plan.status === 'approved' && (
           <button
             type="button"
             disabled={pending}
-            style={{ ...ghostBtn, background: '#16A34A', color: '#fff', border: 'none' }}
+            style={{ ...ghostBtn, background: '#0866FF', color: '#fff', border: 'none' }}
             onClick={() => onAction('mark-done')}
           >
-            Направено во Ads Manager
+            {t('meta.plans.doneInAds')}
           </button>
         )}
         {isOwner && plan.status === 'pending' && (
@@ -978,8 +1103,8 @@ function CreatePlanModal({ onClose, draft }: { onClose: () => void; draft?: Plan
 
 // ─────────────────────────── Архива (§4.7) ───────────────────────────
 
-function ArchiveView({ canExport }: { canExport: boolean }) {
-  const { data: rows = [], isLoading } = useMetaArchive();
+function ArchiveView({ canExport, clientId }: { canExport: boolean; clientId?: string }) {
+  const { data: rows = [], isLoading } = useMetaArchive(clientId);
   return (
     <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
       {canExport && (
@@ -1123,7 +1248,7 @@ function AssistantView({ isDir }: { isDir: boolean }) {
       >
         <input
           style={{ ...modalInput, flex: 1 }}
-          placeholder="Напиши порака…"
+          placeholder={t('meta.assistant.placeholder')}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
@@ -1194,6 +1319,49 @@ const ghostBtn: React.CSSProperties = {
   background: '#fff',
   fontSize: 12,
   cursor: 'pointer',
+};
+const controlsBar: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  padding: '8px 16px',
+  borderBottom: '1px solid var(--gd-border)',
+  background: '#fff',
+};
+const segBtn = (active: boolean): React.CSSProperties => ({
+  height: 28,
+  padding: '0 10px',
+  border: 'none',
+  fontSize: 13,
+  fontWeight: 500,
+  background: active ? '#0866FF' : '#fff',
+  color: active ? '#fff' : 'var(--gd-ink)',
+  cursor: 'pointer',
+});
+const filterChip: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 6,
+  height: 28,
+  padding: '0 4px 0 10px',
+  border: '1px solid #C7DCFF',
+  borderRadius: 9999,
+  background: '#EBF2FF',
+  color: '#0052D9',
+  fontSize: 13,
+  fontWeight: 500,
+  whiteSpace: 'nowrap',
+};
+const chipClear: React.CSSProperties = {
+  width: 22,
+  height: 22,
+  border: 'none',
+  borderRadius: '50%',
+  background: 'transparent',
+  color: '#0052D9',
+  fontSize: 12,
+  cursor: 'pointer',
+  padding: 0,
 };
 const modalBackdrop: React.CSSProperties = {
   position: 'fixed',

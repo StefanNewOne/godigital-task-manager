@@ -399,3 +399,13 @@ export function useMetaAssistant() {
       api.post<MetaChatResult>('/meta/assistant/chat', input),
   });
 }
+
+/** „Освежи сега" — закажува sync во позадина + invalidate на сите meta прегледи. */
+export function useMetaRefresh() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (clientId?: string) =>
+      api.post<{ scheduled: boolean; scope: string }>('/meta/refresh', { clientId }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['meta'] }),
+  });
+}
