@@ -2,7 +2,7 @@ import type React from 'react';
 import { ChevronRight } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { TASK_STATUS_META, coverageLevel, type TaskStatus } from '@gd/core';
-import { tokens } from '@gd/ui';
+import { t, tokens } from '@gd/ui';
 import { daysLabel } from '../lib/format.js';
 import { useOverview, type CoverageRow } from '../api/overview.js';
 import { useMarkRead, useNotifications } from '../api/notifications.js';
@@ -10,9 +10,9 @@ import { notificationTarget } from '../components/NotificationsBell.js';
 import { PeriodSidebar } from '../components/PeriodSidebar.js';
 
 const ALARM_LABEL: Record<string, string> = {
-  kritichen: 'Критичен',
-  alarm: 'Аларм',
-  potsetnik: 'Потсетник',
+  kritichen: t('overview.alarmCritical'),
+  alarm: t('overview.alarmAlarm'),
+  potsetnik: t('overview.alarmReminder'),
 };
 const ALARM_COLOR: Record<string, string> = {
   kritichen: 'var(--gd-danger)',
@@ -42,7 +42,8 @@ function CoverageLine({
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
       <span style={{ width: 92, color: 'var(--gd-ink-muted)' }}>
-        {label} · {quota}/мес
+        {label} · {quota}
+        {t('overview.perMonth')}
       </span>
       <div
         style={{
@@ -64,7 +65,11 @@ function CoverageLine({
       <span style={{ color: LEVEL_TEXT[level], fontWeight: 600, ...tabular }}>
         {daysLabel(days)}
       </span>
-      {until && <span style={{ color: 'var(--gd-ink-muted)' }}>· до {shortDate(until)}</span>}
+      {until && (
+        <span style={{ color: 'var(--gd-ink-muted)' }}>
+          · {t('overview.until', { date: shortDate(until) })}
+        </span>
+      )}
     </div>
   );
 }
@@ -112,7 +117,8 @@ export function Overview() {
   const markRead = useMarkRead();
   const navigate = useNavigate();
 
-  if (isLoading) return <div style={{ padding: 24, color: 'var(--gd-ink-muted)' }}>Вчитување…</div>;
+  if (isLoading)
+    return <div style={{ padding: 24, color: 'var(--gd-ink-muted)' }}>{t('overview.loading')}</div>;
   if (!data) return null;
   const alarms = alarmsData ?? [];
 
@@ -126,7 +132,7 @@ export function Overview() {
         <div style={wrap}>
           {/* Покриеност по клиент — клик отвора клиент во Список */}
           <section style={card}>
-            <CardHead title="Покриеност по клиент" hint="најкритичните горе · клик отвора клиент" />
+            <CardHead title={t('overview.coverageTitle')} hint={t('overview.coverageHint')} />
             {coverage.map((c) => (
               <button
                 key={c.clientId}
@@ -142,7 +148,7 @@ export function Overview() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {c.video != null && (
                       <CoverageLine
-                        label="Видео"
+                        label={t('overview.video')}
                         days={c.video}
                         quota={c.videoQuota}
                         until={c.videoUntil}
@@ -150,7 +156,7 @@ export function Overview() {
                     )}
                     {c.graphic != null && (
                       <CoverageLine
-                        label="Графика"
+                        label={t('overview.graphic')}
                         days={c.graphic}
                         quota={c.graphicQuota}
                         until={c.graphicUntil}
@@ -164,13 +170,13 @@ export function Overview() {
                 <ChevronRight size={16} color="var(--gd-ink-muted)" style={{ flex: '0 0 auto' }} />
               </button>
             ))}
-            {coverage.length === 0 && <p style={muted}>Нема активни клиенти.</p>}
+            {coverage.length === 0 && <p style={muted}>{t('overview.noClients')}</p>}
           </section>
 
           {/* Отворени аларми (in-app известувања) */}
           <section style={card}>
             <CardHead
-              title="Отворени аларми"
+              title={t('overview.alarmsTitle')}
               extra={alarms.length > 0 ? <span style={countPill}>{alarms.length}</span> : null}
             />
             {alarms.map((a) => (
@@ -206,18 +212,18 @@ export function Overview() {
                         navigate(notificationTarget(a));
                       }}
                     >
-                      {a.taskId ? 'Во таскот' : a.groupId ? 'Во капата' : 'Во таскот'}
+                      {a.groupId && !a.taskId ? t('overview.inCapa') : t('overview.inTask')}
                     </button>
                   )}
                 </div>
               </div>
             ))}
-            {alarms.length === 0 && <p style={muted}>Нема отворени аларми.</p>}
+            {alarms.length === 0 && <p style={muted}>{t('overview.noAlarms')}</p>}
           </section>
 
           {/* Работа по статус — клик отвора Табла филтрирана по статус */}
           <section style={card}>
-            <CardHead title="Работа по статус" hint="клик отвора табла" />
+            <CardHead title={t('overview.byStatusTitle')} hint={t('overview.byStatusHint')} />
             {data.byStatus
               .filter((s) => TASK_STATUS_META[s.status as TaskStatus])
               .map((s) => (
@@ -276,7 +282,7 @@ export function Overview() {
                       ...tabular,
                     }}
                   >
-                    {s.avgDays > 0 ? `просек ${s.avgDays} дена` : ''}
+                    {s.avgDays > 0 ? t('overview.avgDays', { n: s.avgDays }) : ''}
                   </span>
                   <ChevronRight
                     size={16}
@@ -285,20 +291,18 @@ export function Overview() {
                   />
                 </button>
               ))}
-            {data.byStatus.length === 0 && <p style={muted}>Нема таскови.</p>}
+            {data.byStatus.length === 0 && <p style={muted}>{t('overview.noTasks')}</p>}
           </section>
 
           {/* Кампањи во тек (Meta податоци во Фаза B2) — полна ширина */}
           <section style={{ ...card, gridColumn: '1 / -1' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <h2 style={{ ...cardTitle, margin: 0 }}>Кампањи во тек</h2>
+              <h2 style={{ ...cardTitle, margin: 0 }}>{t('overview.campaignsTitle')}</h2>
               <button style={linkBtn} onClick={() => navigate('/analytics')}>
-                Цела аналитика ›
+                {t('overview.fullAnalytics')}
               </button>
             </div>
-            <p style={{ ...muted, marginTop: 12 }}>
-              Кампањите и метриките се вклучуваат во Фаза B2 (влечење од Meta на секои 6 часа).
-            </p>
+            <p style={{ ...muted, marginTop: 12 }}>{t('overview.campaignsNote')}</p>
           </section>
         </div>
       </div>
