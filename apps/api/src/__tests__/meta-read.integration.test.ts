@@ -108,4 +108,12 @@ describe('Meta read API (М2c)', () => {
     expect((await get('/api/meta/alerts', dir)).status).toBe(200);
     expect((await get('/api/meta/alerts', am)).status).toBe(403);
   });
+
+  it('inbox/коментари: достапни и за am (М4b)', async () => {
+    // am е заклучен од управувачките екрани, но ги гледа Инбокс + Коментари.
+    expect((await get('/api/meta/conversations', am)).status).toBe(200);
+    expect((await get('/api/meta/conversations', dir)).status).toBe(200);
+    expect((await get('/api/meta/comments', am)).status).toBe(200);
+    expect((await get('/api/meta/comments?filter=q', ana)).status).toBe(200);
+  });
 });

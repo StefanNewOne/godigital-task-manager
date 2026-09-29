@@ -52,6 +52,8 @@ const CRON_JOBS: CronJob[] = [
   { name: 'meta.account', pattern: '15 * * * *', endpoint: '/api/cron/meta-account' },
   { name: 'meta.insights.today', pattern: '0 * * * *', endpoint: '/api/cron/meta-insights-today' },
   { name: 'meta.status', pattern: '*/15 * * * *', endpoint: '/api/cron/meta-status' },
+  { name: 'meta.inbox', pattern: '*/15 * * * *', endpoint: '/api/cron/meta-inbox' },
+  { name: 'meta.retention', pattern: '0 4 * * *', endpoint: '/api/cron/meta-retention' },
 ];
 
 const CRON_QUEUE = 'cron';

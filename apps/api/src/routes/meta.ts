@@ -17,6 +17,13 @@ import {
   metaOverview,
   setAlertState,
 } from '../services/meta/read.js';
+import {
+  getConversation,
+  listComments,
+  listConversations,
+  setCommentTags,
+  setConversationTags,
+} from '../services/meta/inboxRead.js';
 import { AppError } from '../lib/errors.js';
 
 /** Meta интеграција (B2 + Модул 3). Mounted at /meta. Токенот е само на backend. */
@@ -57,6 +64,33 @@ metaRouter.get('/cross', requireRole('dir', 'ana'), async (req, res) => {
 metaRouter.get('/clients/:id/structure', requireRole('dir', 'ana'), async (req, res) => {
   const period = (req.query.period as string) ?? '7';
   res.json({ data: await metaClientStructure((req.params as { id: string }).id, period) });
+});
+
+// Инбокс + Коментари — достапни и за Акаунт менаџер (§3).
+metaRouter.get('/conversations', requireRole('dir', 'ana', 'am'), async (req, res) => {
+  const { clientId, unread } = req.query as Record<string, string | undefined>;
+  res.json({
+    data: await listConversations({ clientId, unread: unread === '1' || unread === 'true' }),
+  });
+});
+
+metaRouter.get('/conversations/:id', requireRole('dir', 'ana', 'am'), async (req, res) => {
+  res.json({ data: await getConversation((req.params as { id: string }).id) });
+});
+
+metaRouter.patch('/conversations/:id/tags', requireRole('dir', 'ana', 'am'), async (req, res) => {
+  const tags = (req.body as { tags?: string[] }).tags ?? [];
+  res.json({ data: await setConversationTags((req.params as { id: string }).id, tags) });
+});
+
+metaRouter.get('/comments', requireRole('dir', 'ana', 'am'), async (req, res) => {
+  const { clientId, filter } = req.query as Record<string, string | undefined>;
+  res.json({ data: await listComments({ clientId, filter }) });
+});
+
+metaRouter.patch('/comments/:id/tags', requireRole('dir', 'ana', 'am'), async (req, res) => {
+  const tags = (req.body as { tags?: string[] }).tags ?? [];
+  res.json({ data: await setCommentTags((req.params as { id: string }).id, tags) });
 });
 
 // Достапни страници + IG business сметки (за доделба по клиент во Админ).
