@@ -1,0 +1,449 @@
+import type React from 'react';
+import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useMe } from '../../api/auth.js';
+import {
+  useMetaAlerts,
+  useMetaClients,
+  useMetaCross,
+  useMetaOverview,
+  useMetaStructure,
+  usePatchAlert,
+  type Kpi,
+  type MetaAlertRow,
+} from '../../api/meta.js';
+
+type MetaTab = 'overview' | 'clients' | 'cross';
+
+const SEV_COLOR: Record<string, string> = {
+  crit: '#DC2626',
+  high: '#D97706',
+  mid: '#7C3AED',
+  info: '#0284C7',
+};
+const SEV_LABEL: Record<string, string> = {
+  crit: 'Критично',
+  high: 'Високо',
+  mid: 'Средно',
+  info: 'Инфо',
+};
+
+const fmtMoney = (v: number, cur = '€') =>
+  `${cur}${v.toLocaleString('mk-MK', { maximumFractionDigits: 0 })}`;
+const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleString('mk-MK') : '—');
+
+export function MetaScreen() {
+  const { data: me } = useMe();
+  const [params, setParams] = useSearchParams();
+  const tab = (params.get('tab') as MetaTab | null) ?? 'overview';
+  const [openClient, setOpenClient] = useState<string | null>(null);
+
+  const setTab = (t: MetaTab) => {
+    const next = new URLSearchParams(params);
+    next.set('tab', t);
+    setParams(next);
+  };
+
+  if (!me) return null;
+
+  // Акаунт менаџер: само Инбокс/Коментари (М4) — сè друго е dir/ana.
+  if (me.role === 'am') {
+    return (
+      <div style={{ padding: 40, color: 'var(--gd-ink-muted)' }}>
+        Инбокс и Коментари се достапни за Акаунт менаџер. (Доаѓаат во следната фаза.)
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+      <header style={topBar}>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {(
+            [
+              ['overview', 'Утрински преглед'],
+              ['clients', 'Клиенти'],
+              ['cross', 'Пресек'],
+            ] as Array<[MetaTab, string]>
+          ).map(([t, label]) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => {
+                setTab(t);
+                setOpenClient(null);
+              }}
+              style={tabStyle(tab === t && !openClient)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </header>
+
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+        {openClient ? (
+          <StructureView clientId={openClient} onBack={() => setOpenClient(null)} />
+        ) : tab === 'overview' ? (
+          <OverviewView />
+        ) : tab === 'clients' ? (
+          <ClientsView onOpen={setOpenClient} />
+        ) : (
+          <CrossView />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function OverviewView() {
+  const { data: ov } = useMetaOverview();
+  const { data: alerts = [] } = useMetaAlerts();
+  const patch = usePatchAlert();
+  if (!ov) return <Loading />;
+
+  return (
+    <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* KPI картички */}
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <Card title="Отворени алерти" value={String(ov.alerts.total)} />
+        <Card title="Активни кампањи" value={String(ov.kpi.activeCampaigns)} />
+        <Card title="Потрошено денес" value={fmtMoney(ov.kpi.todaySpend)} />
+        <Card
+          title="Последен sync"
+          value={
+            ov.sync.lastSyncAt ? new Date(ov.sync.lastSyncAt).toLocaleTimeString('mk-MK') : '—'
+          }
+          sub={`${ov.sync.accounts} акаунти · ${ov.sync.readOnly} read-only`}
+        />
+      </div>
+
+      {/* Алерти по сериозност */}
+      <div style={{ display: 'flex', gap: 8 }}>
+        {(['crit', 'high', 'mid', 'info'] as const).map((s) => (
+          <span
+            key={s}
+            style={{ ...sevPill, background: `${SEV_COLOR[s]}1A`, color: SEV_COLOR[s] }}
+          >
+            {SEV_LABEL[s]}: {ov.alerts[s]}
+          </span>
+        ))}
+      </div>
+
+      {/* Листа алерти */}
+      <div>
+        <div style={sectionTitle}>Алерти</div>
+        {alerts.length === 0 && <Empty text="Нема отворени алерти." />}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {alerts.map((a) => (
+            <AlertRow key={a.id} alert={a} onPatch={(state) => patch.mutate({ id: a.id, state })} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AlertRow({ alert, onPatch }: { alert: MetaAlertRow; onPatch: (state: string) => void }) {
+  return (
+    <div style={{ ...rowCard, borderLeft: `3px solid ${SEV_COLOR[alert.severity]}` }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 600, fontSize: 13 }}>
+          {alert.title}
+          <span style={{ color: 'var(--gd-ink-muted)', fontWeight: 400, marginLeft: 8 }}>
+            {alert.code}
+            {alert.occurrences > 1 ? ` · ${alert.occurrences} дена` : ''}
+          </span>
+        </div>
+        <div style={{ color: 'var(--gd-ink-secondary)', fontSize: 12, marginTop: 2 }}>
+          {alert.detail}
+        </div>
+      </div>
+      {alert.state !== 'seen' && (
+        <button type="button" style={ghostBtn} onClick={() => onPatch('seen')}>
+          Видено
+        </button>
+      )}
+      <button type="button" style={ghostBtn} onClick={() => onPatch('snoozed')}>
+        Одложи
+      </button>
+    </div>
+  );
+}
+
+function ClientsView({ onOpen }: { onOpen: (id: string) => void }) {
+  const { data: clients = [] } = useMetaClients();
+  if (clients.length === 0) return <Empty text="Нема клиенти со Meta реклами." />;
+  return (
+    <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {clients.map((c) => (
+        <button key={c.id} type="button" onClick={() => onOpen(c.id)} style={rowCard}>
+          <span
+            style={{ width: 8, height: 8, borderRadius: '50%', background: c.color }}
+            aria-hidden
+          />
+          <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+            <div style={{ fontWeight: 600, fontSize: 13 }}>{c.name}</div>
+            <div style={{ color: 'var(--gd-ink-muted)', fontSize: 12 }}>
+              {c.target ?? 'без цел'} · {c.campaigns} кампањи · {c.currency ?? '—'}
+              {c.accessLevel === 'read' ? ' · само читање' : ''}
+            </div>
+          </div>
+          {c.alerts > 0 && (
+            <span style={{ ...sevPill, background: '#FEF2F2', color: '#B91C1C' }}>
+              {c.alerts} алерти
+            </span>
+          )}
+          <span style={{ color: 'var(--gd-ink-muted)', fontSize: 11 }}>
+            {fmtDate(c.lastSyncAt)}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function CrossView() {
+  const [period, setPeriod] = useState('7');
+  const { data } = useMetaCross(period);
+  return (
+    <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', gap: 4 }}>
+        {[
+          ['7', '7 дена'],
+          ['30', '30 дена'],
+          ['month', 'Овој месец'],
+        ].map(([p, label]) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => setPeriod(p!)}
+            style={tabStyle(period === p)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {!data && <Loading />}
+      {data?.groups.length === 0 && <Empty text="Нема податоци за периодот." />}
+      {data?.groups.map((g) => (
+        <div key={g.objectiveKey}>
+          <div style={sectionTitle}>
+            {g.objectiveLabel}
+            {g.aggregatable && (
+              <span style={{ ...sevPill, background: '#EBF2FF', color: '#0052D9', marginLeft: 8 }}>
+                Збир: {fmtMoney(g.spend)} · {g.results.toLocaleString('mk-MK')} рез.
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {g.items.map((it) => (
+              <div key={it.campaignMetaId} style={rowCard}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>{it.name}</div>
+                  <div style={{ color: 'var(--gd-ink-muted)', fontSize: 12 }}>
+                    {fmtMoney(it.spend)} · {it.results.toLocaleString('mk-MK')} {it.resultLabel} ·{' '}
+                    {it.cpr != null ? `${it.costLabel}: ${fmtMoney(it.cpr)}` : 'без резултати'}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function StructureView({ clientId, onBack }: { clientId: string; onBack: () => void }) {
+  const [period, setPeriod] = useState('7');
+  const { data } = useMetaStructure(clientId, period);
+  return (
+    <div style={{ padding: 20 }}>
+      <button type="button" onClick={onBack} style={{ ...ghostBtn, marginBottom: 12 }}>
+        ← Назад на клиенти
+      </button>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
+        {[
+          ['7', '7 дена'],
+          ['30', '30 дена'],
+          ['month', 'Овој месец'],
+        ].map(([p, label]) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => setPeriod(p!)}
+            style={tabStyle(period === p)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {!data && <Loading />}
+      {data?.campaigns.length === 0 && <Empty text="Нема кампањи." />}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {data?.campaigns.map((c) => (
+          <div
+            key={c.metaId}
+            style={{ border: '1px solid var(--gd-border)', borderRadius: 8, padding: 12 }}
+          >
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+              <span style={{ fontWeight: 700, fontSize: 14 }}>{c.name}</span>
+              <StatusDot status={c.effectiveStatus} />
+              <span style={{ color: 'var(--gd-ink-muted)', fontSize: 12 }}>{c.objectiveLabel}</span>
+              <span style={{ marginLeft: 'auto', fontSize: 12 }}>
+                <KpiInline kpi={c.kpi} resultLabel={c.resultLabel} />
+              </span>
+            </div>
+            {c.adSets.map((s) => (
+              <div
+                key={s.metaId}
+                style={{ marginTop: 8, paddingLeft: 12, borderLeft: '2px solid #E2E7EB' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                  <span style={{ fontWeight: 600, fontSize: 13 }}>{s.name}</span>
+                  <StatusDot status={s.effectiveStatus} />
+                  {s.learningStage === 'LIMITED' && (
+                    <span style={{ ...sevPill, background: '#FEF3C7', color: '#B45309' }}>
+                      учи (LIMITED)
+                    </span>
+                  )}
+                  <span style={{ marginLeft: 'auto', fontSize: 12 }}>
+                    <KpiInline kpi={s.kpi} resultLabel={c.resultLabel} />
+                  </span>
+                </div>
+                {s.ads.map((ad) => (
+                  <div
+                    key={ad.metaId}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'baseline',
+                      gap: 8,
+                      marginTop: 4,
+                      paddingLeft: 12,
+                    }}
+                  >
+                    <span style={{ fontSize: 12 }}>{ad.name}</span>
+                    <StatusDot status={ad.effectiveStatus} />
+                    {ad.reviewStatus === 'rejected' && (
+                      <span style={{ ...sevPill, background: '#FEF2F2', color: '#B91C1C' }}>
+                        одбиена
+                      </span>
+                    )}
+                    <span
+                      style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--gd-ink-muted)' }}
+                    >
+                      <KpiInline kpi={ad.kpi} resultLabel={c.resultLabel} />
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function KpiInline({ kpi, resultLabel }: { kpi: Kpi; resultLabel: string }) {
+  return (
+    <>
+      {fmtMoney(kpi.spend)} · {kpi.results.toLocaleString('mk-MK')} {resultLabel.toLowerCase()}
+      {kpi.cpr != null ? ` · ${fmtMoney(kpi.cpr)}/рез` : ''}
+    </>
+  );
+}
+
+function StatusDot({ status }: { status: string | null }) {
+  const active = status === 'ACTIVE';
+  return (
+    <span
+      title={status ?? ''}
+      style={{
+        width: 7,
+        height: 7,
+        borderRadius: '50%',
+        background: active ? '#16A34A' : '#C4CBD4',
+      }}
+    />
+  );
+}
+
+function Card({ title, value, sub }: { title: string; value: string; sub?: string }) {
+  return (
+    <div
+      style={{
+        border: '1px solid var(--gd-border)',
+        borderRadius: 8,
+        padding: '12px 16px',
+        minWidth: 160,
+      }}
+    >
+      <div style={{ fontSize: 11, color: 'var(--gd-ink-muted)', textTransform: 'uppercase' }}>
+        {title}
+      </div>
+      <div style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: 'var(--gd-ink-muted)', marginTop: 2 }}>{sub}</div>}
+    </div>
+  );
+}
+function Loading() {
+  return <div style={{ padding: 40, color: 'var(--gd-ink-muted)' }}>Вчитување…</div>;
+}
+function Empty({ text }: { text: string }) {
+  return (
+    <div style={{ padding: 24, color: 'var(--gd-ink-muted)', textAlign: 'center' }}>{text}</div>
+  );
+}
+
+const topBar: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  padding: '10px 16px',
+  borderBottom: '1px solid var(--gd-border)',
+  gap: 8,
+};
+const tabStyle = (active: boolean): React.CSSProperties => ({
+  padding: '6px 12px',
+  borderRadius: 6,
+  border: 'none',
+  background: active ? '#0866FF' : 'transparent',
+  color: active ? '#fff' : 'var(--gd-ink)',
+  fontWeight: active ? 600 : 500,
+  fontSize: 13,
+  cursor: 'pointer',
+});
+const sectionTitle: React.CSSProperties = {
+  fontSize: 12,
+  fontWeight: 600,
+  color: 'var(--gd-ink-secondary)',
+  marginBottom: 8,
+  display: 'flex',
+  alignItems: 'center',
+};
+const rowCard: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  padding: 12,
+  borderRadius: 8,
+  border: '1px solid var(--gd-border)',
+  background: '#fff',
+  width: '100%',
+  cursor: 'pointer',
+};
+const sevPill: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 600,
+  padding: '2px 8px',
+  borderRadius: 999,
+};
+const ghostBtn: React.CSSProperties = {
+  padding: '6px 12px',
+  borderRadius: 6,
+  border: '1px solid var(--gd-border)',
+  background: '#fff',
+  fontSize: 12,
+  cursor: 'pointer',
+};
