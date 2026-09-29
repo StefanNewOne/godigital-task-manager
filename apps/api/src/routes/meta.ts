@@ -18,6 +18,7 @@ import {
   setAlertState,
 } from '../services/meta/read.js';
 import {
+  conversationsSummary,
   getConversation,
   listComments,
   listConversations,
@@ -124,6 +125,12 @@ metaRouter.get('/conversations', requireRole('dir', 'ana', 'am'), async (req, re
   res.json({
     data: await listConversations({ clientId, unread: unread === '1' || unread === 'true' }),
   });
+});
+
+// Резиме на пораките (§8, MF6) — мора ПРЕД /:id за да не се совпадне „summary" како id.
+metaRouter.get('/conversations/summary', requireRole('dir', 'ana', 'am'), async (req, res) => {
+  const { clientId, period } = req.query as Record<string, string | undefined>;
+  res.json({ data: await conversationsSummary({ clientId, period }) });
 });
 
 metaRouter.get('/conversations/:id', requireRole('dir', 'ana', 'am'), async (req, res) => {

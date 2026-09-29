@@ -8,6 +8,7 @@ import {
   syncCommentsForClient,
   syncConversationsForClient,
 } from '../services/meta/inbox.js';
+import { conversationsSummary } from '../services/meta/inboxRead.js';
 
 /** Модул 3 · Мета — М4a: inbox/comments sync + retention (stub). */
 const db = new PrismaClient();
@@ -70,6 +71,15 @@ describe('Meta inbox sync (М4a)', () => {
     const comments = await db.metaComment.findMany({ where: { clientId } });
     expect(comments.some((c) => c.isQuestion)).toBe(true); // „Колку чини?"
     expect(comments.some((c) => c.parentObjectType === 'ad')).toBe(true);
+  });
+
+  it('conversationsSummary — теми/од-реклами/чекаат (MF6)', async () => {
+    await syncConversationsForClient(clientId);
+    const s = await conversationsSummary({ clientId });
+    expect(s.total).toBeGreaterThan(0);
+    expect(Array.isArray(s.topics)).toBe(true);
+    expect(Array.isArray(s.fromAds)).toBe(true);
+    expect(s).toHaveProperty('waiting');
   });
 
   it('retention брише тело на стари пораки, бројки остануваат', async () => {

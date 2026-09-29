@@ -261,6 +261,24 @@ export function useMetaConversations(clientId?: string, unread?: boolean) {
     queryFn: () => api.get<MetaConversationRow[]>(`/meta/conversations${qs}`),
   });
 }
+export interface ConversationsSummary {
+  total: number;
+  unread: number;
+  waiting: number;
+  topics: Array<{ key: string; count: number }>;
+  fromAds: Array<{ key: string; count: number }>;
+}
+export function useConversationsSummary(clientId?: string, period?: string) {
+  const params = new URLSearchParams();
+  if (clientId) params.set('clientId', clientId);
+  if (period) params.set('period', period);
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  return useQuery({
+    queryKey: ['meta', 'conv-summary', clientId ?? '', period ?? ''],
+    queryFn: () => api.get<ConversationsSummary>(`/meta/conversations/summary${qs}`),
+  });
+}
+
 export function useMetaConversation(id: string | null) {
   return useQuery({
     queryKey: ['meta', 'conversation', id],
