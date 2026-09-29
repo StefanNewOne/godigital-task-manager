@@ -69,3 +69,141 @@ export function useBackfillClient() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['analytics'] }),
   });
 }
+
+// ─────────────────────────── Модул 3 · Мета (read екрани) ───────────────────────────
+
+export interface MetaOverview {
+  alerts: { total: number; crit: number; high: number; mid: number; info: number };
+  sync: { lastSyncAt: string | null; accounts: number; failing: number; readOnly: number };
+  kpi: { activeCampaigns: number; todaySpend: number };
+}
+export interface MetaAlertRow {
+  id: string;
+  clientId: string;
+  code: string;
+  severity: 'crit' | 'high' | 'mid' | 'info';
+  title: string;
+  detail: string | null;
+  objectMetaId: string | null;
+  state: string;
+  occurrences: number;
+  lastSeenAt: string;
+}
+export interface MetaClientRow {
+  id: string;
+  name: string;
+  color: string;
+  target: string | null;
+  campaigns: number;
+  alerts: number;
+  currency: string | null;
+  accessLevel: string | null;
+  lastSyncAt: string | null;
+}
+export interface Kpi {
+  spend: number;
+  results: number;
+  reach: number;
+  cpr: number | null;
+}
+export interface CrossGroup {
+  objectiveKey: string;
+  objectiveLabel: string;
+  aggregatable: boolean;
+  spend: number;
+  results: number;
+  items: Array<{
+    campaignMetaId: string;
+    name: string;
+    clientId: string;
+    resultLabel: string;
+    costLabel: string;
+    spend: number;
+    results: number;
+    cpr: number | null;
+  }>;
+}
+export interface CrossData {
+  period: string;
+  from: string;
+  to: string;
+  groups: CrossGroup[];
+}
+export interface StructureAd {
+  metaId: string;
+  name: string;
+  effectiveStatus: string | null;
+  reviewStatus: string | null;
+  publicationId: string | null;
+  kpi: Kpi;
+}
+export interface StructureAdSet {
+  metaId: string;
+  name: string;
+  effectiveStatus: string | null;
+  learningStage: string | null;
+  kpi: Kpi;
+  ads: StructureAd[];
+}
+export interface StructureCampaign {
+  metaId: string;
+  name: string;
+  objectiveLabel: string;
+  resultLabel: string;
+  effectiveStatus: string | null;
+  dailyBudget: number | null;
+  kpi: Kpi;
+  adSets: StructureAdSet[];
+}
+export interface StructureData {
+  clientId: string;
+  period: string;
+  campaigns: StructureCampaign[];
+}
+
+export function useMetaOverview() {
+  return useQuery({
+    queryKey: ['meta', 'overview'],
+    queryFn: () => api.get<MetaOverview>('/meta/overview'),
+  });
+}
+export function useMetaAlerts(clientId?: string) {
+  const qs = clientId ? `?clientId=${clientId}` : '';
+  return useQuery({
+    queryKey: ['meta', 'alerts', clientId ?? ''],
+    queryFn: () => api.get<MetaAlertRow[]>(`/meta/alerts${qs}`),
+  });
+}
+export function usePatchAlert() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { id: string; state: string; snoozedUntil?: string }) =>
+      api.patch<MetaAlertRow>(`/meta/alerts/${input.id}`, {
+        state: input.state,
+        snoozedUntil: input.snoozedUntil,
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['meta', 'alerts'] });
+      void qc.invalidateQueries({ queryKey: ['meta', 'overview'] });
+    },
+  });
+}
+export function useMetaClients() {
+  return useQuery({
+    queryKey: ['meta', 'clients'],
+    queryFn: () => api.get<MetaClientRow[]>('/meta/clients'),
+  });
+}
+export function useMetaCross(period: string) {
+  return useQuery({
+    queryKey: ['meta', 'cross', period],
+    queryFn: () => api.get<CrossData>(`/meta/cross?period=${period}`),
+  });
+}
+export function useMetaStructure(clientId: string | null, period: string) {
+  return useQuery({
+    queryKey: ['meta', 'structure', clientId, period],
+    queryFn: () => api.get<StructureData>(`/meta/clients/${clientId}/structure?period=${period}`),
+    enabled: !!clientId,
+  });
+}

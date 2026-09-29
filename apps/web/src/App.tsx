@@ -13,6 +13,7 @@ import { Placeholder } from './screens/Placeholder.js';
 import { Settings } from './screens/Settings.js';
 import { TasksScreen } from './screens/tasks/TasksScreen.js';
 import { CrmScreen } from './screens/crm/CrmScreen.js';
+import { MetaScreen } from './screens/meta/MetaScreen.js';
 import { AdminLayout } from './screens/admin/AdminLayout.js';
 import { AdminAlarms } from './screens/admin/Alarms.js';
 import { AdminAutomations } from './screens/admin/Automations.js';
@@ -144,12 +145,12 @@ export function App() {
               </Guard>
             }
           />
-          {/* Модул 3 · Мета. Целосните екрани доаѓаат во М2. */}
+          {/* Модул 3 · Мета — read екрани (М2). Инбокс/Планови/Асистент во М4+. */}
           <Route
             path="meta"
             element={
               <Guard screen="meta" role={me.role}>
-                <Placeholder title="Мета" />
+                <MetaScreen />
               </Guard>
             }
           />

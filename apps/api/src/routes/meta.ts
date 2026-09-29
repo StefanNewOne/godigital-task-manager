@@ -9,11 +9,55 @@ import {
   backfillClientPage,
   pullMetrics,
 } from '../services/meta/metrics.js';
+import {
+  listMetaAlerts,
+  metaClientStructure,
+  metaClientsRows,
+  metaCross,
+  metaOverview,
+  setAlertState,
+} from '../services/meta/read.js';
+import { AppError } from '../lib/errors.js';
 
-/** Meta интеграција (B2). Mounted at /meta. Само dir/am. Токенот е само на backend. */
+/** Meta интеграција (B2 + Модул 3). Mounted at /meta. Токенот е само на backend. */
 export const metaRouter: ExpressRouter = Router();
 
 metaRouter.use(requireAuth);
+
+// Модул 3 · Мета — read екрани (Утрински преглед, Клиенти, Пресек, Клиент·Реклами): само dir/ana.
+metaRouter.get('/overview', requireRole('dir', 'ana'), async (_req, res) => {
+  res.json({ data: await metaOverview() });
+});
+
+metaRouter.get('/alerts', requireRole('dir', 'ana'), async (req, res) => {
+  const { state, severity, clientId } = req.query as Record<string, string | undefined>;
+  res.json({ data: await listMetaAlerts({ state, severity, clientId }) });
+});
+
+metaRouter.patch('/alerts/:id', requireRole('dir', 'ana'), async (req, res) => {
+  const body = req.body as { state?: string; snoozedUntil?: string };
+  if (!body.state) throw new AppError('VALIDATION_FAILED', 'Состојбата е задолжителна.', 400);
+  const alert = await setAlertState(
+    (req.params as { id: string }).id,
+    body.state as never,
+    body.snoozedUntil ? new Date(body.snoozedUntil) : null,
+  );
+  res.json({ data: alert });
+});
+
+metaRouter.get('/clients', requireRole('dir', 'ana'), async (_req, res) => {
+  res.json({ data: await metaClientsRows() });
+});
+
+metaRouter.get('/cross', requireRole('dir', 'ana'), async (req, res) => {
+  const period = (req.query.period as string) ?? '7';
+  res.json({ data: await metaCross(period) });
+});
+
+metaRouter.get('/clients/:id/structure', requireRole('dir', 'ana'), async (req, res) => {
+  const period = (req.query.period as string) ?? '7';
+  res.json({ data: await metaClientStructure((req.params as { id: string }).id, period) });
+});
 
 // Достапни страници + IG business сметки (за доделба по клиент во Админ).
 metaRouter.get('/accounts', requireRole('dir', 'am'), async (_req, res) => {
