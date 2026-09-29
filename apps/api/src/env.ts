@@ -35,6 +35,9 @@ const schema = z.object({
     .transform((v) => v === 'true'),
   // Meta Graph API (B2). Без токен → детерминистички stub адаптер (dev/тест). Никогаш на frontend.
   META_SYSTEM_TOKEN: z.string().optional(),
+  // Модул 3 · Мета (§5): втор System User токен за пораки/коментари (Инбокс). Опционен;
+  // ако недостасува, инбокс методите користат системскиот токен (ограничено).
+  META_INBOX_TOKEN: z.string().optional(),
   META_GRAPH_VERSION: z.string().default('v21.0'),
   // Прегледи (B3). Без ffmpeg бинар → stub генератор (dev/тест).
   FFMPEG_PATH: z.string().optional(),

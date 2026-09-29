@@ -404,6 +404,10 @@ export const crmPlanPutSchema = z.object({
 });
 export type CrmPlanPutInput = z.infer<typeof crmPlanPutSchema>;
 
+/** Презадоделување лид на агент (само Директор). */
+export const crmReassignSchema = z.object({ agentId: z.string().uuid() });
+export type CrmReassignInput = z.infer<typeof crmReassignSchema>;
+
 /** Тим при активација (само Директор во чекор 11). role→employeeId|null. */
 export const crmTeamSchema = z.object({
   am: z.string().uuid().nullable().optional(),

@@ -9,9 +9,11 @@ import {
 } from '@gd/core';
 import { uploadFile } from '../../api/files.js';
 import {
+  useCrmAgents,
   useLead,
   useLeadTransition,
   useMeetingNoShow,
+  useReassignAgent,
   useUpdateMeeting,
   useUpdatePackage,
   useUpdateTeam,
@@ -152,6 +154,8 @@ export function LeadPanel({
             </div>
           </Section>
 
+          <AgentZone lead={lead} me={me} terminal={terminal} />
+
           {/* Изгубен */}
           {lead.status === 'izguben' && (
             <Banner color="#DC2626" bg="#FEF2F2">
@@ -279,6 +283,41 @@ export function LeadPanel({
         )}
       </aside>
     </div>
+  );
+}
+
+// ── Агент (сопственик) — Директор може да презадоли ──
+function AgentZone({
+  lead,
+  me,
+  terminal,
+}: {
+  lead: LeadRow;
+  me: { id: string; role: string };
+  terminal: boolean;
+}) {
+  const { data: agents = [] } = useCrmAgents();
+  const reassign = useReassignAgent(lead.id);
+  const canReassign = me.role === 'dir' && !terminal;
+  const agentName = agents.find((a) => a.id === lead.agentId)?.name ?? '—';
+  return (
+    <Section title="Продажен агент">
+      {canReassign ? (
+        <select
+          style={input}
+          value={lead.agentId}
+          onChange={(e) => reassign.mutate(e.target.value)}
+        >
+          {agents.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <div style={{ fontSize: 13, fontWeight: 500 }}>{agentName}</div>
+      )}
+    </Section>
   );
 }
 

@@ -48,6 +48,16 @@ const TENANT_MODELS = new Set<string>([
   'LeadOffer',
   'LeadContract',
   'ContentPlanEntry',
+  'MetaConnection',
+  'MetaCampaign',
+  'MetaAdSet',
+  'MetaAd',
+  'MetaInsightDaily',
+  'MetaConversation',
+  'MetaMessage',
+  'MetaComment',
+  'MetaAlert',
+  'MetaChangePlan',
 ]);
 
 const WHERE_OPS = new Set([

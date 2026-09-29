@@ -152,7 +152,9 @@ export function CrmScreen() {
         {view === 'crmLost' && <LostList leads={leads} onOpen={setOpenLead} />}
       </div>
 
-      {openLead && <LeadPanel leadId={openLead} me={me} onClose={() => setOpenLead(null)} />}
+      {openLead && (
+        <LeadPanel key={openLead} leadId={openLead} me={me} onClose={() => setOpenLead(null)} />
+      )}
       {newOpen && (
         <NewLeadModal
           isDir={isDir}

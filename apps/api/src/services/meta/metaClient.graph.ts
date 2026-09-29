@@ -1,13 +1,29 @@
 import type {
   AccountMediaItem,
+  AdAccountDetailed,
   AdCampaignItem,
   AdInsightRow,
+  CommentItem,
+  ConversationItem,
+  InsightDailyRow,
+  InsightLevel,
+  MessageItem,
   MetaAccount,
   MetaAdAccount,
   MetaClient,
+  MetaStructure,
   PageMetrics,
   PublicationRef,
+  StructureAd,
+  StructureAdSet,
+  StructureCampaign,
+  TokenDebug,
 } from './metaClient.js';
+
+const num = (v: unknown): number | null => {
+  const n = typeof v === 'string' ? Number(v) : typeof v === 'number' ? v : NaN;
+  return Number.isFinite(n) ? n : null;
+};
 
 /**
  * Реален Meta Graph API адаптер (B2). Се користи само во прод кога постои системски токен;
@@ -22,6 +38,8 @@ export class GraphMetaClient implements MetaClient {
   constructor(
     private readonly token: string,
     version: string,
+    /** Втор токен за пораки/коментари (Модул 3 · Мета §5); ако недостасува, се користи системскиот. */
+    private readonly inboxToken: string = token,
   ) {
     this.base = `https://graph.facebook.com/${version}`;
   }
@@ -256,6 +274,220 @@ export class GraphMetaClient implements MetaClient {
       throw new Error(`Meta Graph ${res.status}`);
     }
     return res.json();
+  }
+
+  // ── Модул 3 · Мета — нови read методи (§6). Само GET; никогаш не пишуваат. ──
+
+  async listAdAccountsDetailed(): Promise<AdAccountDetailed[]> {
+    const enc = encodeURIComponent(this.token);
+    const fields =
+      'name,currency,account_status,disable_reason,spend_cap,amount_spent,users{tasks}';
+    const page = (await this.get(
+      `${this.base}/me/adaccounts?fields=${fields}&limit=100&access_token=${enc}`,
+    )) as {
+      data?: Array<{
+        id: string;
+        name?: string;
+        currency?: string;
+        account_status?: number;
+        disable_reason?: number;
+        spend_cap?: string;
+        amount_spent?: string;
+        users?: { data?: Array<{ tasks?: string[] }> };
+      }>;
+    };
+    return (page.data ?? []).map((a) => ({
+      id: a.id,
+      name: a.name ?? a.id,
+      currency: a.currency ?? null,
+      accountStatus: a.account_status != null ? String(a.account_status) : null,
+      disableReason: a.disable_reason != null ? String(a.disable_reason) : null,
+      spendCap: num(a.spend_cap),
+      amountSpent: num(a.amount_spent),
+      userTasks: a.users?.data?.flatMap((u) => u.tasks ?? []) ?? [],
+    }));
+  }
+
+  async fetchStructure(adAccountId: string): Promise<MetaStructure> {
+    const enc = encodeURIComponent(this.token);
+    const camps = (await this.get(
+      `${this.base}/${adAccountId}/campaigns?fields=name,objective,status,effective_status,daily_budget,start_time,stop_time&limit=200&access_token=${enc}`,
+    )) as { data?: Array<Record<string, unknown>> };
+    const adsets = (await this.get(
+      `${this.base}/${adAccountId}/adsets?fields=name,campaign_id,status,effective_status,optimization_goal,learning_stage_info&limit=500&access_token=${enc}`,
+    )) as { data?: Array<Record<string, unknown>> };
+    const ads = (await this.get(
+      `${this.base}/${adAccountId}/ads?fields=name,adset_id,status,effective_status,effective_object_story_id,ad_review_feedback&limit=1000&access_token=${enc}`,
+    )) as { data?: Array<Record<string, unknown>> };
+    const campaigns: StructureCampaign[] = (camps.data ?? []).map((c) => ({
+      metaId: String(c.id),
+      name: String(c.name ?? ''),
+      objective: (c.objective as string) ?? null,
+      status: (c.status as string) ?? null,
+      effectiveStatus: (c.effective_status as string) ?? null,
+      dailyBudget: num(c.daily_budget),
+      startTime: (c.start_time as string) ?? null,
+      stopTime: (c.stop_time as string) ?? null,
+      raw: c,
+    }));
+    const adsetRows: StructureAdSet[] = (adsets.data ?? []).map((s) => ({
+      metaId: String(s.id),
+      campaignMetaId: String(s.campaign_id ?? ''),
+      name: String(s.name ?? ''),
+      status: (s.status as string) ?? null,
+      effectiveStatus: (s.effective_status as string) ?? null,
+      optimizationGoal: (s.optimization_goal as string) ?? null,
+      learningStage:
+        ((s.learning_stage_info as { status?: string })?.status as string | undefined) ?? null,
+      raw: s,
+    }));
+    const adRows: StructureAd[] = (ads.data ?? []).map((a) => ({
+      metaId: String(a.id),
+      adSetMetaId: String(a.adset_id ?? ''),
+      name: String(a.name ?? ''),
+      status: (a.status as string) ?? null,
+      effectiveStatus: (a.effective_status as string) ?? null,
+      reviewStatus:
+        ((a.ad_review_feedback as { status?: string })?.status as string | undefined) ?? null,
+      sourcePostMetaId: (a.effective_object_story_id as string) ?? null,
+      raw: a,
+    }));
+    return { campaigns, adsets: adsetRows, ads: adRows };
+  }
+
+  async fetchInsightsDaily(
+    adAccountId: string,
+    level: InsightLevel,
+    since: string,
+    until: string,
+  ): Promise<InsightDailyRow[]> {
+    const enc = encodeURIComponent(this.token);
+    const idField = level === 'campaign' ? 'campaign_id' : level === 'adset' ? 'adset_id' : 'ad_id';
+    const fields = `${idField},spend,impressions,reach,frequency,clicks,ctr,actions`;
+    const tr = encodeURIComponent(JSON.stringify({ since, until }));
+    const page = (await this.get(
+      `${this.base}/${adAccountId}/insights?level=${level}&time_increment=1&fields=${fields}&time_range=${tr}&limit=500&access_token=${enc}`,
+    )) as { data?: Array<Record<string, unknown>> };
+    return (page.data ?? []).map((r) => ({
+      level,
+      objectMetaId: String(r[idField] ?? ''),
+      date: String(r.date_start ?? since),
+      spend: num(r.spend) ?? 0,
+      impressions: num(r.impressions) ?? 0,
+      reach: num(r.reach) ?? 0,
+      frequency: num(r.frequency) ?? 0,
+      clicks: num(r.clicks) ?? 0,
+      ctr: num(r.ctr) ?? 0,
+      results: 0, // резултатот се извлекува по Objective од `actions` во core (М2)
+      resultType: null,
+      actions: r.actions ?? null,
+    }));
+  }
+
+  async fetchPageConversations(pageId: string): Promise<ConversationItem[]> {
+    return this.fetchConversations(pageId, 'messenger', '');
+  }
+
+  async fetchIgConversations(igId: string): Promise<ConversationItem[]> {
+    return this.fetchConversations(igId, 'instagram', 'instagram');
+  }
+
+  private async fetchConversations(
+    nodeId: string,
+    channel: 'messenger' | 'instagram',
+    platform: string,
+  ): Promise<ConversationItem[]> {
+    const enc = encodeURIComponent(this.inboxToken);
+    const plat = platform ? `platform=${platform}&` : '';
+    const page = (await this.get(
+      `${this.base}/${nodeId}/conversations?${plat}fields=participants,updated_time,unread_count,message_count&limit=100&access_token=${enc}`,
+    )) as {
+      data?: Array<{
+        id: string;
+        updated_time?: string;
+        unread_count?: number;
+        participants?: { data?: Array<{ name?: string }> };
+      }>;
+    };
+    return (page.data ?? []).map((c) => ({
+      threadId: c.id,
+      channel,
+      participantName: c.participants?.data?.[0]?.name ?? null,
+      sourceAdMetaId: null,
+      lastMessageAt: c.updated_time ?? null,
+      unread: (c.unread_count ?? 0) > 0,
+    }));
+  }
+
+  async fetchConversationMessages(threadId: string): Promise<MessageItem[]> {
+    const enc = encodeURIComponent(this.inboxToken);
+    const page = (await this.get(
+      `${this.base}/${threadId}?fields=messages{id,from,message,created_time}&access_token=${enc}`,
+    )) as {
+      messages?: {
+        data?: Array<{
+          id: string;
+          from?: { id?: string };
+          message?: string;
+          created_time?: string;
+        }>;
+      };
+    };
+    return (page.messages?.data ?? []).map((m) => ({
+      messageId: m.id,
+      fromPage: false, // распознавањето „од страница" се прави во М4 според from.id vs page id
+      text: m.message ?? null,
+      sentAt: m.created_time ?? null,
+    }));
+  }
+
+  async fetchComments(objectMetaId: string): Promise<CommentItem[]> {
+    const enc = encodeURIComponent(this.inboxToken);
+    const page = (await this.get(
+      `${this.base}/${objectMetaId}/comments?fields=from,message,created_time&limit=200&access_token=${enc}`,
+    )) as {
+      data?: Array<{
+        id: string;
+        from?: { name?: string };
+        message?: string;
+        created_time?: string;
+      }>;
+    };
+    return (page.data ?? []).map((c) => ({
+      commentId: c.id,
+      parentMetaId: objectMetaId,
+      authorName: c.from?.name ?? null,
+      text: c.message ?? null,
+      createdTime: c.created_time ?? null,
+    }));
+  }
+
+  async checkIgMessagingAccess(igId: string): Promise<boolean> {
+    try {
+      const enc = encodeURIComponent(this.inboxToken);
+      await this.get(
+        `${this.base}/${igId}/conversations?platform=instagram&limit=1&access_token=${enc}`,
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async debugToken(token: string): Promise<TokenDebug> {
+    const enc = encodeURIComponent(token);
+    const app = encodeURIComponent(this.token);
+    const res = (await this.get(
+      `${this.base}/debug_token?input_token=${enc}&access_token=${app}`,
+    )) as {
+      data?: { expires_at?: number; scopes?: string[]; is_valid?: boolean };
+    };
+    const d = res.data ?? {};
+    return {
+      expiresAt: d.expires_at ? new Date(d.expires_at * 1000).toISOString() : null,
+      scopes: d.scopes ?? [],
+      isValid: d.is_valid ?? false,
+    };
   }
 }
 

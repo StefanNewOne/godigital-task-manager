@@ -15,6 +15,7 @@ const DEV_PASSWORD = 'gd-devpass-2026';
 const MONTH = '2033-03';
 const LEAD_NAME = 'ТЕСТ CRM Пипелина';
 const LOST_NAME = 'ТЕСТ CRM Изгубен';
+const REASSIGN_NAME = 'ТЕСТ CRM Презадоли';
 
 let marija = '';
 let bojan = '';
@@ -44,7 +45,7 @@ function doc(token: string, id: string, kind: string) {
 }
 
 async function cleanup() {
-  for (const name of [LEAD_NAME, LOST_NAME]) {
+  for (const name of [LEAD_NAME, LOST_NAME, REASSIGN_NAME]) {
     const leads = await db.lead.findMany({ where: { name } });
     for (const l of leads) {
       await db.leadOffer.deleteMany({ where: { leadId: l.id } });
@@ -285,6 +286,52 @@ describe('CRM · цел пайплајн + активација', () => {
     expect(tasks.every((t) => t.status === 'mrtov')).toBe(true);
     const groups = await db.taskGroup.findMany({ where: { clientId } });
     expect(groups).toHaveLength(2);
+  });
+});
+
+describe('CRM · презадоделување (Директор)', () => {
+  let leadId = '';
+
+  it('агент креира лид на себе', async () => {
+    const r = await request(app)
+      .post('/api/crm/leads')
+      .set({ Authorization: `Bearer ${marija}` })
+      .send({ name: REASSIGN_NAME, source: 'Препорака', person: 'Тест', phone: '070' });
+    leadId = r.body.data.id;
+    expect(r.body.data.agentId).toBeTruthy();
+  });
+
+  it('агент не смее да презадоли (403)', async () => {
+    const bojanId = (
+      await request(app)
+        .get('/api/crm/agents')
+        .set({ Authorization: `Bearer ${dir}` })
+    ).body.data.find((a: { name: string }) => a.name.startsWith('Бојан')).id;
+    const r = await request(app)
+      .put(`/api/crm/leads/${leadId}/agent`)
+      .set({ Authorization: `Bearer ${marija}` })
+      .send({ agentId: bojanId });
+    expect(r.status).toBe(403);
+  });
+
+  it('Директор презадоли на Бојан → Бојан гледа/дејствува, Марија не', async () => {
+    const bojanId = (
+      await request(app)
+        .get('/api/crm/agents')
+        .set({ Authorization: `Bearer ${dir}` })
+    ).body.data.find((a: { name: string }) => a.name.startsWith('Бојан')).id;
+    const r = await request(app)
+      .put(`/api/crm/leads/${leadId}/agent`)
+      .set({ Authorization: `Bearer ${dir}` })
+      .send({ agentId: bojanId });
+    expect(r.status).toBe(200);
+    expect(r.body.data.agentId).toBe(bojanId);
+    // Бојан сега е сопственик → може да дејствува; Марија не.
+    expect((await tr(bojan, leadId, 'analiza')).status).toBe(200);
+    const back = await request(app)
+      .get('/api/crm/leads')
+      .set({ Authorization: `Bearer ${marija}` });
+    expect(back.body.data.some((l: { id: string }) => l.id === leadId)).toBe(false);
   });
 });
 

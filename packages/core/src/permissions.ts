@@ -11,6 +11,7 @@ export const SCREENS = [
   'analytics',
   'admin',
   'crm',
+  'meta',
 ] as const;
 
 export type Screen = (typeof SCREENS)[number];
@@ -36,7 +37,17 @@ export interface RolePermissions {
 
 export const PERMISSIONS: Record<Role, RolePermissions> = {
   dir: {
-    nav: ['director', 'list', 'calendar', 'shootCalendar', 'clients', 'analytics', 'admin', 'crm'],
+    nav: [
+      'director',
+      'list',
+      'calendar',
+      'shootCalendar',
+      'clients',
+      'analytics',
+      'admin',
+      'crm',
+      'meta',
+    ],
     scope: 'all',
     canCreate: [],
     canChangeDate: ['video', 'graphic'],
@@ -45,7 +56,7 @@ export const PERMISSIONS: Record<Role, RolePermissions> = {
     specials: ['pauza', 'otkazano', 'mrtov->aktiven', 'date-change', 'on-behalf-of'],
   },
   am: {
-    nav: ['director', 'list', 'calendar', 'clients', 'analytics'],
+    nav: ['director', 'list', 'calendar', 'clients', 'analytics', 'meta'],
     scope: 'all',
     canCreate: [],
     canChangeDate: ['video', 'graphic'],
@@ -101,7 +112,7 @@ export const PERMISSIONS: Record<Role, RolePermissions> = {
     ownsCapaStatuses: [],
   },
   ana: {
-    nav: ['list', 'clients', 'analytics'],
+    nav: ['list', 'clients', 'analytics', 'meta'],
     scope: 'all',
     canCreate: [],
     canChangeDate: [],
