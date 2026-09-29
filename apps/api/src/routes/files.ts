@@ -25,7 +25,7 @@ import {
 export const filesRouter: ExpressRouter = Router();
 filesRouter.use(requireAuth);
 
-const OWNER_TYPES = ['group', 'task', 'revision', 'approval', 'comment'] as const;
+const OWNER_TYPES = ['group', 'task', 'revision', 'approval', 'comment', 'lead'] as const;
 
 // Листа на активни фајлови за сопственик (A6) + presigned GET за преглед/симнување.
 filesRouter.get('/', async (req, res) => {

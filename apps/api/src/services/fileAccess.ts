@@ -29,7 +29,8 @@ type Resolved =
         rezId: string | null;
         kamId: string | null;
       };
-    };
+    }
+  | { kind: 'lead'; lead: { id: string; agentId: string } };
 
 const NOT_FOUND = () => new AppError('NOT_FOUND', 'Сопственикот на фајлот не е пронајден.', 404);
 const FORBIDDEN = () =>
@@ -53,6 +54,15 @@ async function loadGroup(groupId: string): Promise<Resolved> {
   return { kind: 'group', group };
 }
 
+async function loadLead(leadId: string): Promise<Resolved> {
+  const lead = await prisma.lead.findUnique({
+    where: { id: leadId },
+    select: { id: true, agentId: true },
+  });
+  if (!lead) throw NOT_FOUND();
+  return { kind: 'lead', lead };
+}
+
 /** Разреши го сопственикот (таск/капа/ревизија/одобрување/коментар) до неговиот таск или капа. */
 async function resolveOwner(ownerType: FileOwnerType, ownerId: string): Promise<Resolved> {
   switch (ownerType) {
@@ -60,6 +70,8 @@ async function resolveOwner(ownerType: FileOwnerType, ownerId: string): Promise<
       return loadTask(ownerId);
     case 'group':
       return loadGroup(ownerId);
+    case 'lead':
+      return loadLead(ownerId);
     case 'revision': {
       const r = await prisma.revision.findUnique({
         where: { id: ownerId },
@@ -99,6 +111,8 @@ async function resolveOwner(ownerType: FileOwnerType, ownerId: string): Promise<
 
 function canWrite(resolved: Resolved, actor: Actor): boolean {
   if (actor.role === 'dir') return true;
+  // Лид (CRM): пишува само продажниот агент-сопственик.
+  if (resolved.kind === 'lead') return resolved.lead.agentId === actor.sub;
   if (resolved.kind === 'task') {
     const t = resolved.task;
     if (t.assigneeId === actor.sub) return true;
@@ -108,6 +122,10 @@ function canWrite(resolved: Resolved, actor: Actor): boolean {
 }
 
 function canRead(resolved: Resolved, actor: Actor): boolean {
+  // Лид (CRM): чита сопственикот или Директорот (кој има scope 'all').
+  if (resolved.kind === 'lead') {
+    return actor.role === 'dir' || resolved.lead.agentId === actor.sub;
+  }
   if (PERMISSIONS[actor.role].scope === 'all') return true;
   if (resolved.kind === 'task') return resolved.task.assigneeId === actor.sub;
   const g = resolved.group;

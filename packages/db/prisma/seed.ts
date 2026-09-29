@@ -31,6 +31,9 @@ const EMPLOYEES: Array<{
   { name: 'Љубица М.', email: 'ljubica@godigital.mk', role: 'krea', color: '#0EA5E9' },
   { name: 'Драган В.', email: 'dragan@godigital.mk', role: 'diz', color: '#65A30D' },
   { name: 'Ване Ѓ.', email: 'vane@godigital.mk', role: 'ana', color: '#DC2626' },
+  // Модул 2 · Продажен CRM — продажни агенти.
+  { name: 'Марија Ц.', email: 'marija@godigital.mk', role: 'sales', color: '#9333EA' },
+  { name: 'Бојан Р.', email: 'bojan@godigital.mk', role: 'sales', color: '#0F766E' },
 ];
 
 const CLIENTS: Array<{

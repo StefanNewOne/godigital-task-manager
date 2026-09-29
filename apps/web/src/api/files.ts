@@ -18,9 +18,10 @@ export type FileKind =
   | 'sharedMaterial'
   | 'screenshot'
   | 'preview'
-  | 'logo';
+  | 'logo'
+  | 'leadDoc';
 
-type OwnerType = 'group' | 'task' | 'revision' | 'approval' | 'comment';
+type OwnerType = 'group' | 'task' | 'revision' | 'approval' | 'comment' | 'lead';
 
 interface PresignSingle {
   fileId: string;
@@ -64,7 +65,7 @@ async function putWithRetry(url: string, body: BodyInit, headers?: HeadersInit):
   throw lastErr instanceof Error ? lastErr : new Error('Неуспешно прикачување на дел.');
 }
 
-async function uploadFile({
+export async function uploadFile({
   ownerType,
   ownerId,
   kind,

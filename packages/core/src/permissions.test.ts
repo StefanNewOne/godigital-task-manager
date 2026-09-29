@@ -48,4 +48,16 @@ describe('permissions', () => {
     expect(PERMISSIONS.rez.ownsCapaStatuses).toContain('podgotovka');
     expect(PERMISSIONS.scen.ownsCapaStatuses).toContain('scenarija');
   });
+
+  it('Продажба (crm): гледаат само sales и dir; sales нема пристап до Модул 1', () => {
+    expect(canSeeScreen('sales', 'crm')).toBe(true);
+    expect(canSeeScreen('dir', 'crm')).toBe(true);
+    expect(canSeeScreen('am', 'crm')).toBe(false);
+    expect(canSeeScreen('rez', 'crm')).toBe(false);
+    // sales гледа само crm — ништо од Модул 1
+    expect(PERMISSIONS.sales.nav).toEqual(['crm']);
+    expect(canSeeScreen('sales', 'list')).toBe(false);
+    expect(canSeeScreen('sales', 'analytics')).toBe(false);
+    expect(PERMISSIONS.sales.scope).toBe('own');
+  });
 });

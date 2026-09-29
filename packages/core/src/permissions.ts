@@ -10,6 +10,7 @@ export const SCREENS = [
   'clients',
   'analytics',
   'admin',
+  'crm',
 ] as const;
 
 export type Screen = (typeof SCREENS)[number];
@@ -35,7 +36,7 @@ export interface RolePermissions {
 
 export const PERMISSIONS: Record<Role, RolePermissions> = {
   dir: {
-    nav: ['director', 'list', 'calendar', 'shootCalendar', 'clients', 'analytics', 'admin'],
+    nav: ['director', 'list', 'calendar', 'shootCalendar', 'clients', 'analytics', 'admin', 'crm'],
     scope: 'all',
     canCreate: [],
     canChangeDate: ['video', 'graphic'],
@@ -105,6 +106,16 @@ export const PERMISSIONS: Record<Role, RolePermissions> = {
     canCreate: [],
     canChangeDate: [],
     ownsTaskStatuses: ['analitika'],
+    ownsCapaStatuses: [],
+  },
+  // Продажен агент (Модул 2 · Продажен CRM). Нема пристап до Модул 1;
+  // scope 'own' = само свои лидови. Не создава/не менува датуми на таскови.
+  sales: {
+    nav: ['crm'],
+    scope: 'own',
+    canCreate: [],
+    canChangeDate: [],
+    ownsTaskStatuses: [],
     ownsCapaStatuses: [],
   },
 };
