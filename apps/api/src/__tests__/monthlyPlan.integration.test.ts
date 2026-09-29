@@ -24,12 +24,30 @@ async function clearPlan(): Promise<void> {
   await db.monthlyPlan.deleteMany({ where: { monthKey: MONTH } });
 }
 
+// Робусно: не претпоставувај дека seed-от ги содржи (свежа CI база нема „Голд Хотел") —
+// најди или создади ги потребните клиенти.
+async function findOrCreateClient(name: string): Promise<string> {
+  const existing = await db.client.findFirst({ where: { name } });
+  if (existing) return existing.id;
+  const c = await db.client.create({
+    data: {
+      name,
+      color: '#0866FF',
+      contractStart: new Date(Date.UTC(2027, 0, 1)),
+      contractMonths: 12,
+      videosPerMonth: 2,
+      graphicsPerMonth: 4,
+    },
+  });
+  return c.id;
+}
+
 beforeAll(async () => {
   token.dir = await login('aleks@godigital.mk');
   token.rez = await login('stefan@godigital.mk');
   token.kam = await login('nikola@godigital.mk');
-  astiboId = (await db.client.findFirst({ where: { name: 'Астибо' } }))!.id;
-  goldId = (await db.client.findFirst({ where: { name: 'Голд Хотел' } }))!.id;
+  astiboId = await findOrCreateClient('Астибо');
+  goldId = await findOrCreateClient('Голд Хотел');
   await cleanupMonth(db, MONTH);
   await clearPlan();
 });

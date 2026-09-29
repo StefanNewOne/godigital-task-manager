@@ -1,6 +1,7 @@
 import request from 'supertest';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PERMISSIONS, type Role } from '@gd/core';
+import { PrismaClient } from '@gd/db';
 import { createApp } from '../app.js';
 
 /**
@@ -10,7 +11,9 @@ import { createApp } from '../app.js';
  * гаѓаат со празно тело, па не-Директор паѓа на 403 пред валидација, а Директор на 400.
  */
 const app = createApp();
+const db = new PrismaClient();
 const DEV_PASSWORD = 'gd-devpass-2026';
+const RBAC_CLIENT = 'ТЕСТ RBAC';
 
 const ACCOUNTS: Array<{ role: Role; email: string; name: string }> = [
   { role: 'dir', email: 'aleks@godigital.mk', name: 'Алекс К.' },
@@ -41,8 +44,53 @@ async function login(email: string): Promise<Session> {
 describe('мулти-ролна RBAC проверка (сите 9 улоги)', () => {
   const sessions = new Map<Role, Session>();
 
+  async function cleanupRbac() {
+    const clients = await db.client.findMany({ where: { name: RBAC_CLIENT } });
+    for (const c of clients) {
+      await db.task.deleteMany({ where: { clientId: c.id } });
+      await db.taskGroup.deleteMany({ where: { clientId: c.id } });
+      await db.client.delete({ where: { id: c.id } });
+    }
+  }
+
   beforeAll(async () => {
     for (const a of ACCOUNTS) sessions.set(a.role, await login(a.email));
+    // Робусно: свежата CI база нема таскови (seed не создава) — создади 2 таска за 2026-09
+    // доделени на различни вработени, за да секоја 'all' улога гледа туѓ таск.
+    await cleanupRbac();
+    const client = await db.client.create({
+      data: {
+        name: RBAC_CLIENT,
+        color: '#0866FF',
+        contractStart: new Date(Date.UTC(2026, 8, 1)),
+        contractMonths: 12,
+      },
+    });
+    const group = await db.taskGroup.create({
+      data: {
+        clientId: client.id,
+        contentType: 'video',
+        monthKey: '2026-09',
+        status: 'podgotovka',
+      },
+    });
+    for (const role of ['rez', 'krea'] as const) {
+      await db.task.create({
+        data: {
+          groupId: group.id,
+          clientId: client.id,
+          contentType: 'video',
+          title: `RBAC ${role}`,
+          status: 'montaza',
+          assigneeId: sessions.get(role)!.employeeId,
+        },
+      });
+    }
+  });
+
+  afterAll(async () => {
+    await cleanupRbac();
+    await db.$disconnect();
   });
 
   it('секоја улога се најавува и враќа точна улога + идентитет', async () => {
