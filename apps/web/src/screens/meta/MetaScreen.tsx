@@ -24,6 +24,7 @@ import {
   useMetaClientProfile,
   useUpdateMetaProfile,
   useMetaClientOrganic,
+  useMetaConnections,
   type Kpi,
   type MetaAlertRow,
   type MetaCommentRow,
@@ -34,7 +35,15 @@ import {
 } from '../../api/meta.js';
 
 type MetaTab =
-  'overview' | 'clients' | 'cross' | 'inbox' | 'comments' | 'plans' | 'archive' | 'assistant';
+  | 'overview'
+  | 'clients'
+  | 'cross'
+  | 'inbox'
+  | 'comments'
+  | 'plans'
+  | 'archive'
+  | 'connections'
+  | 'assistant';
 
 // Операции O1–O12 (§12) — македонски етикети за UI.
 const OP_LABELS: Record<string, string> = {
@@ -106,6 +115,7 @@ export function MetaScreen() {
     'cross',
     'plans',
     'archive',
+    'connections',
     'assistant',
     'inbox',
     'comments',
@@ -175,6 +185,8 @@ export function MetaScreen() {
           />
         ) : tab === 'archive' ? (
           <ArchiveView canExport={me.role === 'dir'} clientId={filterClientId || undefined} />
+        ) : tab === 'connections' ? (
+          <ConnectionsView />
         ) : tab === 'assistant' ? (
           <AssistantView isDir={me.role === 'dir'} />
         ) : tab === 'inbox' ? (
@@ -1534,6 +1546,105 @@ function AssistantView({ isDir }: { isDir: boolean }) {
   );
 }
 
+// ─────────────────────────── Поврзувања (§8, MF3) ───────────────────────────
+
+function ConnectionsView() {
+  const { data } = useMetaConnections();
+  if (!data) return <Loading />;
+  return (
+    <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Токен-картички (без вредности, §12) */}
+      <div>
+        <div style={sectionTitle}>{t('meta.connections.tokensTitle')}</div>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))',
+            gap: 12,
+          }}
+        >
+          {data.tokens.map((tok) => {
+            const status = !tok.configured
+              ? t('meta.connections.missing')
+              : tok.valid
+                ? t('meta.connections.configured')
+                : t('meta.connections.invalid');
+            const color = !tok.configured ? '#8A93A0' : tok.valid ? '#15803D' : '#B91C1C';
+            return (
+              <div
+                key={tok.name}
+                style={{ border: '1px solid var(--gd-border)', borderRadius: 8, padding: 14 }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: color }} />
+                  <span style={{ fontWeight: 600, fontSize: 14 }}>{tok.name}</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 12, color }}>{status}</span>
+                </div>
+                {tok.expiresAt && (
+                  <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)', marginTop: 4 }}>
+                    истек: {fmtDate(tok.expiresAt)}
+                  </div>
+                )}
+                {tok.scopes.length > 0 && (
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: 'var(--gd-ink-muted)',
+                      marginTop: 6,
+                      fontFamily: 'monospace',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {tok.scopes.join(', ')}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)', marginTop: 8 }}>
+          {t('meta.connections.tokensNote')}
+        </div>
+      </div>
+
+      {/* Табела конекции */}
+      {data.rows.length === 0 ? (
+        <Empty text={t('meta.connections.empty')} />
+      ) : (
+        <div style={{ border: '1px solid var(--gd-border)', borderRadius: 8, overflow: 'auto' }}>
+          <div style={{ minWidth: 860 }}>
+            <div style={connHeadRow}>
+              <span>{t('meta.connections.colClient')}</span>
+              <span>{t('meta.connections.colAccount')}</span>
+              <span>{t('meta.connections.colCurrency')}</span>
+              <span>{t('meta.connections.colAccess')}</span>
+              <span>{t('meta.connections.colPage')}</span>
+              <span>{t('meta.connections.colIg')}</span>
+              <span>{t('meta.connections.colIgMsg')}</span>
+            </div>
+            {data.rows.map((r) => (
+              <div key={r.clientId} style={connRow}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 500 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: r.color }} />
+                  {r.name}
+                </span>
+                <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{r.adAccount ?? '—'}</span>
+                <span>{r.currency ?? '—'}</span>
+                <span>{r.accessLevel ?? '—'}</span>
+                <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{r.page ?? '—'}</span>
+                <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{r.ig ?? '—'}</span>
+                <span style={{ color: r.igMessages ? '#15803D' : 'var(--gd-ink-muted)' }}>
+                  {r.igMessages == null ? '—' : r.igMessages ? 'да' : 'не'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const topBar: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
@@ -1583,6 +1694,26 @@ const ghostBtn: React.CSSProperties = {
   background: '#fff',
   fontSize: 12,
   cursor: 'pointer',
+};
+const connHeadRow: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '1.4fr 1.4fr .7fr 1fr 1fr 1fr .7fr',
+  gap: 12,
+  padding: '10px 16px',
+  background: '#F7F8FA',
+  borderBottom: '1px solid var(--gd-border)',
+  fontSize: 12,
+  fontWeight: 500,
+  color: 'var(--gd-ink-muted)',
+};
+const connRow: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '1.4fr 1.4fr .7fr 1fr 1fr 1fr .7fr',
+  gap: 12,
+  padding: '12px 16px',
+  borderBottom: '1px solid var(--gd-border)',
+  fontSize: 13,
+  alignItems: 'center',
 };
 const controlsBar: React.CSSProperties = {
   display: 'flex',
