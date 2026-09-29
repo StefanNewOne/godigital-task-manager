@@ -135,7 +135,29 @@
       "footer": "Ознаките се внатрешни и не се праќаат кон Meta. Одговарање и бришење од системот нема во оваа фаза."
     },
     "plans": {
-      "doneInAds": "Направено во Ads Manager"
+      "doneInAds": "Направено во Ads Manager",
+      "before": "Пред",
+      "after": "После",
+      "target": "Цел",
+      "command": "Наредба",
+      "rejected": "Одбиено",
+      "approve": "Одобри",
+      "reject": "Одбиј",
+      "withdraw": "Повлечи",
+      "rejectReason": "Причина за одбивање (задолжително)",
+      "rejectCancel": "Откажи",
+      "rejectConfirm": "Одбиј предлог"
+    },
+    "archive": {
+      "note": "Append-only. Секоја промена се открива при синхронизација, вклучително и оние направени директно во Ads Manager без план.",
+      "exportCsv": "Извези CSV",
+      "empty": "Нема записи.",
+      "colWhen": "Кога",
+      "colClient": "Клиент",
+      "colObject": "Објект",
+      "colEvent": "Настан",
+      "colWho": "Кој",
+      "colNarrative": "Опис"
     },
     "assistant": {
       "placeholder": "Прашај или побарај промена…"

@@ -257,14 +257,38 @@ export const withdrawPlan = (id: string) =>
     narrative: (l) => `Повлечен план „${l}".`,
   });
 
-/** Листа планови. `ana` гледа само свои (§8). */
+/** Листа планови. `ana` гледа само свои (§8). Со име на автор + клиент за картичката. */
 export async function listPlans(opts: { clientId?: string; status?: string }) {
   const a = actor();
   const where: Prisma.MetaChangePlanWhereInput = {};
   if (opts.clientId) where.clientId = opts.clientId;
   if (opts.status) where.status = opts.status as MetaPlanStatus;
   if (a.role === 'ana') where.createdById = a.id;
-  return prisma.metaChangePlan.findMany({ where, orderBy: [{ createdAt: 'desc' }], take: 200 });
+  const plans = await prisma.metaChangePlan.findMany({
+    where,
+    orderBy: [{ createdAt: 'desc' }],
+    take: 200,
+  });
+  const authorIds = [...new Set(plans.map((p) => p.createdById))];
+  const clientIds = [...new Set(plans.map((p) => p.clientId))];
+  const [authors, clients] = await Promise.all([
+    prisma.employee.findMany({
+      where: { id: { in: authorIds } },
+      select: { id: true, name: true },
+    }),
+    prisma.client.findMany({
+      where: { id: { in: clientIds } },
+      select: { id: true, name: true, color: true },
+    }),
+  ]);
+  const aById = new Map(authors.map((e) => [e.id, e.name]));
+  const cById = new Map(clients.map((c) => [c.id, c]));
+  return plans.map((p) => ({
+    ...p,
+    authorName: aById.get(p.createdById) ?? null,
+    clientName: cById.get(p.clientId)?.name ?? null,
+    clientColor: cById.get(p.clientId)?.color ?? null,
+  }));
 }
 
 /**
@@ -278,7 +302,7 @@ export async function listArchive(opts: { clientId?: string; from?: string; to?:
     if (opts.from) (where.occurredAt as Prisma.DateTimeFilter).gte = new Date(opts.from);
     if (opts.to) (where.occurredAt as Prisma.DateTimeFilter).lte = new Date(opts.to);
   }
-  return prisma.eventLog.findMany({
+  const events = await prisma.eventLog.findMany({
     where,
     orderBy: [{ occurredAt: 'desc' }],
     take: 1000,
@@ -291,19 +315,41 @@ export async function listArchive(opts: { clientId?: string; from?: string; to?:
       objectType: true,
       objectId: true,
       occurredAt: true,
+      oldValue: true,
+      newValue: true,
+      context: true,
     },
   });
+  // Име/боја на клиент за колоната „Клиент" (структуриран audit приказ, §4.7).
+  const clientIds = [...new Set(events.map((e) => e.clientId).filter((x): x is string => !!x))];
+  const clients = clientIds.length
+    ? await prisma.client.findMany({
+        where: { id: { in: clientIds } },
+        select: { id: true, name: true, color: true },
+      })
+    : [];
+  const cById = new Map(clients.map((c) => [c.id, c]));
+  return events.map((e) => ({
+    ...e,
+    clientName: e.clientId ? (cById.get(e.clientId)?.name ?? null) : null,
+    clientColor: e.clientId ? (cById.get(e.clientId)?.color ?? null) : null,
+  }));
 }
 
-/** CSV извоз на архивата (за Директор). Без PII во полињата — само наратив + мета. */
+/** CSV извоз на архивата (за Директор). Структуриран: датум/тип/улога/објект/наратив. Без PII. */
 export async function archiveCsv(opts: { clientId?: string; from?: string; to?: string }) {
   const rows = await listArchive(opts);
-  const header = 'datum;tip;uloga;naracija';
+  const header = 'datum;klient;tip;uloga;objekt;naracija';
   const escape = (s: string) => `"${s.replace(/"/g, '""')}"`;
   const lines = rows.map((r) =>
-    [r.occurredAt.toISOString(), r.eventType, r.actorRole ?? 'система', escape(r.narrative)].join(
-      ';',
-    ),
+    [
+      r.occurredAt.toISOString(),
+      escape(r.clientName ?? ''),
+      r.eventType,
+      r.actorRole ?? 'система',
+      r.objectType,
+      escape(r.narrative),
+    ].join(';'),
   );
   return [header, ...lines].join('\n');
 }
