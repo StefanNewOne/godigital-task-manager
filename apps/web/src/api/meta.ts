@@ -207,3 +207,84 @@ export function useMetaStructure(clientId: string | null, period: string) {
     enabled: !!clientId,
   });
 }
+
+// ─────────────────────────── Модул 3 · Мета (Инбокс + Коментари) ───────────────────────────
+
+export interface MetaConversationRow {
+  id: string;
+  clientId: string;
+  channel: 'messenger' | 'instagram';
+  participantName: string | null;
+  sourceAdMetaId: string | null;
+  lastMessageAt: string | null;
+  unread: boolean;
+  waitingSince: string | null;
+  topic: string | null;
+  tags: string[];
+}
+export interface MetaMessageRow {
+  id: string;
+  fromPage: boolean;
+  text: string | null;
+  sentAt: string | null;
+  viaTemplate: string | null;
+  bodyPurgedAt: string | null;
+}
+export interface MetaConversationDetail extends MetaConversationRow {
+  messages: MetaMessageRow[];
+}
+export interface MetaCommentRow {
+  id: string;
+  clientId: string;
+  parentObjectType: 'post' | 'ad';
+  authorName: string | null;
+  text: string | null;
+  createdTime: string | null;
+  isQuestion: boolean;
+  isComplaint: boolean;
+  tags: string[];
+}
+
+export function useMetaConversations(clientId?: string, unread?: boolean) {
+  const params = new URLSearchParams();
+  if (clientId) params.set('clientId', clientId);
+  if (unread) params.set('unread', '1');
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  return useQuery({
+    queryKey: ['meta', 'conversations', clientId ?? '', unread ?? false],
+    queryFn: () => api.get<MetaConversationRow[]>(`/meta/conversations${qs}`),
+  });
+}
+export function useMetaConversation(id: string | null) {
+  return useQuery({
+    queryKey: ['meta', 'conversation', id],
+    queryFn: () => api.get<MetaConversationDetail>(`/meta/conversations/${id}`),
+    enabled: !!id,
+  });
+}
+export function useSetConversationTags() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { id: string; tags: string[] }) =>
+      api.patch<MetaConversationRow>(`/meta/conversations/${input.id}/tags`, { tags: input.tags }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['meta', 'conversations'] }),
+  });
+}
+export function useMetaComments(clientId?: string, filter?: string) {
+  const params = new URLSearchParams();
+  if (clientId) params.set('clientId', clientId);
+  if (filter) params.set('filter', filter);
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  return useQuery({
+    queryKey: ['meta', 'comments', clientId ?? '', filter ?? ''],
+    queryFn: () => api.get<MetaCommentRow[]>(`/meta/comments${qs}`),
+  });
+}
+export function useSetCommentTags() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { id: string; tags: string[] }) =>
+      api.patch<MetaCommentRow>(`/meta/comments/${input.id}/tags`, { tags: input.tags }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['meta', 'comments'] }),
+  });
+}

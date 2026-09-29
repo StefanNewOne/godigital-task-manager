@@ -38,6 +38,9 @@ const schema = z.object({
   // Модул 3 · Мета (§5): втор System User токен за пораки/коментари (Инбокс). Опционен;
   // ако недостасува, инбокс методите користат системскиот токен (ограничено).
   META_INBOX_TOKEN: z.string().optional(),
+  // Webhooks (§7): потпис X-Hub-Signature-256 + verify token за GET проверка.
+  META_APP_SECRET: z.string().optional(),
+  META_WEBHOOK_VERIFY_TOKEN: z.string().default('gd-meta-webhook-verify'),
   META_GRAPH_VERSION: z.string().default('v21.0'),
   // Прегледи (B3). Без ffmpeg бинар → stub генератор (dev/тест).
   FFMPEG_PATH: z.string().optional(),

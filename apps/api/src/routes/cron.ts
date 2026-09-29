@@ -15,6 +15,7 @@ import {
   syncConnections,
 } from '../services/meta/sync.js';
 import { evaluateAlerts } from '../services/meta/alertEval.js';
+import { purgeOldMessageBodies, syncAllInbox } from '../services/meta/inbox.js';
 import { evaluateStorageQuota, runStorageCleanup } from '../services/storage.js';
 import { backfillKnowledge, processPendingEmbeddings } from '../services/knowledge/index.js';
 
@@ -116,4 +117,14 @@ cronRouter.post('/meta-insights-today', requireCronSecret, async (_req, res) => 
 // Статус + евалуација на алерти (A01/A02/A04/A05/A06/A09/A10) → MetaAlert. BullMQ: 15м.
 cronRouter.post('/meta-status', requireCronSecret, async (_req, res) => {
   res.json({ data: await evaluateAlerts() });
+});
+
+// Инбокс (разговори/пораки) + коментари — резерва за webhooks. BullMQ: 15м.
+cronRouter.post('/meta-inbox', requireCronSecret, async (_req, res) => {
+  res.json({ data: await syncAllInbox() });
+});
+
+// Retention: бриши тело на пораки > 12 месеци (§15). BullMQ: дневно 4:00.
+cronRouter.post('/meta-retention', requireCronSecret, async (_req, res) => {
+  res.json({ data: await purgeOldMessageBodies() });
 });

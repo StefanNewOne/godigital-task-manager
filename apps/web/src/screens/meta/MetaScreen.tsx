@@ -5,15 +5,22 @@ import { useMe } from '../../api/auth.js';
 import {
   useMetaAlerts,
   useMetaClients,
+  useMetaComments,
+  useMetaConversation,
+  useMetaConversations,
   useMetaCross,
   useMetaOverview,
   useMetaStructure,
   usePatchAlert,
+  useSetCommentTags,
+  useSetConversationTags,
   type Kpi,
   type MetaAlertRow,
+  type MetaCommentRow,
+  type MetaConversationRow,
 } from '../../api/meta.js';
 
-type MetaTab = 'overview' | 'clients' | 'cross';
+type MetaTab = 'overview' | 'clients' | 'cross' | 'inbox' | 'comments';
 
 const SEV_COLOR: Record<string, string> = {
   crit: '#DC2626',
@@ -35,8 +42,28 @@ const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleString('mk-
 export function MetaScreen() {
   const { data: me } = useMe();
   const [params, setParams] = useSearchParams();
-  const tab = (params.get('tab') as MetaTab | null) ?? 'overview';
   const [openClient, setOpenClient] = useState<string | null>(null);
+
+  if (!me) return null;
+
+  // Инбокс + Коментари се достапни за сите три улоги; управувачките табови само за dir/ana (§3).
+  const isManager = me.role === 'dir' || me.role === 'ana';
+  const tabs: Array<[MetaTab, string]> = isManager
+    ? [
+        ['overview', 'Утрински преглед'],
+        ['clients', 'Клиенти'],
+        ['cross', 'Пресек'],
+        ['inbox', 'Инбокс'],
+        ['comments', 'Коментари'],
+      ]
+    : [
+        ['inbox', 'Инбокс'],
+        ['comments', 'Коментари'],
+      ];
+
+  const fallbackTab: MetaTab = isManager ? 'overview' : 'inbox';
+  const requested = params.get('tab') as MetaTab | null;
+  const tab: MetaTab = tabs.some(([t]) => t === requested) ? requested! : fallbackTab;
 
   const setTab = (t: MetaTab) => {
     const next = new URLSearchParams(params);
@@ -44,28 +71,11 @@ export function MetaScreen() {
     setParams(next);
   };
 
-  if (!me) return null;
-
-  // Акаунт менаџер: само Инбокс/Коментари (М4) — сè друго е dir/ana.
-  if (me.role === 'am') {
-    return (
-      <div style={{ padding: 40, color: 'var(--gd-ink-muted)' }}>
-        Инбокс и Коментари се достапни за Акаунт менаџер. (Доаѓаат во следната фаза.)
-      </div>
-    );
-  }
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <header style={topBar}>
         <div style={{ display: 'flex', gap: 4 }}>
-          {(
-            [
-              ['overview', 'Утрински преглед'],
-              ['clients', 'Клиенти'],
-              ['cross', 'Пресек'],
-            ] as Array<[MetaTab, string]>
-          ).map(([t, label]) => (
+          {tabs.map(([t, label]) => (
             <button
               key={t}
               type="button"
@@ -88,10 +98,270 @@ export function MetaScreen() {
           <OverviewView />
         ) : tab === 'clients' ? (
           <ClientsView onOpen={setOpenClient} />
-        ) : (
+        ) : tab === 'cross' ? (
           <CrossView />
+        ) : tab === 'inbox' ? (
+          <InboxView />
+        ) : (
+          <CommentsView />
         )}
       </div>
+    </div>
+  );
+}
+
+// ─────────────────────────── Инбокс ───────────────────────────
+
+const CHANNEL_LABEL: Record<string, string> = { messenger: 'Messenger', instagram: 'Instagram' };
+
+function InboxView() {
+  const [unreadOnly, setUnreadOnly] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const { data: convos = [], isLoading } = useMetaConversations(undefined, unreadOnly);
+
+  return (
+    <div style={{ display: 'flex', height: '100%', minHeight: 0 }}>
+      <div
+        style={{
+          width: 340,
+          borderRight: '1px solid var(--gd-border)',
+          overflowY: 'auto',
+          flexShrink: 0,
+        }}
+      >
+        <div style={{ padding: 12, display: 'flex', gap: 6 }}>
+          <button type="button" onClick={() => setUnreadOnly(false)} style={tabStyle(!unreadOnly)}>
+            Сите
+          </button>
+          <button type="button" onClick={() => setUnreadOnly(true)} style={tabStyle(unreadOnly)}>
+            Непрочитани
+          </button>
+        </div>
+        {isLoading && <Loading />}
+        {!isLoading && convos.length === 0 && <Empty text="Нема разговори." />}
+        {convos.map((c) => (
+          <ConversationListItem
+            key={c.id}
+            convo={c}
+            active={openId === c.id}
+            onOpen={() => setOpenId(c.id)}
+          />
+        ))}
+      </div>
+      <div style={{ flex: 1, minWidth: 0, overflowY: 'auto' }}>
+        {openId ? <ConversationDetail id={openId} /> : <Empty text="Избери разговор." />}
+      </div>
+    </div>
+  );
+}
+
+function ConversationListItem({
+  convo,
+  active,
+  onOpen,
+}: {
+  convo: MetaConversationRow;
+  active: boolean;
+  onOpen: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+        width: '100%',
+        textAlign: 'left',
+        padding: '10px 12px',
+        border: 'none',
+        borderBottom: '1px solid var(--gd-border)',
+        background: active ? '#EBF2FF' : '#fff',
+        cursor: 'pointer',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {convo.unread && (
+          <span
+            style={{ width: 8, height: 8, borderRadius: '50%', background: '#0866FF' }}
+            aria-hidden
+          />
+        )}
+        <span style={{ fontWeight: convo.unread ? 700 : 600, fontSize: 13 }}>
+          {convo.participantName ?? 'непознат'}
+        </span>
+        <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--gd-ink-muted)' }}>
+          {CHANNEL_LABEL[convo.channel] ?? convo.channel}
+        </span>
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--gd-ink-muted)' }}>
+        {fmtDate(convo.lastMessageAt)}
+      </div>
+    </button>
+  );
+}
+
+function ConversationDetail({ id }: { id: string }) {
+  const { data: conv } = useMetaConversation(id);
+  const setTags = useSetConversationTags();
+  if (!conv) return <Loading />;
+  return (
+    <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ fontWeight: 700, fontSize: 15 }}>{conv.participantName ?? 'непознат'}</div>
+        <span style={{ ...sevPill, background: '#EBF2FF', color: '#0052D9' }}>
+          {CHANNEL_LABEL[conv.channel] ?? conv.channel}
+        </span>
+      </div>
+      <TagBar
+        tags={conv.tags}
+        onToggle={(tags) => setTags.mutate({ id, tags })}
+        disabled={setTags.isPending}
+      />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {conv.messages.map((m) => (
+          <div
+            key={m.id}
+            style={{
+              alignSelf: m.fromPage ? 'flex-end' : 'flex-start',
+              maxWidth: '75%',
+              padding: '8px 12px',
+              borderRadius: 10,
+              background: m.fromPage ? '#0866FF' : '#F0F2F5',
+              color: m.fromPage ? '#fff' : 'var(--gd-ink)',
+              fontSize: 13,
+            }}
+          >
+            {m.bodyPurgedAt ? (
+              <span style={{ fontStyle: 'italic', opacity: 0.7 }}>
+                текстот е избришан (12 месеци)
+              </span>
+            ) : (
+              (m.text ?? '—')
+            )}
+            <div
+              style={{
+                fontSize: 10,
+                marginTop: 4,
+                opacity: 0.7,
+                color: m.fromPage ? '#fff' : 'var(--gd-ink-muted)',
+              }}
+            >
+              {fmtDate(m.sentAt)}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--gd-ink-muted)' }}>
+        Само читање — одговарај директно во Meta Business Suite.
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────── Коментари ───────────────────────────
+
+const COMMENT_FILTERS: Array<[string, string]> = [
+  ['', 'Сите'],
+  ['open', 'Необработени'],
+  ['q', 'Прашања'],
+  ['ads', 'Од реклами'],
+  ['bad', 'Поплаки'],
+];
+
+function CommentsView() {
+  const [filter, setFilter] = useState('');
+  const { data: comments = [], isLoading } = useMetaComments(undefined, filter || undefined);
+  return (
+    <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', gap: 4 }}>
+        {COMMENT_FILTERS.map(([f, label]) => (
+          <button key={f} type="button" onClick={() => setFilter(f)} style={tabStyle(filter === f)}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {isLoading && <Loading />}
+      {!isLoading && comments.length === 0 && <Empty text="Нема коментари." />}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {comments.map((c) => (
+          <CommentRow key={c.id} comment={c} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CommentRow({ comment }: { comment: MetaCommentRow }) {
+  const setTags = useSetCommentTags();
+  return (
+    <div style={{ ...rowCard, alignItems: 'flex-start', cursor: 'default' }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontWeight: 600, fontSize: 13 }}>{comment.authorName ?? 'непознат'}</span>
+          {comment.parentObjectType === 'ad' && (
+            <span style={{ ...sevPill, background: '#EBF2FF', color: '#0052D9' }}>реклама</span>
+          )}
+          {comment.isQuestion && (
+            <span style={{ ...sevPill, background: '#FEF3C7', color: '#B45309' }}>прашање</span>
+          )}
+          {comment.isComplaint && (
+            <span style={{ ...sevPill, background: '#FEF2F2', color: '#B91C1C' }}>поплака</span>
+          )}
+          <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--gd-ink-muted)' }}>
+            {fmtDate(comment.createdTime)}
+          </span>
+        </div>
+        <div style={{ fontSize: 13, marginTop: 4 }}>{comment.text ?? '—'}</div>
+        <TagBar
+          tags={comment.tags}
+          onToggle={(tags) => setTags.mutate({ id: comment.id, tags })}
+          disabled={setTags.isPending}
+        />
+      </div>
+    </div>
+  );
+}
+
+// Внатрешни ознаки (обработка) — не се праќаат во Meta.
+const TAG_OPTIONS: Array<[string, string]> = [
+  ['done', 'обработено'],
+  ['forClient', 'за клиентот'],
+  ['important', 'важно'],
+];
+
+function TagBar({
+  tags,
+  onToggle,
+  disabled,
+}: {
+  tags: string[];
+  onToggle: (tags: string[]) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+      {TAG_OPTIONS.map(([key, label]) => {
+        const on = tags.includes(key);
+        return (
+          <button
+            key={key}
+            type="button"
+            disabled={disabled}
+            onClick={() => onToggle(on ? tags.filter((t) => t !== key) : [...tags, key])}
+            style={{
+              ...sevPill,
+              cursor: disabled ? 'default' : 'pointer',
+              border: 'none',
+              background: on ? '#0866FF' : '#F0F2F5',
+              color: on ? '#fff' : 'var(--gd-ink-secondary)',
+            }}
+          >
+            {label}
+          </button>
+        );
+      })}
     </div>
   );
 }
