@@ -31,6 +31,7 @@ import { automationRulesRouter, automationRunsRouter } from './automation.js';
 import { monthlyPlanRouter } from './monthlyPlan.js';
 import { pushRouter } from './push.js';
 import { cronRouter } from './cron.js';
+import { crmRouter } from './crm.js';
 
 export const apiRouter: ExpressRouter = Router();
 
@@ -83,3 +84,4 @@ apiRouter.use('/automation-runs', automationRunsRouter);
 apiRouter.use('/monthly-plan', monthlyPlanRouter);
 apiRouter.use('/push', pushRouter);
 apiRouter.use('/cron', cronRouter);
+apiRouter.use('/crm', crmRouter);

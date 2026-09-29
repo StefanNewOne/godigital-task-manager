@@ -12,6 +12,7 @@ import { Overview } from './screens/Overview.js';
 import { Placeholder } from './screens/Placeholder.js';
 import { Settings } from './screens/Settings.js';
 import { TasksScreen } from './screens/tasks/TasksScreen.js';
+import { CrmScreen } from './screens/crm/CrmScreen.js';
 import { AdminLayout } from './screens/admin/AdminLayout.js';
 import { AdminAlarms } from './screens/admin/Alarms.js';
 import { AdminAutomations } from './screens/admin/Automations.js';
@@ -29,6 +30,7 @@ const SCREEN_PATH: Record<Screen, string> = {
   clients: '/clients',
   analytics: '/analytics',
   admin: '/admin',
+  crm: '/crm',
 };
 
 /** Почетна рута по улога = првиот екран во `nav` (Директор → Преглед, друг → неговиот прв екран). */
@@ -132,6 +134,15 @@ export function App() {
             <Route path="automations" element={<AdminAutomations />} />
             <Route path="alarms" element={<AdminAlarms />} />
           </Route>
+          {/* Модул 2 · Продажен CRM (Продажба). */}
+          <Route
+            path="crm"
+            element={
+              <Guard screen="crm" role={me.role}>
+                <CrmScreen />
+              </Guard>
+            }
+          />
           {/* Лични поставки (H6) — не се врзани за nav дозволи; достапни за секоја улога. */}
           <Route path="settings" element={<Settings />} />
           <Route path="*" element={<Placeholder title="Ненајдена страница" />} />

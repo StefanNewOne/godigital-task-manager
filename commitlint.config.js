@@ -22,6 +22,8 @@ export default {
         'ai',
         'notifications',
         'admin',
+        'crm',
+        'files',
         'infra',
         'ci',
         'docs',

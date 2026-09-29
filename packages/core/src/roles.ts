@@ -2,7 +2,18 @@
  * Улоги во системот. Точно една по вработен (PRD §4.4).
  * Клучевите се DB enum / API вредности / UI клучеви.
  */
-export const ROLES = ['dir', 'am', 'rez', 'scen', 'kam', 'mon', 'krea', 'diz', 'ana'] as const;
+export const ROLES = [
+  'dir',
+  'am',
+  'rez',
+  'scen',
+  'kam',
+  'mon',
+  'krea',
+  'diz',
+  'ana',
+  'sales',
+] as const;
 
 export type Role = (typeof ROLES)[number];
 
@@ -20,6 +31,7 @@ export const ROLE_LABEL: Record<Role, string> = {
   krea: 'Гр. креатор',
   diz: 'Гр. дизајнер',
   ana: 'Аналитичар',
+  sales: 'Продажен агент',
 };
 
 export type ContentType = 'video' | 'graphic';

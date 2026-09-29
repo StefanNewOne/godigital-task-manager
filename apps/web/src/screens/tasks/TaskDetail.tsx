@@ -63,6 +63,7 @@ const ROLE_COLOR: Record<Role, string> = {
   diz: '#65A30D',
   am: '#DB2777',
   ana: '#DC2626',
+  sales: '#9333EA',
 };
 
 function fmtDate(iso: string): string {

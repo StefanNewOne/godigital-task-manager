@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ROLES } from './roles.js';
 import { TASK_STATUSES, GROUP_STATUSES } from './statuses.js';
+import { CRM_STATUSES, CRM_SOURCES, LOSS_REASONS } from './crm.js';
 
 /**
  * Споделени Zod schemas (CLAUDE.md §14): backend валидира со нив, frontend форми ги инферираат.
@@ -240,7 +241,7 @@ export type ScenarioUpdateInput = z.infer<typeof scenarioUpdateSchema>;
 
 // ── Files / uploads (A6, PRD §4.14, §I7) ──
 export const filePresignSchema = z.object({
-  ownerType: z.enum(['group', 'task', 'revision', 'approval', 'comment']),
+  ownerType: z.enum(['group', 'task', 'revision', 'approval', 'comment', 'lead']),
   ownerId: z.string().uuid(),
   kind: z.enum([
     'raw',
@@ -252,6 +253,7 @@ export const filePresignSchema = z.object({
     'screenshot',
     'preview',
     'logo',
+    'leadDoc',
   ]),
   mime: z.string().min(1),
   size: z
@@ -337,3 +339,83 @@ export const taskListQuerySchema = z.object({
   q: z.string().optional(),
 });
 export type TaskListQuery = z.infer<typeof taskListQuerySchema>;
+
+// ── Модул 2 · Продажен CRM ──
+const crmMonthKey = z.string().regex(/^\d{4}-\d{2}$/, 'Формат YYYY-MM.');
+
+/** Нов лид. Агент → секогаш на себе; Директор → мора да достави `agentId`. */
+export const crmLeadCreateSchema = z.object({
+  name: z.string().min(1, 'Името на бизнисот е задолжително.'),
+  source: z.enum(CRM_SOURCES),
+  person: z.string().min(1, 'Контакт лице е задолжително.'),
+  phone: z.string().optional(),
+  email: z.string().email('Неважечки е-мејл.').optional().or(z.literal('')),
+  pkgHint: z.string().optional(),
+  agentId: z.string().uuid().optional(),
+});
+export type CrmLeadCreateInput = z.infer<typeof crmLeadCreateSchema>;
+
+/** Внес при преод: коментар (враќање) или причина за изгубен лид. */
+export const crmTransitionPayloadSchema = z
+  .object({
+    comment: z.string().optional(),
+    lossReason: z.enum(LOSS_REASONS).optional(),
+    lossNote: z.string().optional(),
+  })
+  .default({});
+export type CrmTransitionPayload = z.infer<typeof crmTransitionPayloadSchema>;
+
+export const crmTransitionSchema = z.object({
+  to: z.enum(CRM_STATUSES),
+  payload: crmTransitionPayloadSchema.optional(),
+});
+export type CrmTransitionInput = z.infer<typeof crmTransitionSchema>;
+
+/** Параметри на пакетот (чекор 7) — се преслика 1:1 во Client при активација. */
+export const crmPackageSchema = z.object({
+  videos: z.number().int().min(0),
+  graphics: z.number().int().min(0),
+  meta: z.boolean(),
+  start: crmMonthKey.optional(),
+  months: z.number().int().min(0),
+  calType: calendarTypeSchema,
+});
+export type CrmPackageInput = z.infer<typeof crmPackageSchema>;
+
+/** Состанок (чекор 6). */
+export const crmMeetingSchema = z.object({
+  date: z.coerce.date().optional().nullable(),
+  time: z.string().optional(),
+  place: z.string().optional(),
+  held: z.boolean().optional(),
+  notes: z.string().optional(),
+});
+export type CrmMeetingInput = z.infer<typeof crmMeetingSchema>;
+
+/** Content планер (чекор 10): целосна листа закажани денови. */
+export const crmPlanPutSchema = z.object({
+  entries: z.array(
+    z.object({
+      monthKey: crmMonthKey,
+      day: z.number().int().min(1).max(31),
+      contentType: contentTypeSchema,
+    }),
+  ),
+});
+export type CrmPlanPutInput = z.infer<typeof crmPlanPutSchema>;
+
+/** Тим при активација (само Директор во чекор 11). role→employeeId|null. */
+export const crmTeamSchema = z.object({
+  am: z.string().uuid().nullable().optional(),
+  rez: z.string().uuid().nullable().optional(),
+  krea: z.string().uuid().nullable().optional(),
+  ana: z.string().uuid().nullable().optional(),
+});
+export type CrmTeamInput = z.infer<typeof crmTeamSchema>;
+
+/** Прикачување документ на лид (симнати верзии се LeadOffer/LeadContract). */
+export const crmDocUploadSchema = z.object({
+  kind: z.enum(['analysis', 'offer', 'contract', 'signed', 'strategy', 'fable', 'audio']),
+  fileId: z.string().uuid().optional(),
+});
+export type CrmDocUploadInput = z.infer<typeof crmDocUploadSchema>;
