@@ -19,6 +19,7 @@ import { AppError } from '../lib/errors.js';
 import { parse } from '../lib/validate.js';
 import { requireAuth } from '../middleware/auth.js';
 import { changeTaskDate, createExtraTask } from '../services/slots.js';
+import { getTaskMeta } from '../services/meta/taskMeta.js';
 import { transitionTask } from '../services/workflow/transition.js';
 import { cancelTask, pauseTask, resumeTask } from '../services/workflow/special.js';
 
@@ -100,6 +101,11 @@ tasksRouter.get('/:id/activity', async (req, res) => {
     })),
   ].sort((a, b) => a.at.getTime() - b.at.getTime());
   res.json({ data: feed });
+});
+
+// Модул 3 · Мета — живи метрики за таскот (органика + платено + планови). §9.1.
+tasksRouter.get('/:id/meta', async (req, res) => {
+  res.json({ data: await getTaskMeta((req.params as { id: string }).id) });
 });
 
 // Коментар со @тагирање (D-9). Тагираните добиваат потсетник (Notification) во B1.

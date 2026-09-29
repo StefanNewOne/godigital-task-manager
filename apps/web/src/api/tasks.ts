@@ -42,6 +42,43 @@ export function useActivity(id: string | null) {
   });
 }
 
+// Модул 3 · Мета — живи метрики за таскот (§9.1).
+export interface TaskMeta {
+  publication: {
+    platform: string;
+    postType: string;
+    publishedAt: string | null;
+    metaMediaId: string | null;
+    resolveStatus: string;
+  } | null;
+  organic: { views: number; reach: number | null; engagement: number; capturedAt: string } | null;
+  fbPerPostUnavailable: boolean;
+  paid: Array<{
+    adId: string;
+    adName: string;
+    campaignName: string;
+    adSetName: string;
+    objectiveKey: string | null;
+    results: number;
+    spend: number;
+    currency: string | null;
+    cpr: number | null;
+    status: string | null;
+    reviewStatus: string | null;
+  }>;
+  plans: Array<{ id: string; status: string; op: string }>;
+  promotion: { decision: string; campaignId: string | null } | null;
+  freshness: { organicAt: string | null; paidAt: string | null; paidIsFinal: boolean };
+}
+
+export function useTaskMeta(id: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: ['task-meta', id],
+    queryFn: () => api.get<TaskMeta>(`/tasks/${id}/meta`),
+    enabled: !!id && enabled,
+  });
+}
+
 export function useTransition(id: string) {
   const qc = useQueryClient();
   return useMutation({

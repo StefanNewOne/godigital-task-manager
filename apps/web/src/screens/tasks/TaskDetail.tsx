@@ -52,6 +52,7 @@ import { ApiRequestError } from '../../lib/api.js';
 import type { TaskDetailData } from '../../lib/types.js';
 import { StatusBadge } from '../../components/StatusBadge.js';
 import { CreativeViewer } from './CreativeViewer.js';
+import { MetaMetrics } from './MetaMetrics.js';
 
 const ROLE_COLOR: Record<Role, string> = {
   dir: '#0866FF',
@@ -108,6 +109,7 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
     context: true,
     creative: true,
     publication: true,
+    meta: true,
     activity: true,
   });
   const [wz, setWz] = useState({
@@ -485,6 +487,17 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
               <p style={sectionText}>{task.copy || 'Нема копи внесено.'}</p>
             </Section>
           )}
+          {/* Модул 3 · Мета — живи метрики (§9.1). Само за клиенти со Meta реклами. */}
+          {(status === 'objaveno' || status === 'analitika' || status === 'zavrseno') &&
+            task.client.usesMetaAds && (
+              <Section
+                title="Метрики · Meta"
+                openState={open.meta}
+                onToggle={() => setOpen((o) => ({ ...o, meta: !o.meta }))}
+              >
+                <MetaMetrics taskId={taskId} show={open.meta} />
+              </Section>
+            )}
           <Section
             title="Активност"
             badge={`${(activity ?? []).filter((a) => a.kind === 'comment').length} коментари`}
