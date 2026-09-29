@@ -85,6 +85,50 @@ export interface CreatePlanInput {
   idempotencyKey?: string;
 }
 
+export interface PlanPreviewResult {
+  before: Record<string, unknown>;
+  after: Record<string, unknown> | null;
+  consequences: string[];
+  warnings: string[];
+  /** Дали рекламната сметка е само за читање (тогаш планот не смее да се создаде — §11). */
+  accountReadOnly: boolean;
+}
+
+/**
+ * Пресметај preview на план (before/after/последици/предупредувања) БЕЗ да создадеш `MetaChangePlan`.
+ * Го користат `createPlan` и AI помошникот (`draft_plan`, §11).
+ */
+export async function previewPlan(input: {
+  clientId: string;
+  op: OpCode;
+  target: PlanTarget;
+  params?: Record<string, unknown>;
+}): Promise<PlanPreviewResult> {
+  const client = await prisma.client.findUnique({ where: { id: input.clientId } });
+  if (!client) throw new AppError('NOT_FOUND', 'Клиентот не е пронајден.', 404);
+  const mirror = (await resolveMirror(prisma, input.target)) ?? { before: {}, learning: false };
+  const preview = buildPlanPreview({
+    op: input.op,
+    params: input.params,
+    before: mirror.before,
+    client: {
+      metaMaxDailyBudget: client.metaMaxDailyBudget ? Number(client.metaMaxDailyBudget) : null,
+      metaNamingConvention: client.metaNamingConvention,
+    },
+    learning: mirror.learning,
+  });
+  const adAccount = await prisma.metaConnection.findFirst({
+    where: { clientId: input.clientId, kind: 'adAccount' },
+  });
+  return {
+    before: mirror.before,
+    after: preview.after,
+    consequences: preview.consequences,
+    warnings: preview.warnings,
+    accountReadOnly: adAccount?.accessLevel === 'read',
+  };
+}
+
 /** Создај план. dir → веднаш `approved`; ana → `pending`. */
 export async function createPlan(input: CreatePlanInput) {
   const a = actor();

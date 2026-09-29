@@ -318,6 +318,8 @@ export interface CreatePlanBody {
   target?: { campaignId?: string; adSetId?: string; adId?: string };
   params?: Record<string, unknown>;
   note?: string;
+  via?: 'manual' | 'assistant';
+  command?: string;
 }
 
 export function useMetaPlans(clientId?: string, status?: string) {
@@ -367,5 +369,33 @@ export function useMetaArchive(clientId?: string) {
   return useQuery({
     queryKey: ['meta', 'archive', clientId ?? ''],
     queryFn: () => api.get<ArchiveRow[]>(`/meta/archive${qs}`),
+  });
+}
+
+// ─────────────────────────── Модул 3 · Мета (AI помошник §11) ───────────────────────────
+
+export interface PlanDraft {
+  op: string;
+  clientId: string;
+  target: { campaignId?: string; adSetId?: string; adId?: string };
+  params: Record<string, unknown>;
+  before: Record<string, unknown>;
+  after: Record<string, unknown> | null;
+  consequences: string[];
+  warnings: string[];
+  command: string;
+}
+
+export interface MetaChatResult {
+  answer: string;
+  draft: PlanDraft | null;
+  refused: boolean;
+  toolsUsed: string[];
+}
+
+export function useMetaAssistant() {
+  return useMutation({
+    mutationFn: (input: { message: string; clientId?: string }) =>
+      api.post<MetaChatResult>('/meta/assistant/chat', input),
   });
 }

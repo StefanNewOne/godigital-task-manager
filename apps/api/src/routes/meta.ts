@@ -34,6 +34,7 @@ import {
   rejectPlan,
   withdrawPlan,
 } from '../services/meta/plans.js';
+import { metaAssistantChat } from '../services/meta/assistant.js';
 import type { OpCode } from '@gd/core';
 import { OP_CODES } from '@gd/core';
 import { AppError } from '../lib/errors.js';
@@ -156,6 +157,20 @@ metaRouter.post('/plans/:id/mark-done', requireRole('dir'), async (req, res) => 
 
 metaRouter.post('/plans/:id/withdraw', requireRole('ana', 'dir'), async (req, res) => {
   res.json({ data: await withdrawPlan((req.params as { id: string }).id) });
+});
+
+// AI помошник (§11) — посебен чат. Само чита + подготвува нацрт-план (не создава). dir/ana.
+metaRouter.post('/assistant/chat', requireRole('dir', 'ana'), async (req, res) => {
+  const b = (req.body ?? {}) as { message?: string; clientId?: string };
+  if (!b.message?.trim()) {
+    throw new AppError('VALIDATION_FAILED', 'Пораката е задолжителна.', 400);
+  }
+  const result = await metaAssistantChat({
+    message: b.message,
+    clientId: b.clientId,
+    actorRole: req.auth!.role,
+  });
+  res.json({ data: result });
 });
 
 // Архива = EventLog meta.* (append-only). CSV извоз за Директор.
