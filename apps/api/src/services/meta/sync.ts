@@ -3,6 +3,7 @@ import type { MetaAccessLevel, ObjectiveKey as DbObjectiveKey, Prisma } from '@g
 import { prisma } from '../../db/tenantExtension.js';
 import { getMetaClient } from './metaClient.js';
 import { linkAdsToPublications } from './taskMeta.js';
+import { confirmPlansOnSync } from './plans.js';
 
 /**
  * Модул 3 · Мета — синхронизација (само читање) на огледалото од Meta.
@@ -192,6 +193,9 @@ export async function syncStructureForClient(clientId: string) {
 
   // Врзи реклами кон објави (за метрики во таскот, §9).
   await linkAdsToPublications(clientId);
+
+  // Потврди `syncing` планови чија `after` вредност сега се совпаѓа со огледалото (§12).
+  await confirmPlansOnSync(clientId);
 
   return { campaigns: s.campaigns.length, adsets: adsetIdByMeta.size, ads: adCount };
 }

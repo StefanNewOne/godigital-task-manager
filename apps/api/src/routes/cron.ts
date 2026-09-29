@@ -16,6 +16,7 @@ import {
 } from '../services/meta/sync.js';
 import { evaluateAlerts } from '../services/meta/alertEval.js';
 import { purgeOldMessageBodies, syncAllInbox } from '../services/meta/inbox.js';
+import { evaluatePlanMismatch } from '../services/meta/plans.js';
 import { evaluateStorageQuota, runStorageCleanup } from '../services/storage.js';
 import { backfillKnowledge, processPendingEmbeddings } from '../services/knowledge/index.js';
 
@@ -114,9 +115,12 @@ cronRouter.post('/meta-insights-today', requireCronSecret, async (_req, res) => 
   res.json({ data: await syncAllInsightsToday() });
 });
 
-// Статус + евалуација на алерти (A01/A02/A04/A05/A06/A09/A10) → MetaAlert. BullMQ: 15м.
+// Статус + евалуација на алерти (A01/A02/A04/A05/A06/A09/A10) → MetaAlert +
+// mismatch на `syncing` планови постари од 24 ч (§12). BullMQ: 15м.
 cronRouter.post('/meta-status', requireCronSecret, async (_req, res) => {
-  res.json({ data: await evaluateAlerts() });
+  const alerts = await evaluateAlerts();
+  const mismatch = await evaluatePlanMismatch();
+  res.json({ data: { alerts, mismatch } });
 });
 
 // Инбокс (разговори/пораки) + коментари — резерва за webhooks. BullMQ: 15м.

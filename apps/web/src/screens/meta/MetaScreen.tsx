@@ -14,13 +14,54 @@ import {
   usePatchAlert,
   useSetCommentTags,
   useSetConversationTags,
+  useMetaPlans,
+  useMetaArchive,
+  useCreatePlan,
+  usePlanAction,
   type Kpi,
   type MetaAlertRow,
   type MetaCommentRow,
   type MetaConversationRow,
+  type MetaPlanRow,
+  type PlanStatus,
 } from '../../api/meta.js';
 
-type MetaTab = 'overview' | 'clients' | 'cross' | 'inbox' | 'comments';
+type MetaTab = 'overview' | 'clients' | 'cross' | 'inbox' | 'comments' | 'plans' | 'archive';
+
+// Операции O1–O12 (§12) — македонски етикети за UI.
+const OP_LABELS: Record<string, string> = {
+  O1: 'Пауза / активирај',
+  O2: 'Дневен буџет',
+  O3: 'Закажан буџет',
+  O4: 'Реклама од пост',
+  O5: 'Ново видео',
+  O6: 'Копирај ad set',
+  O7: 'Нов ad set',
+  O8: 'Нова кампања',
+  O9: 'Распоред (краен датум)',
+  O10: 'CTA / линк / шаблон',
+  O11: 'Преименување',
+  O12: 'Дуплирај кампања',
+};
+
+const PLAN_STATUS_LABEL: Record<PlanStatus, string> = {
+  pending: 'На чекање',
+  approved: 'Одобрен',
+  syncing: 'Се проверува',
+  done: 'Завршен',
+  rejected: 'Одбиен',
+  mismatch: 'Несовпаѓање',
+  withdrawn: 'Повлечен',
+};
+const PLAN_STATUS_COLOR: Record<PlanStatus, string> = {
+  pending: '#D97706',
+  approved: '#0052D9',
+  syncing: '#7C3AED',
+  done: '#16A34A',
+  rejected: '#B91C1C',
+  mismatch: '#DC2626',
+  withdrawn: '#6B7280',
+};
 
 const SEV_COLOR: Record<string, string> = {
   crit: '#DC2626',
@@ -53,6 +94,8 @@ export function MetaScreen() {
         ['overview', 'Утрински преглед'],
         ['clients', 'Клиенти'],
         ['cross', 'Пресек'],
+        ['plans', 'Планови'],
+        ['archive', 'Архива'],
         ['inbox', 'Инбокс'],
         ['comments', 'Коментари'],
       ]
@@ -100,6 +143,10 @@ export function MetaScreen() {
           <ClientsView onOpen={setOpenClient} />
         ) : tab === 'cross' ? (
           <CrossView />
+        ) : tab === 'plans' ? (
+          <PlansView canApprove={me.role === 'dir'} myId={me.id} />
+        ) : tab === 'archive' ? (
+          <ArchiveView canExport={me.role === 'dir'} />
         ) : tab === 'inbox' ? (
           <InboxView />
         ) : (
@@ -667,6 +714,295 @@ function Empty({ text }: { text: string }) {
   );
 }
 
+// ─────────────────────────── Планови (§12) ───────────────────────────
+
+const PLAN_FILTERS: Array<[string, string]> = [
+  ['', 'Сите'],
+  ['pending', 'На чекање'],
+  ['approved', 'Одобрени'],
+  ['syncing', 'Се проверуваат'],
+  ['mismatch', 'Несовпаѓања'],
+];
+
+function PlansView({ canApprove, myId }: { canApprove: boolean; myId: string }) {
+  const [status, setStatus] = useState('');
+  const [creating, setCreating] = useState(false);
+  const { data: plans = [], isLoading } = useMetaPlans(undefined, status || undefined);
+  const action = usePlanAction();
+
+  return (
+    <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        {PLAN_FILTERS.map(([s, label]) => (
+          <button key={s} type="button" onClick={() => setStatus(s)} style={tabStyle(status === s)}>
+            {label}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => setCreating(true)}
+          style={{ ...tabStyle(false), marginLeft: 'auto', background: '#0866FF', color: '#fff' }}
+        >
+          + Нов план
+        </button>
+      </div>
+
+      {isLoading && <Loading />}
+      {!isLoading && plans.length === 0 && <Empty text="Нема планови." />}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {plans.map((p) => (
+          <PlanRow
+            key={p.id}
+            plan={p}
+            canApprove={canApprove}
+            isOwner={p.createdById === myId}
+            onAction={(a, note) => action.mutate({ id: p.id, action: a, note })}
+            pending={action.isPending}
+          />
+        ))}
+      </div>
+
+      {creating && <CreatePlanModal onClose={() => setCreating(false)} />}
+    </div>
+  );
+}
+
+function PlanRow({
+  plan,
+  canApprove,
+  isOwner,
+  onAction,
+  pending,
+}: {
+  plan: MetaPlanRow;
+  canApprove: boolean;
+  isOwner: boolean;
+  onAction: (action: 'approve' | 'reject' | 'mark-done' | 'withdraw', note?: string) => void;
+  pending: boolean;
+}) {
+  return (
+    <div
+      style={{
+        ...rowCard,
+        cursor: 'default',
+        alignItems: 'flex-start',
+        borderLeft: `3px solid ${PLAN_STATUS_COLOR[plan.status]}`,
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontWeight: 600, fontSize: 13 }}>
+            {OP_LABELS[plan.op] ?? plan.op}
+            <span style={{ color: 'var(--gd-ink-muted)', fontWeight: 400, marginLeft: 6 }}>
+              {plan.op}
+            </span>
+          </span>
+          <span
+            style={{
+              ...sevPill,
+              background: `${PLAN_STATUS_COLOR[plan.status]}1A`,
+              color: PLAN_STATUS_COLOR[plan.status],
+            }}
+          >
+            {PLAN_STATUS_LABEL[plan.status]}
+          </span>
+        </div>
+        {plan.consequences.length > 0 && (
+          <div style={{ fontSize: 12, marginTop: 4 }}>{plan.consequences.join(' · ')}</div>
+        )}
+        {plan.warnings.length > 0 && (
+          <div style={{ fontSize: 12, marginTop: 4, color: '#B45309' }}>
+            ⚠ {plan.warnings.join(' · ')}
+          </div>
+        )}
+        {plan.rejectNote && (
+          <div style={{ fontSize: 12, marginTop: 4, color: '#B91C1C' }}>
+            Одбиено: {plan.rejectNote}
+          </div>
+        )}
+        <div style={{ fontSize: 11, color: 'var(--gd-ink-muted)', marginTop: 4 }}>
+          {fmtDate(plan.createdAt)}
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+        {canApprove && plan.status === 'pending' && (
+          <>
+            <button
+              type="button"
+              disabled={pending}
+              style={{ ...ghostBtn, background: '#0866FF', color: '#fff', border: 'none' }}
+              onClick={() => onAction('approve')}
+            >
+              Одобри
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              style={ghostBtn}
+              onClick={() => {
+                const note = window.prompt('Причина за одбивање:');
+                if (note?.trim()) onAction('reject', note);
+              }}
+            >
+              Одбиј
+            </button>
+          </>
+        )}
+        {canApprove && plan.status === 'approved' && (
+          <button
+            type="button"
+            disabled={pending}
+            style={{ ...ghostBtn, background: '#16A34A', color: '#fff', border: 'none' }}
+            onClick={() => onAction('mark-done')}
+          >
+            Направено во Ads Manager
+          </button>
+        )}
+        {isOwner && plan.status === 'pending' && (
+          <button
+            type="button"
+            disabled={pending}
+            style={ghostBtn}
+            onClick={() => onAction('withdraw')}
+          >
+            Повлечи
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CreatePlanModal({ onClose }: { onClose: () => void }) {
+  const { data: clients = [] } = useMetaClients();
+  const create = useCreatePlan();
+  const [clientId, setClientId] = useState('');
+  const [op, setOp] = useState('O2');
+  const [campaignId, setCampaignId] = useState('');
+  const [amount, setAmount] = useState('');
+  const [name, setName] = useState('');
+  const [note, setNote] = useState('');
+
+  const submit = () => {
+    if (!clientId) return;
+    const params: Record<string, unknown> = {};
+    if (op === 'O2') params.amount = Number(amount);
+    if (op === 'O11') params.name = name;
+    if (op === 'O1') params.status = 'PAUSED';
+    create.mutate(
+      { op, clientId, target: campaignId ? { campaignId } : {}, params, note: note || undefined },
+      { onSuccess: onClose },
+    );
+  };
+
+  return (
+    <div style={modalBackdrop} onClick={onClose}>
+      <div style={modalCard} onClick={(e) => e.stopPropagation()}>
+        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>Нов план за промена</div>
+        <label style={modalLabel}>Клиент</label>
+        <select style={modalInput} value={clientId} onChange={(e) => setClientId(e.target.value)}>
+          <option value="">— избери —</option>
+          {clients.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        <label style={modalLabel}>Операција</label>
+        <select style={modalInput} value={op} onChange={(e) => setOp(e.target.value)}>
+          {Object.entries(OP_LABELS).map(([code, label]) => (
+            <option key={code} value={code}>
+              {code} · {label}
+            </option>
+          ))}
+        </select>
+        <label style={modalLabel}>Кампања (Meta ID)</label>
+        <input
+          style={modalInput}
+          value={campaignId}
+          onChange={(e) => setCampaignId(e.target.value)}
+        />
+        {op === 'O2' && (
+          <>
+            <label style={modalLabel}>Нов дневен буџет (€)</label>
+            <input
+              style={modalInput}
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+          </>
+        )}
+        {op === 'O11' && (
+          <>
+            <label style={modalLabel}>Ново име</label>
+            <input style={modalInput} value={name} onChange={(e) => setName(e.target.value)} />
+          </>
+        )}
+        <label style={modalLabel}>Белешка (опционо)</label>
+        <input style={modalInput} value={note} onChange={(e) => setNote(e.target.value)} />
+        <div style={{ fontSize: 11, color: 'var(--gd-ink-muted)', margin: '8px 0' }}>
+          Планот не менува ништо во Meta — промената ја прави Директорот рачно во Ads Manager.
+        </div>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
+          <button type="button" style={ghostBtn} onClick={onClose}>
+            Откажи
+          </button>
+          <button
+            type="button"
+            disabled={!clientId || create.isPending}
+            style={{ ...ghostBtn, background: '#0866FF', color: '#fff', border: 'none' }}
+            onClick={submit}
+          >
+            Создај
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────── Архива (§4.7) ───────────────────────────
+
+function ArchiveView({ canExport }: { canExport: boolean }) {
+  const { data: rows = [], isLoading } = useMetaArchive();
+  return (
+    <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {canExport && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <a href="/api/meta/archive.csv" style={{ ...ghostBtn, textDecoration: 'none' }}>
+            Извези CSV
+          </a>
+        </div>
+      )}
+      {isLoading && <Loading />}
+      {!isLoading && rows.length === 0 && <Empty text="Нема записи во архивата." />}
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        {rows.map((r) => (
+          <div
+            key={r.id}
+            style={{
+              display: 'flex',
+              gap: 10,
+              padding: '8px 0',
+              borderBottom: '1px solid var(--gd-border)',
+              fontSize: 13,
+            }}
+          >
+            <span style={{ color: 'var(--gd-ink-muted)', fontSize: 11, width: 130, flexShrink: 0 }}>
+              {fmtDate(r.occurredAt)}
+            </span>
+            <span style={{ flex: 1 }}>{r.narrative}</span>
+            <span style={{ color: 'var(--gd-ink-muted)', fontSize: 11, flexShrink: 0 }}>
+              {r.actorRole ?? 'система'}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const topBar: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
@@ -716,4 +1052,39 @@ const ghostBtn: React.CSSProperties = {
   background: '#fff',
   fontSize: 12,
   cursor: 'pointer',
+};
+const modalBackdrop: React.CSSProperties = {
+  position: 'fixed',
+  inset: 0,
+  background: 'rgba(0,0,0,0.4)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  zIndex: 100,
+};
+const modalCard: React.CSSProperties = {
+  background: '#fff',
+  borderRadius: 12,
+  padding: 24,
+  width: 420,
+  maxWidth: '90vw',
+  maxHeight: '90vh',
+  overflowY: 'auto',
+  boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+};
+const modalLabel: React.CSSProperties = {
+  display: 'block',
+  fontSize: 12,
+  fontWeight: 600,
+  color: 'var(--gd-ink-secondary)',
+  marginBottom: 4,
+  marginTop: 10,
+};
+const modalInput: React.CSSProperties = {
+  width: '100%',
+  padding: '8px 10px',
+  borderRadius: 6,
+  border: '1px solid var(--gd-border)',
+  fontSize: 13,
+  boxSizing: 'border-box',
 };
