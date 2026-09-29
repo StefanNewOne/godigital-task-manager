@@ -18,15 +18,18 @@ import {
   useMetaArchive,
   useCreatePlan,
   usePlanAction,
+  useMetaAssistant,
   type Kpi,
   type MetaAlertRow,
   type MetaCommentRow,
   type MetaConversationRow,
   type MetaPlanRow,
+  type PlanDraft,
   type PlanStatus,
 } from '../../api/meta.js';
 
-type MetaTab = 'overview' | 'clients' | 'cross' | 'inbox' | 'comments' | 'plans' | 'archive';
+type MetaTab =
+  'overview' | 'clients' | 'cross' | 'inbox' | 'comments' | 'plans' | 'archive' | 'assistant';
 
 // Операции O1–O12 (§12) — македонски етикети за UI.
 const OP_LABELS: Record<string, string> = {
@@ -96,6 +99,7 @@ export function MetaScreen() {
         ['cross', 'Пресек'],
         ['plans', 'Планови'],
         ['archive', 'Архива'],
+        ['assistant', 'Помошник'],
         ['inbox', 'Инбокс'],
         ['comments', 'Коментари'],
       ]
@@ -147,6 +151,8 @@ export function MetaScreen() {
           <PlansView canApprove={me.role === 'dir'} myId={me.id} />
         ) : tab === 'archive' ? (
           <ArchiveView canExport={me.role === 'dir'} />
+        ) : tab === 'assistant' ? (
+          <AssistantView isDir={me.role === 'dir'} />
         ) : tab === 'inbox' ? (
           <InboxView />
         ) : (
@@ -873,14 +879,16 @@ function PlanRow({
   );
 }
 
-function CreatePlanModal({ onClose }: { onClose: () => void }) {
+function CreatePlanModal({ onClose, draft }: { onClose: () => void; draft?: PlanDraft }) {
   const { data: clients = [] } = useMetaClients();
   const create = useCreatePlan();
-  const [clientId, setClientId] = useState('');
-  const [op, setOp] = useState('O2');
-  const [campaignId, setCampaignId] = useState('');
-  const [amount, setAmount] = useState('');
-  const [name, setName] = useState('');
+  const [clientId, setClientId] = useState(draft?.clientId ?? '');
+  const [op, setOp] = useState(draft?.op ?? 'O2');
+  const [campaignId, setCampaignId] = useState(draft?.target.campaignId ?? '');
+  const [amount, setAmount] = useState(
+    draft?.params.amount != null ? String(draft.params.amount) : '',
+  );
+  const [name, setName] = useState(draft?.params.name != null ? String(draft.params.name) : '');
   const [note, setNote] = useState('');
 
   const submit = () => {
@@ -888,9 +896,17 @@ function CreatePlanModal({ onClose }: { onClose: () => void }) {
     const params: Record<string, unknown> = {};
     if (op === 'O2') params.amount = Number(amount);
     if (op === 'O11') params.name = name;
-    if (op === 'O1') params.status = 'PAUSED';
+    if (op === 'O1') params.status = (draft?.params.status as string) ?? 'PAUSED';
     create.mutate(
-      { op, clientId, target: campaignId ? { campaignId } : {}, params, note: note || undefined },
+      {
+        op,
+        clientId,
+        target: campaignId ? { campaignId } : {},
+        params,
+        note: note || undefined,
+        via: draft ? 'assistant' : 'manual',
+        command: draft?.command,
+      },
       { onSuccess: onClose },
     );
   };
@@ -999,6 +1015,134 @@ function ArchiveView({ canExport }: { canExport: boolean }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ─────────────────────────── AI помошник (§11) ───────────────────────────
+
+interface ChatMsg {
+  role: 'user' | 'assistant';
+  text: string;
+  draft?: PlanDraft | null;
+}
+
+function AssistantView({ isDir }: { isDir: boolean }) {
+  const { data: clients = [] } = useMetaClients();
+  const [clientId, setClientId] = useState('');
+  const [input, setInput] = useState('');
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
+  const [draftToOpen, setDraftToOpen] = useState<PlanDraft | null>(null);
+  const chat = useMetaAssistant();
+
+  const send = () => {
+    const text = input.trim();
+    if (!text || chat.isPending) return;
+    setMessages((m) => [...m, { role: 'user', text }]);
+    setInput('');
+    chat.mutate(
+      { message: text, clientId: clientId || undefined },
+      {
+        onSuccess: (res) =>
+          setMessages((m) => [...m, { role: 'assistant', text: res.answer, draft: res.draft }]),
+        onError: () =>
+          setMessages((m) => [
+            ...m,
+            { role: 'assistant', text: 'Настана грешка. Обиди се повторно.' },
+          ]),
+      },
+    );
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+      <div style={{ padding: 12, borderBottom: '1px solid var(--gd-border)' }}>
+        <select
+          style={{ ...modalInput, width: 260 }}
+          value={clientId}
+          onChange={(e) => setClientId(e.target.value)}
+        >
+          <option value="">Сите клиенти (за план избери еден)</option>
+          {clients.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: 20,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+        }}
+      >
+        {messages.length === 0 && (
+          <div style={{ color: 'var(--gd-ink-muted)', fontSize: 13 }}>
+            Прашај за преглед, алерти, пресек или структура — или подготви план (пр. „буџет 200",
+            „паузирај", „преименувај"). Помошникот само предлага; ти одлучуваш.
+          </div>
+        )}
+        {messages.map((m, i) => (
+          <div
+            key={i}
+            style={{
+              alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
+              maxWidth: '80%',
+              padding: '10px 14px',
+              borderRadius: 10,
+              whiteSpace: 'pre-wrap',
+              fontSize: 13,
+              background: m.role === 'user' ? '#0866FF' : '#F0F2F5',
+              color: m.role === 'user' ? '#fff' : 'var(--gd-ink)',
+            }}
+          >
+            {m.text}
+            {m.draft && (
+              <div style={{ marginTop: 8 }}>
+                <button
+                  type="button"
+                  style={{ ...ghostBtn, background: '#0866FF', color: '#fff', border: 'none' }}
+                  onClick={() => setDraftToOpen(m.draft!)}
+                >
+                  {isDir ? 'Отвори како план' : 'Прати на одобрување'}
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+        {chat.isPending && (
+          <div style={{ color: 'var(--gd-ink-muted)', fontSize: 12 }}>Пишува…</div>
+        )}
+      </div>
+
+      <div
+        style={{ display: 'flex', gap: 8, padding: 12, borderTop: '1px solid var(--gd-border)' }}
+      >
+        <input
+          style={{ ...modalInput, flex: 1 }}
+          placeholder="Напиши порака…"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') send();
+          }}
+        />
+        <button
+          type="button"
+          style={{ ...ghostBtn, background: '#0866FF', color: '#fff', border: 'none' }}
+          onClick={send}
+          disabled={chat.isPending}
+        >
+          Прати
+        </button>
+      </div>
+
+      {draftToOpen && <CreatePlanModal draft={draftToOpen} onClose={() => setDraftToOpen(null)} />}
     </div>
   );
 }
