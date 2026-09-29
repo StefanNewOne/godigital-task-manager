@@ -96,6 +96,9 @@ export interface MetaClientRow {
   target: string | null;
   campaigns: number;
   alerts: number;
+  messages: number;
+  todaySpend: number;
+  monthSpend: number;
   currency: string | null;
   accessLevel: string | null;
   lastSyncAt: string | null;
@@ -121,12 +124,15 @@ export interface CrossGroup {
     spend: number;
     results: number;
     cpr: number | null;
+    cprChangePct: number | null;
+    goal: string | null;
   }>;
 }
 export interface CrossData {
   period: string;
   from: string;
   to: string;
+  kpis: { spend: number; campaigns: number };
   groups: CrossGroup[];
 }
 export interface StructureAd {

@@ -84,12 +84,49 @@
       "openInAds": "Отвори во Ads Manager"
     },
     "clients": {
-      "footer": "Клиентите се истите од Task Manager. Сумите се во валутата на рекламниот акаунт."
+      "footer": "Клиентите се истите од Task Manager. Сумите се во валутата на рекламниот акаунт.",
+      "colClient": "Клиент",
+      "colGoal": "Главна цел",
+      "colToday": "Денес",
+      "colMonth": "Овој месец",
+      "colCampaigns": "Кампањи",
+      "colAlerts": "Алерти",
+      "colMessages": "Пораки",
+      "colLast": "Последна промена"
     },
     "cross": {
       "title": "Резултат по кампања, според нејзиниот Objective",
       "subtitle": "Метриките не се собираат меѓу различни Objective. Сортирано по влошување.",
-      "footer": "Извор: Meta Insights API · атрибуција Standard · последните 7 дена не се конечни."
+      "footer": "Извор: Meta Insights API · атрибуција Standard · последните 7 дена не се конечни.",
+      "kpiSpend": "Вкупно потрошено",
+      "kpiCampaigns": "Кампањи",
+      "colCampaign": "Клиент · кампања",
+      "colObjective": "Objective",
+      "colSpend": "Потрошено",
+      "colResults": "Резултати",
+      "colCpr": "Цена/резултат",
+      "colChange": "Промена",
+      "colGoal": "Цел"
+    },
+    "overview": {
+      "attention": "Што бара внимание",
+      "seenAll": "Означи ги сите како видени",
+      "empty": "Нема алерти во овој филтер.",
+      "syncTitle": "Состојба на синхронизација",
+      "syncLast": "Последен sync",
+      "syncAccounts": "Акаунти",
+      "syncFailing": "Со грешка",
+      "accessTitle": "Ниво на пристап",
+      "accessManage": "Manage campaigns",
+      "accessRead": "Само преглед",
+      "accessNote": "Системот само чита од Meta. Промените ги прави Директорот рачно во Ads Manager.",
+      "askTitle": "Прашај го асистентот",
+      "askExample": "„Кај кого поскапе цената оваа недела?“",
+      "ask": "Прашај",
+      "seen": "Видено",
+      "snooze": "Одложи",
+      "unsnooze": "Врати",
+      "accounts": "акаунти"
     },
     "comments": {
       "badgeQuestion": "прашање",
