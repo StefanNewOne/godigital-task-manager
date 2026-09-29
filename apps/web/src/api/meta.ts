@@ -313,9 +313,14 @@ export interface MetaPlanRow {
   status: PlanStatus;
   createdById: string;
   createdVia: 'manual' | 'assistant';
+  command: string | null;
   note: string | null;
   rejectNote: string | null;
+  taskId: string | null;
   createdAt: string;
+  authorName: string | null;
+  clientName: string | null;
+  clientColor: string | null;
 }
 
 export interface CreatePlanBody {
@@ -365,9 +370,14 @@ export interface ArchiveRow {
   narrative: string;
   actorRole: string | null;
   clientId: string | null;
+  clientName: string | null;
+  clientColor: string | null;
   objectType: string;
   objectId: string;
   occurredAt: string;
+  oldValue: unknown;
+  newValue: unknown;
+  context: unknown;
 }
 
 export function useMetaArchive(clientId?: string) {

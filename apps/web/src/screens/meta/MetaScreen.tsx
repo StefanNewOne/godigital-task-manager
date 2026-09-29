@@ -1434,18 +1434,41 @@ function PlanRow({
   onAction: (action: 'approve' | 'reject' | 'mark-done' | 'withdraw', note?: string) => void;
   pending: boolean;
 }) {
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectNote, setRejectNote] = useState('');
+  const before = plan.before as Record<string, unknown> | null;
+  const after = plan.after as Record<string, unknown> | null;
+  const fmtVal = (v: Record<string, unknown> | null): string =>
+    v && Object.keys(v).length
+      ? Object.entries(v)
+          .map(([k, val]) => `${k}: ${String(val)}`)
+          .join(', ')
+      : '—';
+  const target = plan.target?.campaignId ?? plan.target?.adSetId ?? plan.target?.adId ?? null;
+
   return (
     <div
       style={{
-        ...rowCard,
-        cursor: 'default',
-        alignItems: 'flex-start',
+        border: '1px solid var(--gd-border)',
         borderLeft: `3px solid ${PLAN_STATUS_COLOR[plan.status]}`,
+        borderRadius: 8,
+        background: '#fff',
+        padding: 14,
+        display: 'flex',
+        gap: 12,
+        alignItems: 'flex-start',
       }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ fontSize: 11, color: 'var(--gd-ink-muted)' }}>P-{plan.id.slice(0, 8)}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+          {plan.clientColor && (
+            <span
+              style={{ width: 8, height: 8, borderRadius: '50%', background: plan.clientColor }}
+            />
+          )}
           <span style={{ fontWeight: 600, fontSize: 13 }}>
+            {plan.clientName ? `${plan.clientName} · ` : ''}
             {OP_LABELS[plan.op] ?? plan.op}
             <span style={{ color: 'var(--gd-ink-muted)', fontWeight: 400, marginLeft: 6 }}>
               {plan.op}
@@ -1461,25 +1484,100 @@ function PlanRow({
             {PLAN_STATUS_LABEL[plan.status]}
           </span>
         </div>
-        {plan.consequences.length > 0 && (
-          <div style={{ fontSize: 12, marginTop: 4 }}>{plan.consequences.join(' · ')}</div>
+        {target && (
+          <div
+            style={{
+              fontSize: 12,
+              color: 'var(--gd-ink-muted)',
+              marginTop: 4,
+              fontFamily: 'monospace',
+            }}
+          >
+            {t('meta.plans.target')}: {target}
+          </div>
         )}
+
+        {/* Пред → После */}
+        {(before || after) && (
+          <div style={{ display: 'flex', alignItems: 'stretch', gap: 8, marginTop: 8 }}>
+            <div style={{ flex: 1, background: '#F7F8FA', borderRadius: 6, padding: '6px 10px' }}>
+              <div style={{ fontSize: 10, color: 'var(--gd-ink-muted)' }}>
+                {t('meta.plans.before')}
+              </div>
+              <div style={{ fontSize: 12 }}>{fmtVal(before)}</div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', color: 'var(--gd-ink-muted)' }}>
+              →
+            </div>
+            <div style={{ flex: 1, background: '#EBF2FF', borderRadius: 6, padding: '6px 10px' }}>
+              <div style={{ fontSize: 10, color: '#0052D9' }}>{t('meta.plans.after')}</div>
+              <div style={{ fontSize: 12 }}>{fmtVal(after)}</div>
+            </div>
+          </div>
+        )}
+
         {plan.warnings.length > 0 && (
-          <div style={{ fontSize: 12, marginTop: 4, color: '#B45309' }}>
+          <div style={{ fontSize: 12, marginTop: 6, color: '#B45309' }}>
             ⚠ {plan.warnings.join(' · ')}
+          </div>
+        )}
+        {plan.consequences.length > 0 && (
+          <div style={{ fontSize: 12, marginTop: 4, color: 'var(--gd-ink-secondary)' }}>
+            {plan.consequences.join(' · ')}
+          </div>
+        )}
+        {plan.command && (
+          <div
+            style={{
+              fontSize: 12,
+              marginTop: 4,
+              color: 'var(--gd-ink-muted)',
+              fontStyle: 'italic',
+            }}
+          >
+            {t('meta.plans.command')}: „{plan.command}"
           </div>
         )}
         {plan.rejectNote && (
           <div style={{ fontSize: 12, marginTop: 4, color: '#B91C1C' }}>
-            Одбиено: {plan.rejectNote}
+            {t('meta.plans.rejected')}: {plan.rejectNote}
           </div>
         )}
-        <div style={{ fontSize: 11, color: 'var(--gd-ink-muted)', marginTop: 4 }}>
-          {fmtDate(plan.createdAt)}
+        <div style={{ fontSize: 11, color: 'var(--gd-ink-muted)', marginTop: 6 }}>
+          {[plan.authorName, fmtDate(plan.createdAt)].filter(Boolean).join(' · ')}
         </div>
+
+        {/* Inline reject форма (замена за window.prompt) */}
+        {rejectOpen && (
+          <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <textarea
+              style={{ ...modalInput, minHeight: 60, resize: 'vertical' }}
+              placeholder={t('meta.plans.rejectReason')}
+              value={rejectNote}
+              onChange={(e) => setRejectNote(e.target.value)}
+            />
+            <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+              <button type="button" style={ghostBtn} onClick={() => setRejectOpen(false)}>
+                {t('meta.plans.rejectCancel')}
+              </button>
+              <button
+                type="button"
+                disabled={pending || !rejectNote.trim()}
+                style={{ ...ghostBtn, background: '#B91C1C', color: '#fff', border: 'none' }}
+                onClick={() => {
+                  onAction('reject', rejectNote);
+                  setRejectOpen(false);
+                }}
+              >
+                {t('meta.plans.rejectConfirm')}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
-        {canApprove && plan.status === 'pending' && (
+        {canApprove && plan.status === 'pending' && !rejectOpen && (
           <>
             <button
               type="button"
@@ -1487,18 +1585,15 @@ function PlanRow({
               style={{ ...ghostBtn, background: '#0866FF', color: '#fff', border: 'none' }}
               onClick={() => onAction('approve')}
             >
-              Одобри
+              {t('meta.plans.approve')}
             </button>
             <button
               type="button"
               disabled={pending}
-              style={ghostBtn}
-              onClick={() => {
-                const note = window.prompt('Причина за одбивање:');
-                if (note?.trim()) onAction('reject', note);
-              }}
+              style={{ ...ghostBtn, borderColor: '#FCA5A5', color: '#B91C1C' }}
+              onClick={() => setRejectOpen(true)}
             >
-              Одбиј
+              {t('meta.plans.reject')}
             </button>
           </>
         )}
@@ -1529,7 +1624,7 @@ function PlanRow({
             style={ghostBtn}
             onClick={() => onAction('withdraw')}
           >
-            Повлечи
+            {t('meta.plans.withdraw')}
           </button>
         )}
       </div>
@@ -1638,41 +1733,96 @@ function CreatePlanModal({ onClose, draft }: { onClose: () => void; draft?: Plan
 
 // ─────────────────────────── Архива (§4.7) ───────────────────────────
 
+const ARCHIVE_COLS = '150px 1.2fr 1fr 1.4fr .9fr 2fr';
+
 function ArchiveView({ canExport, clientId }: { canExport: boolean; clientId?: string }) {
   const { data: rows = [], isLoading } = useMetaArchive(clientId);
+  const csvHref = clientId ? `/api/meta/archive.csv?clientId=${clientId}` : '/api/meta/archive.csv';
   return (
     <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
-      {canExport && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <a href="/api/meta/archive.csv" style={{ ...ghostBtn, textDecoration: 'none' }}>
-            Извези CSV
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ fontSize: 12, color: 'var(--gd-ink-muted)', flex: 1 }}>
+          {t('meta.archive.note')}
+        </span>
+        {canExport && (
+          <a href={csvHref} style={{ ...ghostBtn, textDecoration: 'none' }}>
+            {t('meta.archive.exportCsv')}
           </a>
+        )}
+      </div>
+      {isLoading && <Loading />}
+      {!isLoading && rows.length === 0 && <Empty text={t('meta.archive.empty')} />}
+      {rows.length > 0 && (
+        <div
+          style={{
+            border: '1px solid var(--gd-border)',
+            borderRadius: 8,
+            overflow: 'auto',
+            background: '#fff',
+          }}
+        >
+          <div style={{ minWidth: 900 }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: ARCHIVE_COLS,
+                gap: 12,
+                padding: '10px 16px',
+                background: '#F7F8FA',
+                borderBottom: '1px solid var(--gd-border)',
+                fontSize: 12,
+                fontWeight: 500,
+                color: 'var(--gd-ink-muted)',
+              }}
+            >
+              <span>{t('meta.archive.colWhen')}</span>
+              <span>{t('meta.archive.colClient')}</span>
+              <span>{t('meta.archive.colObject')}</span>
+              <span>{t('meta.archive.colEvent')}</span>
+              <span>{t('meta.archive.colWho')}</span>
+              <span>{t('meta.archive.colNarrative')}</span>
+            </div>
+            {rows.map((r) => (
+              <div
+                key={r.id}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: ARCHIVE_COLS,
+                  gap: 12,
+                  padding: '10px 16px',
+                  borderBottom: '1px solid var(--gd-border)',
+                  fontSize: 13,
+                  alignItems: 'center',
+                }}
+              >
+                <span style={{ fontSize: 11, color: 'var(--gd-ink-muted)' }}>
+                  {fmtDate(r.occurredAt)}
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                  {r.clientColor && (
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        background: r.clientColor,
+                        flexShrink: 0,
+                      }}
+                    />
+                  )}
+                  {r.clientName ?? '—'}
+                </span>
+                <span style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>{r.objectType}</span>
+                <span style={{ fontSize: 12, fontFamily: 'monospace' }}>{r.eventType}</span>
+                <span style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>
+                  {r.actorRole ?? 'система'}
+                </span>
+                <span>{r.narrative}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
-      {isLoading && <Loading />}
-      {!isLoading && rows.length === 0 && <Empty text="Нема записи во архивата." />}
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
-        {rows.map((r) => (
-          <div
-            key={r.id}
-            style={{
-              display: 'flex',
-              gap: 10,
-              padding: '8px 0',
-              borderBottom: '1px solid var(--gd-border)',
-              fontSize: 13,
-            }}
-          >
-            <span style={{ color: 'var(--gd-ink-muted)', fontSize: 11, width: 130, flexShrink: 0 }}>
-              {fmtDate(r.occurredAt)}
-            </span>
-            <span style={{ flex: 1 }}>{r.narrative}</span>
-            <span style={{ color: 'var(--gd-ink-muted)', fontSize: 11, flexShrink: 0 }}>
-              {r.actorRole ?? 'система'}
-            </span>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
