@@ -9,3 +9,8 @@ body {
   -webkit-font-smoothing: antialiased;
   font-variant-numeric: tabular-nums;
 }
+
+/* Handoff v2 §44 (важи и за продукција): исклучено копче нема pointer курсор. */
+button:disabled {
+  cursor: default;
+}

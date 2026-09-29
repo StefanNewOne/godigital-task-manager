@@ -42,8 +42,10 @@ export function CreativeViewer({ taskId, onClose }: { taskId: string; onClose: (
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const selected: FileAssetRow | undefined =
-    versions.find((v) => v.id === selectedId) ?? versions[versions.length - 1];
+  const latest: FileAssetRow | undefined = versions[versions.length - 1];
+  const selected: FileAssetRow | undefined = versions.find((v) => v.id === selectedId) ?? latest;
+  // Handoff v2 §44: кога се гледа постара верзија (не последната), заглавјето го означува тоа.
+  const viewingPrevious = !!selected && !!latest && selected.id !== latest.id;
 
   const comments = (activity ?? []).filter((a) => a.kind === 'comment');
 
@@ -78,7 +80,12 @@ export function CreativeViewer({ taskId, onClose }: { taskId: string; onClose: (
           <span style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
             {selected ? `${selected.kind}` : 'Креатива'}
           </span>
-          {selected?.version != null && <span style={versionPill}>v{selected.version}</span>}
+          {selected?.version != null && (
+            <span style={versionPill}>
+              v{selected.version}
+              {viewingPrevious ? ' · претходна' : ''}
+            </span>
+          )}
           <span style={{ color: '#8A93A0', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {task ? `${task.client.name} · ${task.title}` : ''}
           </span>
