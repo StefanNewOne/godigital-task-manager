@@ -40,6 +40,7 @@ import {
   metaClientProfile,
   updateMetaClientProfile,
 } from '../services/meta/clientDetail.js';
+import { metaConnections } from '../services/meta/connections.js';
 import {
   syncAllInsightsToday,
   syncAllStructure,
@@ -246,6 +247,11 @@ metaRouter.get('/archive.csv', requireRole('dir'), async (req, res) => {
     .type('text/csv')
     .header('Content-Disposition', 'attachment; filename="meta-arhiva.csv"')
     .send(csv);
+});
+
+// Поврзувања (§8, MF3) — токен-статус (без вредности, §12) + конекции по клиент. dir/ana.
+metaRouter.get('/connections', requireRole('dir', 'ana'), async (_req, res) => {
+  res.json({ data: await metaConnections() });
 });
 
 // Достапни страници + IG business сметки (за доделба по клиент во Админ).
