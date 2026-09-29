@@ -58,9 +58,34 @@
       "refreshing": "Освежувањето е во тек",
       "allClients": "Сите клиенти",
       "freshness": "Освежено: {time}",
+      "neverSynced": "Сè уште не е синхронизирано",
       "period7": "7 дена",
       "period30": "30 дена",
       "periodMonth": "Овој месец"
+    },
+    "common": {
+      "openInMeta": "Отвори во Meta",
+      "openInAds": "Отвори во Ads Manager"
+    },
+    "clients": {
+      "footer": "Клиентите се истите од Task Manager. Сумите се во валутата на рекламниот акаунт."
+    },
+    "cross": {
+      "title": "Резултат по кампања, според нејзиниот Objective",
+      "subtitle": "Метриките не се собираат меѓу различни Objective. Сортирано по влошување.",
+      "footer": "Извор: Meta Insights API · атрибуција Standard · последните 7 дена не се конечни."
+    },
+    "comments": {
+      "badgeQuestion": "прашање",
+      "badgeComplaint": "жалба",
+      "badgeAd": "реклама",
+      "footer": "Ознаките се внатрешни и не се праќаат кон Meta. Одговарање и бришење од системот нема во оваа фаза."
+    },
+    "plans": {
+      "doneInAds": "Направено во Ads Manager"
+    },
+    "assistant": {
+      "placeholder": "Прашај или побарај промена…"
     }
   }
 }

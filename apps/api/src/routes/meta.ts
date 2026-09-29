@@ -35,6 +35,19 @@ import {
   withdrawPlan,
 } from '../services/meta/plans.js';
 import { metaAssistantChat } from '../services/meta/assistant.js';
+import {
+  syncAllInsightsToday,
+  syncAllStructure,
+  syncConnections,
+  syncInsightsForClient,
+  syncStructureForClient,
+} from '../services/meta/sync.js';
+import {
+  syncAllInbox,
+  syncCommentsForClient,
+  syncConversationsForClient,
+} from '../services/meta/inbox.js';
+import { logger } from '../lib/logger.js';
 import type { OpCode } from '@gd/core';
 import { OP_CODES } from '@gd/core';
 import { AppError } from '../lib/errors.js';
@@ -157,6 +170,28 @@ metaRouter.post('/plans/:id/mark-done', requireRole('dir'), async (req, res) => 
 
 metaRouter.post('/plans/:id/withdraw', requireRole('ana', 'dir'), async (req, res) => {
   res.json({ data: await withdrawPlan((req.params as { id: string }).id) });
+});
+
+// „Освежи сега" (§8 топ-бар) — invalidate + закажи sync во позадина (fire-and-forget, не блокира).
+// clientId зададен → само тој клиент; инаку сите. Само читање кон Meta (D1).
+metaRouter.post('/refresh', requireRole('dir', 'ana'), async (req, res) => {
+  const clientId = ((req.body ?? {}) as { clientId?: string }).clientId;
+  const today = new Date().toISOString().slice(0, 10);
+  const work = clientId
+    ? (async () => {
+        await syncStructureForClient(clientId);
+        await syncInsightsForClient(clientId, today, false);
+        await syncConversationsForClient(clientId);
+        await syncCommentsForClient(clientId);
+      })()
+    : (async () => {
+        await syncConnections();
+        await syncAllStructure();
+        await syncAllInsightsToday();
+        await syncAllInbox();
+      })();
+  void work.catch((err) => logger.error({ err }, 'meta refresh: неуспешно освежување'));
+  res.status(202).json({ data: { scheduled: true, scope: clientId ?? 'all' } });
 });
 
 // AI помошник (§11) — посебен чат. Само чита + подготвува нацрт-план (не создава). dir/ana.
