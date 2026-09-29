@@ -21,6 +21,9 @@ import {
   usePlanAction,
   useMetaAssistant,
   useMetaRefresh,
+  useMetaClientProfile,
+  useUpdateMetaProfile,
+  useMetaClientOrganic,
   type Kpi,
   type MetaAlertRow,
   type MetaCommentRow,
@@ -152,7 +155,12 @@ export function MetaScreen() {
 
       <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
         {openClient ? (
-          <StructureView clientId={openClient} onBack={() => setOpenClient(null)} period={period} />
+          <MetaClientDetail
+            clientId={openClient}
+            onBack={() => setOpenClient(null)}
+            period={period}
+            canEdit={me.role === 'dir'}
+          />
         ) : tab === 'overview' ? (
           <OverviewView clientId={filterClientId || undefined} />
         ) : tab === 'clients' ? (
@@ -692,21 +700,277 @@ function CrossView({ period }: { period: string }) {
   );
 }
 
-function StructureView({
+// ─────────────────────────── Мета · Клиент (детал со табови, MF2) ───────────────────────────
+
+type ClientTab = 'ads' | 'organic' | 'profile';
+
+function MetaClientDetail({
   clientId,
   onBack,
   period,
+  canEdit,
 }: {
   clientId: string;
   onBack: () => void;
   period: string;
+  canEdit: boolean;
 }) {
-  const { data } = useMetaStructure(clientId, period);
+  const [ctab, setCtab] = useState<ClientTab>('ads');
+  const { data: prof } = useMetaClientProfile(clientId);
+  const readOnly = prof?.accessLevel === 'read';
+
+  const cTabs: Array<[ClientTab, string]> = [
+    ['ads', t('meta.client.tabAds')],
+    ['organic', t('meta.client.tabOrganic')],
+    ['profile', t('meta.client.tabProfile')],
+  ];
+
   return (
     <div style={{ padding: 20 }}>
       <button type="button" onClick={onBack} style={{ ...ghostBtn, marginBottom: 12 }}>
-        ← Назад на клиенти
+        {t('meta.client.back')}
       </button>
+
+      {/* Заглавие */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+        <span
+          style={{
+            width: 10,
+            height: 10,
+            borderRadius: '50%',
+            background: prof?.color ?? '#C4CBD4',
+          }}
+        />
+        <span style={{ fontSize: 20, fontWeight: 600 }}>{prof?.name ?? '…'}</span>
+        {prof?.accessLevel && (
+          <span
+            style={{
+              ...sevPill,
+              background: readOnly ? '#FEF3C7' : '#EBF2FF',
+              color: readOnly ? '#B45309' : '#0052D9',
+            }}
+          >
+            {readOnly ? 'само читање' : 'управување'}
+          </span>
+        )}
+      </div>
+      <div style={{ fontSize: 13, color: 'var(--gd-ink-muted)', marginBottom: 12 }}>
+        {[prof?.adAccountId, prof?.currency].filter(Boolean).join(' · ') || '—'}
+      </div>
+
+      {/* Табови на клиентот */}
+      <div
+        style={{
+          display: 'flex',
+          gap: 20,
+          borderBottom: '1px solid var(--gd-border)',
+          marginBottom: 16,
+        }}
+      >
+        {cTabs.map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setCtab(id)}
+            style={{
+              height: 38,
+              border: 'none',
+              background: 'transparent',
+              padding: '0 2px',
+              fontSize: 14,
+              fontWeight: 500,
+              color: ctab === id ? '#0866FF' : 'var(--gd-ink)',
+              borderBottom: `2px solid ${ctab === id ? '#0866FF' : 'transparent'}`,
+              cursor: 'pointer',
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {ctab === 'ads' && (
+        <>
+          {readOnly && (
+            <div
+              style={{
+                fontSize: 12,
+                color: '#B45309',
+                background: '#FEF3C7',
+                border: '1px solid #FDE68A',
+                borderRadius: 8,
+                padding: '10px 12px',
+                marginBottom: 12,
+              }}
+            >
+              {t('meta.client.readonly')}
+            </div>
+          )}
+          <StructureView clientId={clientId} period={period} />
+        </>
+      )}
+      {ctab === 'organic' && <OrganicTab clientId={clientId} period={period} />}
+      {ctab === 'profile' && <ProfileTab clientId={clientId} canEdit={canEdit} />}
+    </div>
+  );
+}
+
+function OrganicTab({ clientId, period }: { clientId: string; period: string }) {
+  const { data } = useMetaClientOrganic(clientId, period);
+  if (!data) return <Loading />;
+  if (!data.connected) return <Empty text="Нема поврзана Instagram сметка." />;
+  if (data.totals.posts === 0) return <Empty text={t('meta.client.orgEmpty')} />;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <Card title="Објави" value={String(data.totals.posts)} />
+        <Card title="Досег" value={data.totals.reach.toLocaleString('mk-MK')} />
+        <Card title="Прегледи" value={data.totals.views.toLocaleString('mk-MK')} />
+        <Card title="Ангажман" value={data.totals.engagement.toLocaleString('mk-MK')} />
+      </div>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))',
+          gap: 12,
+        }}
+      >
+        {data.posts.map((p) => (
+          <div
+            key={p.id}
+            style={{ border: '1px solid var(--gd-border)', borderRadius: 8, padding: 12 }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <span style={{ fontSize: 12, fontWeight: 600 }}>
+                {p.mediaType === 'video' ? '🎬 Видео' : '🖼 Слика'}
+              </span>
+              {p.inAd && (
+                <span style={{ ...sevPill, background: '#EBF2FF', color: '#0052D9' }}>
+                  {t('meta.client.inAd')}
+                </span>
+              )}
+              <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--gd-ink-muted)' }}>
+                {fmtDate(p.publishedAt)}
+              </span>
+            </div>
+            <div style={{ fontSize: 12, marginBottom: 6, maxHeight: 40, overflow: 'hidden' }}>
+              {p.caption ?? '—'}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>
+              досег {(p.reach ?? 0).toLocaleString('mk-MK')} · прегледи{' '}
+              {(p.views ?? 0).toLocaleString('mk-MK')} · ангажман{' '}
+              {(p.engagement ?? 0).toLocaleString('mk-MK')}
+            </div>
+            {p.permalink && (
+              <a
+                href={p.permalink}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  ...ghostBtn,
+                  textDecoration: 'none',
+                  display: 'inline-block',
+                  marginTop: 8,
+                }}
+              >
+                {t('meta.common.openInMeta')}
+              </a>
+            )}
+          </div>
+        ))}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>{t('meta.client.orgFooter')}</div>
+    </div>
+  );
+}
+
+function ProfileTab({ clientId, canEdit }: { clientId: string; canEdit: boolean }) {
+  const { data } = useMetaClientProfile(clientId);
+  const update = useUpdateMetaProfile(clientId);
+  const [form, setForm] = useState<Record<string, string>>({});
+  if (!data) return <Loading />;
+  const p = data.profile;
+  const val = (k: string, fallback: string | number | null) =>
+    form[k] !== undefined ? form[k] : fallback == null ? '' : String(fallback);
+  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  const save = () => {
+    update.mutate({
+      targetText: val('targetText', p.targetText) || null,
+      maxDailyBudget: val('maxBudget', p.maxDailyBudget)
+        ? Number(val('maxBudget', p.maxDailyBudget))
+        : null,
+      freqThreshold: Number(val('freq', p.freqThreshold)),
+      cprAlertPct: Number(val('cpr', p.cprAlertPct)),
+      namingConvention: val('naming', p.namingConvention) || null,
+      notes: val('notes', p.notes) || null,
+    });
+  };
+
+  const fields: Array<[string, string, string | number | null]> = [
+    ['targetText', t('meta.client.fTarget'), p.targetText],
+    ['maxBudget', t('meta.client.fMaxBudget'), p.maxDailyBudget],
+    ['freq', t('meta.client.fFreq'), p.freqThreshold],
+    ['cpr', t('meta.client.fCpr'), p.cprAlertPct],
+    ['naming', t('meta.client.fNaming'), p.namingConvention],
+  ];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 520 }}>
+      <div style={{ border: '1px solid var(--gd-border)', borderRadius: 8, padding: 16 }}>
+        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>
+          {t('meta.client.goals')}
+        </div>
+        {fields.map(([k, label, cur]) => (
+          <div key={k} style={{ marginBottom: 10 }}>
+            <label style={modalLabel}>{label}</label>
+            <input
+              style={modalInput}
+              disabled={!canEdit}
+              value={val(k, cur)}
+              onChange={(e) => set(k, e.target.value)}
+            />
+          </div>
+        ))}
+      </div>
+      <div style={{ border: '1px solid var(--gd-border)', borderRadius: 8, padding: 16 }}>
+        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>
+          {t('meta.client.notes')}
+        </div>
+        <textarea
+          style={{ ...modalInput, minHeight: 80, resize: 'vertical' }}
+          disabled={!canEdit}
+          value={val('notes', p.notes)}
+          onChange={(e) => set('notes', e.target.value)}
+        />
+        <div style={{ fontSize: 11, color: 'var(--gd-ink-muted)', marginTop: 6 }}>
+          {t('meta.client.notesHint')}
+        </div>
+      </div>
+      {canEdit && (
+        <button
+          type="button"
+          disabled={update.isPending}
+          style={{
+            ...ghostBtn,
+            background: '#0866FF',
+            color: '#fff',
+            border: 'none',
+            alignSelf: 'flex-start',
+          }}
+          onClick={save}
+        >
+          {t('meta.client.save')}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function StructureView({ clientId, period }: { clientId: string; period: string }) {
+  const { data } = useMetaStructure(clientId, period);
+  return (
+    <div>
       {!data && <Loading />}
       {data?.campaigns.length === 0 && <Empty text="Нема кампањи." />}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

@@ -36,6 +36,11 @@ import {
 } from '../services/meta/plans.js';
 import { metaAssistantChat } from '../services/meta/assistant.js';
 import {
+  metaClientOrganic,
+  metaClientProfile,
+  updateMetaClientProfile,
+} from '../services/meta/clientDetail.js';
+import {
   syncAllInsightsToday,
   syncAllStructure,
   syncConnections,
@@ -90,6 +95,26 @@ metaRouter.get('/cross', requireRole('dir', 'ana'), async (req, res) => {
 metaRouter.get('/clients/:id/structure', requireRole('dir', 'ana'), async (req, res) => {
   const period = (req.query.period as string) ?? '7';
   res.json({ data: await metaClientStructure((req.params as { id: string }).id, period) });
+});
+
+// Мета · Клиент — Профил (цели/прагови/белешки). GET dir/ana; PATCH само dir (§8).
+metaRouter.get('/clients/:id/profile', requireRole('dir', 'ana'), async (req, res) => {
+  res.json({ data: await metaClientProfile((req.params as { id: string }).id) });
+});
+
+metaRouter.patch('/clients/:id/profile', requireRole('dir'), async (req, res) => {
+  res.json({
+    data: await updateMetaClientProfile(
+      (req.params as { id: string }).id,
+      (req.body ?? {}) as Parameters<typeof updateMetaClientProfile>[1],
+    ),
+  });
+});
+
+// Мета · Клиент — Органика (IG постови + KPI за периодот).
+metaRouter.get('/clients/:id/organic', requireRole('dir', 'ana'), async (req, res) => {
+  const period = (req.query.period as string) ?? '7';
+  res.json({ data: await metaClientOrganic((req.params as { id: string }).id, period) });
 });
 
 // Инбокс + Коментари — достапни и за Акаунт менаџер (§3).
