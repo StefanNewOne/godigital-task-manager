@@ -1,7 +1,8 @@
 import type React from 'react';
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '@gd/ui';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Megaphone } from 'lucide-react';
 import { useMe } from '../api/auth.js';
 import { useClients } from '../api/admin.js';
 import { useClientAnalytics, type AdNode, type ClientAnalytics } from '../api/analytics.js';
@@ -114,6 +115,7 @@ export function Analytics() {
 
   const { data, isLoading, isError } = useClientAnalytics(clientId, from, to);
   const canReport = me?.role === 'ana' || me?.role === 'dir' || me?.role === 'am';
+  const canOpenMeta = me?.role === 'ana' || me?.role === 'dir';
 
   return (
     <div style={{ padding: '24px 20px 48px', display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -166,6 +168,33 @@ export function Analytics() {
           )}
         </div>
       </div>
+
+      {/* Детален оперативен преглед на рекламите е во модулот Мета (D7). */}
+      {canOpenMeta && (
+        <Link
+          to="/meta"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            textDecoration: 'none',
+            color: 'inherit',
+            background: 'var(--gd-surface)',
+            border: '1px solid var(--gd-border)',
+            borderRadius: 8,
+            padding: '14px 16px',
+          }}
+        >
+          <Megaphone size={20} color="#0866FF" />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>Отвори Мета</div>
+            <div style={muted}>
+              Кампањи во тек, алерти, пресек и планови за промена се во модулот Мета.
+            </div>
+          </div>
+          <ChevronRight size={18} color="var(--gd-ink-muted)" />
+        </Link>
+      )}
 
       {isLoading && <div style={{ color: 'var(--gd-ink-muted)' }}>Вчитување…</div>}
       {isError && (

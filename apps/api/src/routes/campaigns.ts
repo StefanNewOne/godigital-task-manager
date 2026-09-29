@@ -1,22 +1,16 @@
 import { Router } from 'express';
 import type { Router as ExpressRouter } from 'express';
 import type { Prisma } from '@gd/db';
-import { campaignCreateSchema, campaignUpdateSchema } from '@gd/core';
 import { prisma } from '../db/tenantExtension.js';
-import { AppError } from '../lib/errors.js';
-import { recordEvent } from '../lib/events.js';
-import { parse } from '../lib/validate.js';
 import { requireAuth } from '../middleware/auth.js';
 
+/**
+ * Кампањи — САМО ЧИТАЊЕ (Модул 3 · Мета, D1/D2). Огледалото на Meta кампањите го полни sync-от
+ * (`services/meta`), никогаш кориснички повик. Рачно креирање/менување е отстрането (одлука на
+ * сопственикот: „покажи само вистински Мета кампањи"). Промени на реклами одат преку планови (§12).
+ */
 export const campaignsRouter: ExpressRouter = Router();
 campaignsRouter.use(requireAuth);
-
-/** Кампањите ги управува Аналитичарот (плюс Директор, D-5). */
-function requireAnalyst(role: string): void {
-  if (role !== 'ana' && role !== 'dir') {
-    throw new AppError('FORBIDDEN_ROLE', 'Само Аналитичар може да управува со кампањи.', 403);
-  }
-}
 
 // Листа кампањи (опционо по клиент и/или месец на преклопување).
 campaignsRouter.get('/', async (req, res) => {
@@ -35,41 +29,4 @@ campaignsRouter.get('/', async (req, res) => {
     orderBy: { periodFrom: 'desc' },
   });
   res.json({ data: campaigns });
-});
-
-campaignsRouter.post('/', async (req, res) => {
-  requireAnalyst(req.auth!.role);
-  const input = parse(campaignCreateSchema, req.body);
-  const campaign = await prisma.$transaction(async (tx) => {
-    const c = await tx.campaign.create({ data: { ...input, analystId: req.auth!.sub } });
-    await recordEvent(tx, {
-      eventType: 'campaign.created',
-      objectType: 'campaign',
-      objectId: c.id,
-      clientId: c.clientId,
-      narrative: `Креирана кампања „${c.name}" (буџет ${input.budget} €).`,
-    });
-    return c;
-  });
-  res.status(201).json({ data: campaign });
-});
-
-campaignsRouter.patch('/:id', async (req, res) => {
-  requireAnalyst(req.auth!.role);
-  const id = (req.params as { id: string }).id;
-  const input = parse(campaignUpdateSchema, req.body);
-  const existing = await prisma.campaign.findUnique({ where: { id } });
-  if (!existing) throw new AppError('NOT_FOUND', 'Кампањата не е пронајдена.', 404);
-  const campaign = await prisma.$transaction(async (tx) => {
-    const c = await tx.campaign.update({ where: { id }, data: input });
-    await recordEvent(tx, {
-      eventType: 'campaign.updated',
-      objectType: 'campaign',
-      objectId: id,
-      clientId: c.clientId,
-      narrative: `Ажурирана кампања „${c.name}".`,
-    });
-    return c;
-  });
-  res.json({ data: campaign });
 });
