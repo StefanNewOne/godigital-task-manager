@@ -2,6 +2,7 @@ import type React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, type LoginInput } from '@gd/core';
+import { t } from '@gd/ui';
 import { ApiRequestError } from '../lib/api.js';
 import { useLogin } from '../api/auth.js';
 
@@ -56,15 +57,15 @@ export function Login() {
           >
             GD
           </span>
-          <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>GoDigital Таск-менаџер</h1>
+          <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>{t('app.name')}</h1>
         </div>
         <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--gd-ink-muted)' }}>
-          Е-мејл
+          {t('login.email')}
           <input type="email" {...register('email')} style={inputStyle} autoComplete="username" />
           {errors.email && <span style={errStyle}>{errors.email.message}</span>}
         </label>
         <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--gd-ink-muted)' }}>
-          Лозинка
+          {t('login.password')}
           <input
             type="password"
             {...register('password')}
@@ -75,7 +76,7 @@ export function Login() {
         </label>
         {serverError && <span style={errStyle}>{serverError}</span>}
         <button type="submit" disabled={login.isPending} style={btnStyle}>
-          {login.isPending ? 'Најавување…' : 'Најави се'}
+          {login.isPending ? t('login.signingIn') : t('login.signIn')}
         </button>
       </form>
     </div>

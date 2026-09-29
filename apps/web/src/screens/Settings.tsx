@@ -1,6 +1,7 @@
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import { Bell, Smartphone } from 'lucide-react';
+import { t } from '@gd/ui';
 import { useMe } from '../api/auth.js';
 import { useUpdateNotificationPrefs } from '../api/settings.js';
 import { disablePush, enablePush, pushSubscribed, pushSupported } from '../lib/push.js';
@@ -35,13 +36,12 @@ export function Settings() {
       } else {
         const r = await enablePush();
         if (r === 'ok') setPushOn(true);
-        else if (r === 'denied') setPushMsg('Дозволата за известувања е одбиена во прелистувачот.');
-        else if (r === 'no-key')
-          setPushMsg('Push не е конфигуриран на серверот (нема VAPID клуч).');
-        else setPushMsg('Овој прелистувач не поддржува push.');
+        else if (r === 'denied') setPushMsg(t('settings.pushDenied'));
+        else if (r === 'no-key') setPushMsg(t('settings.pushNoKey'));
+        else setPushMsg(t('settings.pushUnsupported'));
       }
     } catch {
-      setPushMsg('Неуспешно менување на push.');
+      setPushMsg(t('settings.pushFailed'));
     } finally {
       setPushBusy(false);
     }
@@ -50,23 +50,20 @@ export function Settings() {
   return (
     <div style={{ padding: '24px 20px 48px', display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div>
-        <h2 style={sectionTitle}>Известувања</h2>
-        <p style={sectionHint}>
-          Избери кои известувања сакаш да ги примаш. Аларм и критичните известувања се задолжителни
-          и не можат да се исклучат.
-        </p>
+        <h2 style={sectionTitle}>{t('settings.title')}</h2>
+        <p style={sectionHint}>{t('settings.hint')}</p>
       </div>
 
       <div style={card}>
         <Row
           icon={<Bell size={18} aria-hidden />}
-          title="Потсетници"
-          desc="Нова задача, враќање, @споменување и рокови — во апликацијата."
+          title={t('settings.reminders')}
+          desc={t('settings.remindersDesc')}
         >
           <button
             role="switch"
             aria-checked={remindersOn}
-            aria-label="Потсетници"
+            aria-label={t('settings.reminders')}
             disabled={update.isPending}
             onClick={() => update.mutate(!remindersOn)}
             style={toggle(remindersOn)}
@@ -79,34 +76,34 @@ export function Settings() {
 
         <Row
           icon={<Bell size={18} aria-hidden />}
-          title="Аларм"
-          desc="Ниска покриеност, доцнење над рок — во апликацијата и на е-пошта."
+          title={t('settings.alarm')}
+          desc={t('settings.alarmDesc')}
         >
-          <span style={lockedBadge}>Секогаш вклучено</span>
+          <span style={lockedBadge}>{t('settings.alwaysOn')}</span>
         </Row>
 
         <div style={divider} />
 
         <Row
           icon={<Bell size={18} aria-hidden />}
-          title="Критично"
-          desc="Трето враќање од клиент, вишок сценарија — со задолжителна потврда „Видено“."
+          title={t('settings.critical')}
+          desc={t('settings.criticalDesc')}
         >
-          <span style={lockedBadge}>Секогаш вклучено</span>
+          <span style={lockedBadge}>{t('settings.alwaysOn')}</span>
         </Row>
 
         <div style={divider} />
 
         <Row
           icon={<Smartphone size={18} aria-hidden />}
-          title="Push на овој уред"
-          desc="Известувања на телефон/десктоп и кога апликацијата е затворена (по уред)."
+          title={t('settings.push')}
+          desc={t('settings.pushDesc')}
         >
           {supported ? (
             <button
               role="switch"
               aria-checked={pushOn}
-              aria-label="Push на овој уред"
+              aria-label={t('settings.push')}
               disabled={pushBusy}
               onClick={() => void togglePush()}
               style={toggle(pushOn)}
@@ -114,7 +111,7 @@ export function Settings() {
               <span style={knob(pushOn)} />
             </button>
           ) : (
-            <span style={lockedBadge}>Не е поддржано</span>
+            <span style={lockedBadge}>{t('settings.notSupported')}</span>
           )}
         </Row>
       </div>
