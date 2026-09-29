@@ -77,9 +77,105 @@ export interface PageMetrics {
   raw: unknown;
 }
 
+// ── Модул 3 · Мета — нови типови за читање (META_TECH_SPEC §6) ──
+
+export interface AdAccountDetailed {
+  id: string;
+  name: string;
+  currency: string | null;
+  accountStatus: string | null;
+  disableReason: string | null;
+  spendCap: number | null;
+  amountSpent: number | null;
+  /** Partner задачи на System User-от (пр. `ANALYZE`, `MANAGE`). */
+  userTasks: string[];
+}
+
+export interface StructureCampaign {
+  metaId: string;
+  name: string;
+  objective: string | null;
+  status: string | null;
+  effectiveStatus: string | null;
+  dailyBudget: number | null;
+  startTime: string | null;
+  stopTime: string | null;
+  raw: unknown;
+}
+export interface StructureAdSet {
+  metaId: string;
+  campaignMetaId: string;
+  name: string;
+  status: string | null;
+  effectiveStatus: string | null;
+  optimizationGoal: string | null;
+  learningStage: string | null;
+  raw: unknown;
+}
+export interface StructureAd {
+  metaId: string;
+  adSetMetaId: string;
+  name: string;
+  status: string | null;
+  effectiveStatus: string | null;
+  reviewStatus: string | null;
+  sourcePostMetaId: string | null;
+  raw: unknown;
+}
+export interface MetaStructure {
+  campaigns: StructureCampaign[];
+  adsets: StructureAdSet[];
+  ads: StructureAd[];
+}
+
+export type InsightLevel = 'campaign' | 'adset' | 'ad';
+export interface InsightDailyRow {
+  level: InsightLevel;
+  objectMetaId: string;
+  /** YYYY-MM-DD. */
+  date: string;
+  spend: number;
+  impressions: number;
+  reach: number;
+  frequency: number;
+  clicks: number;
+  ctr: number;
+  results: number;
+  resultType: string | null;
+  actions: unknown;
+}
+
+export interface ConversationItem {
+  threadId: string;
+  channel: 'messenger' | 'instagram';
+  participantName: string | null;
+  sourceAdMetaId: string | null;
+  lastMessageAt: string | null;
+  unread: boolean;
+}
+export interface MessageItem {
+  messageId: string;
+  fromPage: boolean;
+  text: string | null;
+  sentAt: string | null;
+}
+export interface CommentItem {
+  commentId: string;
+  parentMetaId: string;
+  authorName: string | null;
+  text: string | null;
+  createdTime: string | null;
+}
+export interface TokenDebug {
+  expiresAt: string | null;
+  scopes: string[];
+  isValid: boolean;
+}
+
 /**
  * Адаптер кон Meta Graph API (B2). Враќа СУРОВ Graph одговор — нормализацијата ја прави
  * `@gd/core` (`normalizeMetaInsights`/`deriveMetrics`). Никогаш не се повикува од frontend.
+ * Модул 3 · Мета: САМО читање — ниту еден метод не пишува во Meta (D1).
  */
 export interface MetaClient {
   /** Резолвирај го трајниот media id од објавата (PRD §4.8), или null ако не може. */
@@ -100,6 +196,31 @@ export interface MetaClient {
   fetchPageMetrics(pageId: string): Promise<PageMetrics>;
   /** Ад insights по (ад × месец) за период — за хиерархија во Аналитика. */
   fetchAdInsightsTree(adAccountId: string, since: string, until: string): Promise<AdInsightRow[]>;
+
+  // ── Модул 3 · Мета — нови read методи (§6) ──
+  /** Детални рекламни сметки: валута, статус, spend cap, Partner задачи. */
+  listAdAccountsDetailed(): Promise<AdAccountDetailed[]>;
+  /** Огледало на структурата: кампањи → ad sets → ads (status, review, learning). */
+  fetchStructure(adAccountId: string): Promise<MetaStructure>;
+  /** Дневни insights по ниво за период (time_increment=1). */
+  fetchInsightsDaily(
+    adAccountId: string,
+    level: InsightLevel,
+    since: string,
+    until: string,
+  ): Promise<InsightDailyRow[]>;
+  /** Messenger разговори на страница. */
+  fetchPageConversations(pageId: string, sinceCursor?: string): Promise<ConversationItem[]>;
+  /** Instagram разговори. */
+  fetchIgConversations(igId: string, sinceCursor?: string): Promise<ConversationItem[]>;
+  /** Пораки во разговор. */
+  fetchConversationMessages(threadId: string, sinceCursor?: string): Promise<MessageItem[]>;
+  /** Коментари на ад или пост објект. */
+  fetchComments(objectMetaId: string, since?: string): Promise<CommentItem[]>;
+  /** Дали IG business сметката дозволува пристап до пораки (за A11). */
+  checkIgMessagingAccess(igId: string): Promise<boolean>;
+  /** Метаподатоци за токен (истек, scopes, важност) — за A12. */
+  debugToken(token: string): Promise<TokenDebug>;
 }
 
 let singleton: MetaClient | null = null;
@@ -111,7 +232,11 @@ let singleton: MetaClient | null = null;
 export function getMetaClient(): MetaClient {
   if (!singleton) {
     singleton = env.META_SYSTEM_TOKEN
-      ? new GraphMetaClient(env.META_SYSTEM_TOKEN, env.META_GRAPH_VERSION)
+      ? new GraphMetaClient(
+          env.META_SYSTEM_TOKEN,
+          env.META_GRAPH_VERSION,
+          env.META_INBOX_TOKEN ?? env.META_SYSTEM_TOKEN,
+        )
       : new StubMetaClient();
   }
   return singleton;

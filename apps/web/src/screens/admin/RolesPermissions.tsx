@@ -10,6 +10,7 @@ const SCREEN_LABEL: Record<Screen, string> = {
   analytics: 'Аналитика',
   admin: 'Админ',
   crm: 'Продажба',
+  meta: 'Мета',
 };
 
 export function AdminPermissions() {

@@ -23,6 +23,7 @@ export default {
         'notifications',
         'admin',
         'crm',
+        'meta',
         'files',
         'infra',
         'ci',

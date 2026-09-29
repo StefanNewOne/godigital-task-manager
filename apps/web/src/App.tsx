@@ -31,6 +31,7 @@ const SCREEN_PATH: Record<Screen, string> = {
   analytics: '/analytics',
   admin: '/admin',
   crm: '/crm',
+  meta: '/meta',
 };
 
 /** Почетна рута по улога = првиот екран во `nav` (Директор → Преглед, друг → неговиот прв екран). */
@@ -140,6 +141,15 @@ export function App() {
             element={
               <Guard screen="crm" role={me.role}>
                 <CrmScreen />
+              </Guard>
+            }
+          />
+          {/* Модул 3 · Мета. Целосните екрани доаѓаат во М2. */}
+          <Route
+            path="meta"
+            element={
+              <Guard screen="meta" role={me.role}>
+                <Placeholder title="Мета" />
               </Guard>
             }
           />

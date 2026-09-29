@@ -1,12 +1,20 @@
 import type {
   AccountMediaItem,
+  AdAccountDetailed,
   AdCampaignItem,
   AdInsightRow,
+  CommentItem,
+  ConversationItem,
+  InsightDailyRow,
+  InsightLevel,
+  MessageItem,
   MetaAccount,
   MetaAdAccount,
   MetaClient,
+  MetaStructure,
   PageMetrics,
   PublicationRef,
+  TokenDebug,
 } from './metaClient.js';
 
 /**
@@ -131,6 +139,179 @@ export class StubMetaClient implements MetaClient {
       cost_per_result: Math.round((spend / results) * 100) / 100,
       ctr: Math.round((0.8 + (h % 200) / 100) * 100) / 100,
       frequency: Math.round((impressions / reach) * 100) / 100,
+    };
+  }
+
+  // ── Модул 3 · Мета — нови read методи (§6), детерминистички ──
+
+  async listAdAccountsDetailed(): Promise<AdAccountDetailed[]> {
+    return [
+      {
+        id: 'act_stub_1',
+        name: 'Stub Ad Account A',
+        currency: 'EUR',
+        accountStatus: 'ACTIVE',
+        disableReason: null,
+        spendCap: 5000,
+        amountSpent: 1200,
+        userTasks: ['ANALYZE', 'ADVERTISE'],
+      },
+      {
+        id: 'act_stub_2',
+        name: 'Stub Ad Account B',
+        currency: 'USD',
+        accountStatus: 'ACTIVE',
+        disableReason: null,
+        spendCap: null,
+        amountSpent: 300,
+        userTasks: ['ANALYZE'],
+      },
+    ];
+  }
+
+  async fetchStructure(adAccountId: string): Promise<MetaStructure> {
+    const h = hash(adAccountId);
+    const campMeta = `camp_${adAccountId}`;
+    const adsetMeta = `adset_${adAccountId}`;
+    const adMeta = `ad_${adAccountId}`;
+    return {
+      campaigns: [
+        {
+          metaId: campMeta,
+          name: 'Stub Campaign 1',
+          objective: 'OUTCOME_ENGAGEMENT',
+          status: 'ACTIVE',
+          effectiveStatus: 'ACTIVE',
+          dailyBudget: 10 + (h % 90),
+          startTime: '2035-06-01T00:00:00+0000',
+          stopTime: null,
+          raw: { stub: true },
+        },
+      ],
+      adsets: [
+        {
+          metaId: adsetMeta,
+          campaignMetaId: campMeta,
+          name: 'Stub Ad Set 1',
+          status: 'ACTIVE',
+          effectiveStatus: 'ACTIVE',
+          optimizationGoal: 'CONVERSATIONS',
+          learningStage: h % 3 === 0 ? 'LIMITED' : 'SUCCESS',
+          raw: { stub: true },
+        },
+      ],
+      ads: [
+        {
+          metaId: adMeta,
+          adSetMetaId: adsetMeta,
+          name: 'Stub Ad 1',
+          status: 'ACTIVE',
+          effectiveStatus: 'ACTIVE',
+          reviewStatus: h % 5 === 0 ? 'rejected' : 'approved',
+          sourcePostMetaId: null,
+          raw: { stub: true },
+        },
+      ],
+    };
+  }
+
+  async fetchInsightsDaily(
+    adAccountId: string,
+    level: InsightLevel,
+    since: string,
+    _until: string,
+  ): Promise<InsightDailyRow[]> {
+    const h = hash(`${adAccountId}_${level}_${since}`);
+    const spend = 20 + (h % 300);
+    const impressions = 5_000 + (h % 60_000);
+    const reach = Math.round(impressions * 0.7);
+    const results = 10 + (h % 200);
+    return [
+      {
+        level,
+        objectMetaId: `${level}_${adAccountId}`,
+        date: since,
+        spend,
+        impressions,
+        reach,
+        frequency: Math.round((impressions / reach) * 100) / 100,
+        clicks: Math.round(impressions * 0.01),
+        ctr: Math.round((0.8 + (h % 200) / 100) * 100) / 100,
+        results,
+        resultType: 'onsite_conversion.messaging_conversation_started_7d',
+        actions: [{ action_type: 'onsite_conversion', value: String(results) }],
+      },
+    ];
+  }
+
+  async fetchPageConversations(pageId: string): Promise<ConversationItem[]> {
+    const h = hash(pageId);
+    return [
+      {
+        threadId: `t_msgr_${pageId}`,
+        channel: 'messenger',
+        participantName: 'Стуб Корисник',
+        sourceAdMetaId: h % 2 === 0 ? `ad_${pageId}` : null,
+        lastMessageAt: '2035-06-10T09:00:00+0000',
+        unread: h % 2 === 0,
+      },
+    ];
+  }
+
+  async fetchIgConversations(igId: string): Promise<ConversationItem[]> {
+    const h = hash(igId);
+    return [
+      {
+        threadId: `t_ig_${igId}`,
+        channel: 'instagram',
+        participantName: 'stub_ig_user',
+        sourceAdMetaId: null,
+        lastMessageAt: '2035-06-10T10:00:00+0000',
+        unread: h % 3 === 0,
+      },
+    ];
+  }
+
+  async fetchConversationMessages(threadId: string): Promise<MessageItem[]> {
+    const h = hash(threadId);
+    return [
+      {
+        messageId: `m_${threadId}_1`,
+        fromPage: false,
+        text: 'Здраво, дали е достапно?',
+        sentAt: '2035-06-10T09:00:00+0000',
+      },
+      {
+        messageId: `m_${threadId}_2`,
+        fromPage: true,
+        text: h % 2 === 0 ? 'Да, достапно е.' : 'Ви благодариме на пораката.',
+        sentAt: '2035-06-10T09:05:00+0000',
+      },
+    ];
+  }
+
+  async fetchComments(objectMetaId: string): Promise<CommentItem[]> {
+    const h = hash(objectMetaId);
+    return [
+      {
+        commentId: `c_${objectMetaId}_1`,
+        parentMetaId: objectMetaId,
+        authorName: 'Стуб Коментатор',
+        text: h % 2 === 0 ? 'Колку чини?' : 'Одлично!',
+        createdTime: '2035-06-10T11:00:00+0000',
+      },
+    ];
+  }
+
+  async checkIgMessagingAccess(igId: string): Promise<boolean> {
+    return hash(igId) % 4 !== 0; // повеќето имаат пристап; понекогаш не (за A11)
+  }
+
+  async debugToken(token: string): Promise<TokenDebug> {
+    return {
+      expiresAt: null, // System User токен — без истек
+      scopes: ['ads_read', 'read_insights', 'pages_show_list'],
+      isValid: token.length > 0,
     };
   }
 }

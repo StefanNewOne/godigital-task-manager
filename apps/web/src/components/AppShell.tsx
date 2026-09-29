@@ -7,6 +7,7 @@ import {
   Calendar as CalendarIcon,
   Clapperboard,
   Handshake,
+  Megaphone,
   ChevronLeft,
   ChevronRight,
   LayoutDashboard,
@@ -57,6 +58,7 @@ const NAV: Array<{
   { screen: 'analytics', icon: BarChart3, label: 'Аналитика', path: '/analytics' },
   { screen: 'admin', icon: Settings, label: 'Админ', path: '/admin' },
   { screen: 'crm', icon: Handshake, label: 'Продажба', title: 'Продажба', path: '/crm' },
+  { screen: 'meta', icon: Megaphone, label: 'Мета', title: 'Мета', path: '/meta' },
 ];
 
 const TASK_TABS = [

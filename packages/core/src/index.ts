@@ -19,3 +19,4 @@ export * from './metrics.js';
 export * from './clientLifecycle.js';
 export * from './calendar.js';
 export * from './crm.js';
+export * from './meta/index.js';

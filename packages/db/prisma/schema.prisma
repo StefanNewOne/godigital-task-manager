@@ -280,32 +280,41 @@ enum EmbStatus {
 // ─────────────────────────── Core structural models ───────────────────────────
 
 model Client {
-  id                String       @id @default(uuid(7)) @db.Uuid
-  tenantId          String       @default("godigital")
-  name              String
-  legalName         String?
-  logoFileId        String?      @db.Uuid
-  color             String
-  status            ClientStatus @default(aktiven)
-  contractStart     DateTime     @db.Date
-  contractMonths    Int
-  videosPerMonth    Int          @default(0)
-  graphicsPerMonth  Int          @default(0)
-  usesMetaAds       Boolean      @default(false)
-  metaAdAccountId   String?
-  metaPageId        String?
-  metaIgId          String?
-  calendarType      CalendarType @default(standarden)
-  approvalChannel   Channel      @default(viber)
-  coverageAlarmDays Int          @default(7)
-  notes             String?
-  defaultAssignees  Json?
-  archivedAt        DateTime?
+  id                   String       @id @default(uuid(7)) @db.Uuid
+  tenantId             String       @default("godigital")
+  name                 String
+  legalName            String?
+  logoFileId           String?      @db.Uuid
+  color                String
+  status               ClientStatus @default(aktiven)
+  contractStart        DateTime     @db.Date
+  contractMonths       Int
+  videosPerMonth       Int          @default(0)
+  graphicsPerMonth     Int          @default(0)
+  usesMetaAds          Boolean      @default(false)
+  metaAdAccountId      String?
+  metaPageId           String?
+  metaIgId             String?
+  calendarType         CalendarType @default(standarden)
+  approvalChannel      Channel      @default(viber)
+  coverageAlarmDays    Int          @default(7)
+  notes                String?
+  defaultAssignees     Json?
+  archivedAt           DateTime?
   // Директор „гаси" клиент: датумите може да се активираат/закажат само до крај на месецот
   // на гасењето (clientActiveForDate во @gd/core). null = активен.
-  deactivatedAt     DateTime?
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
+  deactivatedAt        DateTime?
+  // Модул 3 · Мета — профил (цели, прагови, белешки). §4.1. Уредува само Директор.
+  metaTargetText       String?
+  metaTargetValue      Decimal?     @db.Decimal(12, 2)
+  metaTargetMetric     String?
+  metaMaxDailyBudget   Decimal?     @db.Decimal(12, 2)
+  metaFreqThreshold    Decimal      @default(3.0) @db.Decimal(5, 2)
+  metaCprAlertPct      Int          @default(40)
+  metaNamingConvention String?
+  metaNotes            String?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
 
   contacts          ClientContact[]
   calendarConfigs   CalendarConfig[]
@@ -582,25 +591,29 @@ model Comment {
 }
 
 model Publication {
-  id            String              @id @default(uuid(7)) @db.Uuid
-  tenantId      String              @default("godigital")
+  id              String              @id @default(uuid(7)) @db.Uuid
+  tenantId        String              @default("godigital")
   // Објава преку апката е врзана за таск; backfill-ирана објава (директно од сметката, B2)
   // е account-ниво — без таск, но со директен clientId.
-  taskId        String?             @db.Uuid
-  task          Task?               @relation(fields: [taskId], references: [id])
-  clientId      String?             @db.Uuid
-  client        Client?             @relation(fields: [clientId], references: [id])
-  platform      PublicationPlatform
-  postType      PostType
-  publishedAt   DateTime?
-  permalink     String?
-  externalRef   String?
-  metaMediaId   String?
-  resolveStatus ResolveStatus       @default(pending)
-  publishedById String?             @db.Uuid
-  promotion     Promotion?
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
+  taskId          String?             @db.Uuid
+  task            Task?               @relation(fields: [taskId], references: [id])
+  clientId        String?             @db.Uuid
+  client          Client?             @relation(fields: [clientId], references: [id])
+  platform        PublicationPlatform
+  postType        PostType
+  publishedAt     DateTime?
+  permalink       String?
+  externalRef     String?
+  metaMediaId     String?
+  resolveStatus   ResolveStatus       @default(pending)
+  publishedById   String?             @db.Uuid
+  // Модул 3 · Мета (§4.3): органиката се реупотребува како Publication.
+  mediaType       String?
+  caption         String?
+  thumbnailFileId String?             @db.Uuid
+  promotion       Promotion?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 
   // Task-објави: една по (task, платформа). Backfill unique (clientId, platform, externalRef)
   // е партиален индекс во миграцијата (Prisma нема филтриран unique).
@@ -1048,4 +1061,339 @@ model ContentPlanEntry {
 
   @@unique([leadId, monthKey, day])
   @@index([tenantId, leadId])
+}
+
+// ─────────────────────────── Модул 3 · Мета (META_TECH_SPEC §4) ───────────────────────────
+// Само за читање кон Meta. Огледало на рекламната структура + insights + инбокс + алерти +
+// планови за промена. Сè се врзува преку Meta ID, никогаш преку име (PRD §5).
+
+enum MetaConnKind {
+  adAccount
+  page
+  igAccount
+  pixel
+  catalog
+}
+
+enum MetaAccessLevel {
+  write
+  read
+  none
+}
+
+enum ObjectiveKey {
+  msg
+  thru
+  cart
+  buy
+  reach
+  traffic
+  lead
+  leadWeb
+}
+
+enum MetaInsightLevel {
+  campaign
+  adset
+  ad
+}
+
+enum MetaConvChannel {
+  messenger
+  instagram
+}
+
+enum MetaCommentParent {
+  ad
+  post
+}
+
+enum MetaAlertSeverity {
+  crit
+  high
+  mid
+  info
+}
+
+enum MetaAlertState {
+  new
+  seen
+  snoozed
+  resolved
+}
+
+enum MetaPlanOp {
+  O1
+  O2
+  O3
+  O4
+  O5
+  O6
+  O7
+  O8
+  O9
+  O10
+  O11
+  O12
+}
+
+enum MetaPlanStatus {
+  pending
+  approved
+  syncing
+  done
+  rejected
+  mismatch
+  withdrawn
+}
+
+enum MetaPlanVia {
+  manual
+  assistant
+}
+
+// Асет на клиент (адаптибилно на повеќе по клиент; UI прикажува еден засега — §4.1).
+model MetaConnection {
+  id                String          @id @default(uuid(7)) @db.Uuid
+  tenantId          String          @default("godigital")
+  clientId          String          @db.Uuid
+  kind              MetaConnKind
+  metaId            String
+  name              String?
+  currency          String? // само adAccount (EUR/USD)
+  accessLevel       MetaAccessLevel @default(read)
+  igMessagesEnabled Boolean?
+  spendCap          Decimal?        @db.Decimal(14, 2)
+  amountSpent       Decimal?        @db.Decimal(14, 2)
+  accountStatus     String?
+  disableReason     String?
+  lastSyncAt        DateTime?
+  lastSyncError     String?
+  syncFailCount     Int             @default(0)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  campaigns MetaCampaign[]
+
+  @@unique([clientId, kind, metaId])
+  @@index([tenantId, clientId])
+}
+
+model MetaCampaign {
+  id               String         @id @default(uuid(7)) @db.Uuid
+  tenantId         String         @default("godigital")
+  clientId         String         @db.Uuid
+  connectionId     String         @db.Uuid
+  connection       MetaConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  metaId           String         @unique
+  name             String
+  objective        String
+  objectiveKey     ObjectiveKey?
+  buyingType       String?
+  budgetStrategy   String? // CBO/ABO
+  dailyBudget      Decimal?       @db.Decimal(12, 2)
+  bidStrategy      String?
+  status           String?
+  effectiveStatus  String?
+  startTime        DateTime?
+  stopTime         DateTime?
+  pausedExternally Boolean        @default(false)
+  raw              Json?
+  syncedAt         DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  adSets MetaAdSet[]
+
+  @@index([tenantId, clientId])
+}
+
+model MetaAdSet {
+  id                 String       @id @default(uuid(7)) @db.Uuid
+  tenantId           String       @default("godigital")
+  campaignId         String       @db.Uuid
+  campaign           MetaCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  metaId             String       @unique
+  name               String
+  status             String?
+  effectiveStatus    String?
+  optimizationGoal   String?
+  conversionLocation String?
+  destination        String?
+  targeting          Json?
+  placements         Json?
+  learningStage      String?
+  learningStageSince DateTime?
+  raw                Json?
+  syncedAt           DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  ads MetaAd[]
+
+  @@index([tenantId, campaignId])
+}
+
+model MetaAd {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  tenantId         String    @default("godigital")
+  adSetId          String    @db.Uuid
+  adSet            MetaAdSet @relation(fields: [adSetId], references: [id], onDelete: Cascade)
+  metaId           String    @unique
+  name             String
+  status           String?
+  effectiveStatus  String?
+  reviewStatus     String? // approved|rejected|pending|no_delivery
+  reviewFeedback   Json?
+  creativeId       String?
+  sourcePostMetaId String?
+  publicationId    String?   @db.Uuid // врска кон Publication → Task (scalar, без relation)
+  cta              String?
+  messageTemplate  String?
+  enhancements     Json?
+  raw              Json?
+  syncedAt         DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([tenantId, adSetId])
+  @@index([publicationId])
+}
+
+// Дневни insights по ниво/објект (upsert по ден). Последните 7 дена isFinal=false.
+model MetaInsightDaily {
+  id           String           @id @default(uuid(7)) @db.Uuid
+  tenantId     String           @default("godigital")
+  level        MetaInsightLevel
+  objectMetaId String
+  clientId     String           @db.Uuid
+  date         DateTime         @db.Date
+  spend        Decimal          @default(0) @db.Decimal(14, 2)
+  impressions  Int              @default(0)
+  reach        Int              @default(0)
+  frequency    Decimal          @default(0) @db.Decimal(8, 4)
+  clicks       Int              @default(0)
+  ctr          Decimal          @default(0) @db.Decimal(8, 4)
+  results      Decimal          @default(0) @db.Decimal(14, 2)
+  resultType   String?
+  actions      Json?
+  raw          Json?
+  fetchedAt    DateTime         @default(now())
+  isFinal      Boolean          @default(false)
+
+  @@unique([level, objectMetaId, date])
+  @@index([tenantId, clientId, date])
+}
+
+model MetaConversation {
+  id              String          @id @default(uuid(7)) @db.Uuid
+  tenantId        String          @default("godigital")
+  clientId        String          @db.Uuid
+  connectionId    String          @db.Uuid
+  metaThreadId    String          @unique
+  channel         MetaConvChannel
+  participantName String?
+  sourceAdMetaId  String?
+  lastMessageAt   DateTime?
+  unread          Boolean         @default(false)
+  waitingSince    DateTime?
+  topic           String?
+  tags            String[]        @default([])
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  messages MetaMessage[]
+
+  @@index([tenantId, clientId])
+}
+
+model MetaMessage {
+  id             String           @id @default(uuid(7)) @db.Uuid
+  tenantId       String           @default("godigital")
+  conversationId String           @db.Uuid
+  conversation   MetaConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  metaMessageId  String           @unique
+  fromPage       Boolean          @default(false)
+  text           String?
+  sentAt         DateTime?
+  viaTemplate    String?
+  bodyPurgedAt   DateTime? // по 12 месеци текстот се брише, бројките остануваат
+  createdAt      DateTime         @default(now())
+
+  @@index([tenantId, conversationId])
+}
+
+model MetaComment {
+  id               String            @id @default(uuid(7)) @db.Uuid
+  tenantId         String            @default("godigital")
+  clientId         String            @db.Uuid
+  metaCommentId    String            @unique
+  parentObjectType MetaCommentParent
+  parentMetaId     String
+  publicationId    String?           @db.Uuid
+  adId             String?           @db.Uuid
+  authorName       String?
+  text             String?
+  createdTime      DateTime?
+  isQuestion       Boolean           @default(false)
+  isComplaint      Boolean           @default(false)
+  tags             String[]          @default([])
+  createdAt        DateTime          @default(now())
+
+  @@index([tenantId, clientId])
+}
+
+model MetaAlert {
+  id           String            @id @default(uuid(7)) @db.Uuid
+  tenantId     String            @default("godigital")
+  clientId     String            @db.Uuid
+  code         String // A01…A13
+  severity     MetaAlertSeverity
+  objectType   String?
+  objectMetaId String?
+  title        String
+  detail       String?
+  deepLink     Json?
+  state        MetaAlertState    @default(new)
+  snoozedUntil DateTime?
+  firstSeenAt  DateTime          @default(now())
+  lastSeenAt   DateTime          @default(now())
+  occurrences  Int               @default(1)
+  dedupeKey    String            @unique
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([tenantId, clientId, state])
+}
+
+// План за промена (P-###). Извршува човек во Ads Manager; sync потврдува.
+model MetaChangePlan {
+  id             String         @id @default(uuid(7)) @db.Uuid
+  tenantId       String         @default("godigital")
+  clientId       String         @db.Uuid
+  op             MetaPlanOp
+  target         Json // {campaignId?, adSetId?, adId?}
+  params         Json?
+  before         Json?
+  after          Json?
+  consequences   String[]       @default([])
+  warnings       String[]       @default([])
+  status         MetaPlanStatus @default(pending)
+  createdById    String         @db.Uuid
+  createdVia     MetaPlanVia    @default(manual)
+  command        String?
+  note           String?
+  rejectNote     String?
+  taskId         String?        @db.Uuid
+  promotionId    String?        @db.Uuid
+  approvedById   String?        @db.Uuid
+  approvedAt     DateTime?
+  markedDoneAt   DateTime?
+  confirmedAt    DateTime?
+  idempotencyKey String?        @unique
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([tenantId, clientId, status])
+  @@index([tenantId, createdById])
 }
