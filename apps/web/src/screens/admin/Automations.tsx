@@ -13,6 +13,7 @@ import {
   type Role,
   type TaskStatus,
 } from '@gd/core';
+import { t } from '@gd/ui';
 import { tableStyles as s } from '../../components/table.js';
 
 /**
@@ -24,14 +25,13 @@ export function AdminAutomations() {
   return (
     <div>
       <p style={{ color: 'var(--gd-ink-muted)', fontSize: 13, marginTop: -8, marginBottom: 20 }}>
-        Секој статус го носи точно една улога; преодот се пушта само кога задолжителниот внес е
-        даден.
+        {t('automations.intro')}
       </p>
 
-      <FlowTable title="Видео · капа таск" rows={groupRows('video')} />
-      <FlowTable title="Видео · таск" rows={taskRows('video')} />
-      <FlowTable title="Графика · капа таск" rows={groupRows('graphic')} />
-      <FlowTable title="Графика · таск" rows={taskRows('graphic')} />
+      <FlowTable title={t('automations.titleVideoCapa')} rows={groupRows('video')} />
+      <FlowTable title={t('automations.titleVideoTask')} rows={taskRows('video')} />
+      <FlowTable title={t('automations.titleGraphicCapa')} rows={groupRows('graphic')} />
+      <FlowTable title={t('automations.titleGraphicTask')} rows={taskRows('graphic')} />
     </div>
   );
 }
@@ -53,12 +53,12 @@ function FlowTable({ title, rows }: { title: string; rows: FlowRow[] }) {
         <table style={s.table}>
           <thead>
             <tr>
-              <th style={s.th}>Статус</th>
-              <th style={s.th}>Кој го носи</th>
-              <th style={s.th}>Што мора да се внесе</th>
-              <th style={s.th}>Внатрешен рок</th>
-              <th style={s.th}>Следен статус</th>
-              <th style={s.th}>Враќање</th>
+              <th style={s.th}>{t('automations.colStatus')}</th>
+              <th style={s.th}>{t('automations.colOwner')}</th>
+              <th style={s.th}>{t('automations.colInput')}</th>
+              <th style={s.th}>{t('automations.colDeadline')}</th>
+              <th style={s.th}>{t('automations.colNext')}</th>
+              <th style={s.th}>{t('automations.colBack')}</th>
             </tr>
           </thead>
           <tbody>
@@ -134,10 +134,11 @@ function taskRows(type: ContentType): FlowRow[] {
     );
     return {
       status: TASK_STATUS_META[status].label,
-      owner: fwd?.actor === 'system' ? 'систем (автоматски)' : ownerLabel(ownerOf(status, type)),
+      owner:
+        fwd?.actor === 'system' ? t('automations.systemAuto') : ownerLabel(ownerOf(status, type)),
       input: fwd ? describeGuards(fwd.guards) : '—',
       deadline: taskDeadlineText(lead),
-      next: fwd ? TASK_STATUS_META[fwd.to].label : '— (терминал)',
+      next: fwd ? TASK_STATUS_META[fwd.to].label : t('automations.terminal'),
       back: back ? `↩ ${TASK_STATUS_META[back.to].label}` : '—',
     };
   });
@@ -161,10 +162,12 @@ function groupRows(type: ContentType): FlowRow[] {
     return {
       status: GROUP_STATUS_META[status].label,
       owner:
-        fwd?.actor === 'system' || owner === 'system' ? 'систем (автоматски)' : ownerLabel(owner),
+        fwd?.actor === 'system' || owner === 'system'
+          ? t('automations.systemAuto')
+          : ownerLabel(owner),
       input: fwd ? describeGuards(fwd.guards) : '—',
       deadline: capaDeadlineText(lead),
-      next: fwd ? GROUP_STATUS_META[fwd.to].label : '— (затворена)',
+      next: fwd ? GROUP_STATUS_META[fwd.to].label : t('automations.closed'),
       back: back ? `↩ ${GROUP_STATUS_META[back.to].label}` : '—',
     };
   });
@@ -176,13 +179,15 @@ function ownerLabel(role: Role | null): string {
 
 function taskDeadlineText(lead: number | undefined): string {
   if (lead === undefined) return '—';
-  if (lead === 0) return 'на денот на објава';
-  return lead > 0 ? `${lead} дена пред објава` : `${Math.abs(lead)} дена по објава`;
+  if (lead === 0) return t('automations.dlOnPublish');
+  return lead > 0
+    ? t('automations.dlBeforePublish', { n: lead })
+    : t('automations.dlAfterPublish', { n: Math.abs(lead) });
 }
 
 function capaDeadlineText(lead: number | undefined): string {
   if (lead === undefined) return '—';
-  return lead === 0 ? 'на денот на снимање' : `${lead} дена пред снимање`;
+  return lead === 0 ? t('automations.dlOnShoot') : t('automations.dlBeforeShoot', { n: lead });
 }
 
 /** Преведи ги declarative guard токените во македонски опис на задолжителниот внес. */
@@ -193,60 +198,60 @@ function describeGuards(guards: readonly string[]): string {
     const args = (g.match(/\(([^)]*)\)/)?.[1] ?? '').split(',');
     switch (name) {
       case 'G_ASSIGNEE_REQUIRED':
-        parts.push(`доделен ${roleWord(args[0])}`);
+        parts.push(t('automations.gAssignee', { role: roleWord(args[0]) }));
         break;
       case 'G_TEXT':
         parts.push(
           args[0] === 'brief'
-            ? 'брифинг (≥ 50 знаци)'
+            ? t('automations.gBrief')
             : args[0] === 'copy'
-              ? 'копи текст'
-              : (args[0] ?? 'текст'),
+              ? t('automations.gCopy')
+              : (args[0] ?? t('automations.gText')),
         );
         break;
       case 'G_FILE':
-        parts.push(FILE_LABEL[args[0] ?? ''] ?? 'фајл');
+        parts.push(FILE_LABEL[args[0] ?? ''] ?? t('automations.flGraphic'));
         break;
       case 'G_PUBLICATION':
-        parts.push('линк до објава');
+        parts.push(t('automations.gPublication'));
         break;
       case 'G_COMMENT':
-        parts.push('коментар');
+        parts.push(t('automations.gComment'));
         break;
       case 'G_COMMENT_IF_CHANGES':
-        parts.push('коментар (при измени)');
+        parts.push(t('automations.gCommentIfChanges'));
         break;
       case 'G_CLIENT_OUTCOME':
-        parts.push('исход од клиент');
+        parts.push(t('automations.gClientOutcome'));
         break;
       case 'G_DECISION':
-        parts.push('одлука: органски/платено');
+        parts.push(t('automations.gDecision'));
         break;
       case 'G_CAPA_FIELDS':
-        parts.push('сценарист, датум, час, место');
+        parts.push(t('automations.gCapaFields'));
         break;
       case 'G_SCENARIOS_SPLIT':
-        parts.push('поделени сценарија');
+        parts.push(t('automations.gScenariosSplit'));
         break;
       case 'G_SCENARIO_OUTCOMES':
-        parts.push('исход по сценарио');
+        parts.push(t('automations.gScenarioOutcomes'));
         break;
       case 'G_AT_LEAST_ONE_APPROVED':
-        parts.push('барем едно одобрено сценарио');
+        parts.push(t('automations.gAtLeastOneApproved'));
         break;
       // G_NOT_SELF_APPROVAL и системските услови не се внес од корисник.
       default:
         break;
     }
   }
-  return parts.length ? parts.join(', ') : '— (автоматски)';
+  return parts.length ? parts.join(', ') : t('automations.gAuto');
 }
 
 const FILE_LABEL: Record<string, string> = {
-  final: 'финално видео',
-  graphic: 'графика',
-  raw: 'суров материјал',
-  scenarioDoc: 'документ со сценарија',
+  final: t('automations.flFinal'),
+  graphic: t('automations.flGraphic'),
+  raw: t('automations.flRaw'),
+  scenarioDoc: t('automations.flScenarioDoc'),
 };
 
 function roleWord(code: string | undefined): string {
