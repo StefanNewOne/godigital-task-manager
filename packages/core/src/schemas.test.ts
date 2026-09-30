@@ -6,6 +6,8 @@ import {
   employeeCreateSchema,
   holidayCreateSchema,
   loginSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
 } from './schemas.js';
 
 describe('schemas', () => {
@@ -93,5 +95,19 @@ describe('schemas', () => {
       expect(r.data.periodFrom).toBeInstanceOf(Date);
     }
     expect(campaignCreateSchema.safeParse({ name: 'x' }).success).toBe(false);
+  });
+
+  it('forgotPasswordSchema бара валиден е-мејл', () => {
+    expect(forgotPasswordSchema.safeParse({ email: 'a@b.mk' }).success).toBe(true);
+    expect(forgotPasswordSchema.safeParse({ email: 'nevaliden' }).success).toBe(false);
+    expect(forgotPasswordSchema.safeParse({}).success).toBe(false);
+  });
+
+  it('resetPasswordSchema бара токен и лозинка ≥ 8', () => {
+    expect(resetPasswordSchema.safeParse({ token: 'abc', password: '12345678' }).success).toBe(
+      true,
+    );
+    expect(resetPasswordSchema.safeParse({ token: '', password: '12345678' }).success).toBe(false);
+    expect(resetPasswordSchema.safeParse({ token: 'abc', password: 'short' }).success).toBe(false);
   });
 });

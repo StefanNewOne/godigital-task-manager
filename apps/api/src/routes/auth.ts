@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import type { Router as ExpressRouter } from 'express';
-import { loginSchema } from '@gd/core';
+import { loginSchema, forgotPasswordSchema, resetPasswordSchema } from '@gd/core';
 import { prisma } from '../db/tenantExtension.js';
+import { requestPasswordReset, resetPassword } from '../services/auth/passwordReset.js';
 import { AppError } from '../lib/errors.js';
 import { parse } from '../lib/validate.js';
 import {
@@ -84,6 +85,20 @@ authRouter.post('/logout', (_req, res) => {
     .clearCookie('access_token', accessCookie)
     .clearCookie('refresh_token', { ...accessCookie, path: '/api/auth' })
     .json({ data: { ok: true } });
+});
+
+// Заборавена лозинка (H4). Генерички одговор — без user-enumeration (§9).
+authRouter.post('/forgot-password', async (req, res) => {
+  const { email } = parse(forgotPasswordSchema, req.body);
+  await requestPasswordReset(email);
+  res.json({ data: { ok: true } });
+});
+
+authRouter.post('/reset-password', async (req, res) => {
+  const { token, password } = parse(resetPasswordSchema, req.body);
+  const ok = await resetPassword(token, password);
+  if (!ok) throw new AppError('RESET_TOKEN_INVALID', 'Линкот е неважечки или истечен.', 400);
+  res.json({ data: { ok: true } });
 });
 
 // Помошна: hash за seed/тестови (не е рута).
