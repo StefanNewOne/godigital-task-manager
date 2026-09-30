@@ -1,36 +1,37 @@
 import { PERMISSIONS, ROLE_LABEL, ROLES, SCREENS, type Screen } from '@gd/core';
+import { t } from '@gd/ui';
 import { tableStyles as s } from '../../components/table.js';
 
 const SCREEN_LABEL: Record<Screen, string> = {
-  director: 'Преглед',
-  list: 'Задачи',
-  calendar: 'Календар',
-  shootCalendar: 'Снимања',
-  clients: 'Клиенти',
-  analytics: 'Аналитика',
-  admin: 'Админ',
-  crm: 'Продажба',
-  meta: 'Мета',
+  director: t('admin.scrDirector'),
+  list: t('admin.scrList'),
+  calendar: t('admin.scrCalendar'),
+  shootCalendar: t('admin.scrShoot'),
+  clients: t('admin.scrClients'),
+  analytics: t('admin.scrAnalytics'),
+  admin: t('admin.scrAdmin'),
+  crm: t('admin.scrCrm'),
+  meta: t('admin.scrMeta'),
 };
 
 export function AdminPermissions() {
   return (
     <div>
       <p style={{ color: 'var(--gd-ink-muted)', fontSize: 13, marginTop: 0, marginBottom: 16 }}>
-        П = пишува · Ч = чита · — = нема пристап.
+        {t('admin.permLegend')}
       </p>
       <div style={s.wrap}>
         <table style={s.table}>
           <thead>
             <tr>
-              <th style={s.th}>Улога</th>
-              <th style={s.th}>Опсег</th>
+              <th style={s.th}>{t('admin.colRole')}</th>
+              <th style={s.th}>{t('admin.colScope')}</th>
               {SCREENS.map((sc) => (
                 <th key={sc} style={{ ...s.th, textAlign: 'center' }}>
                   {SCREEN_LABEL[sc]}
                 </th>
               ))}
-              <th style={s.th}>Носи статуси</th>
+              <th style={s.th}>{t('admin.colOwns')}</th>
             </tr>
           </thead>
           <tbody>
@@ -39,7 +40,9 @@ export function AdminPermissions() {
               return (
                 <tr key={role}>
                   <td style={{ ...s.td, fontWeight: 500 }}>{ROLE_LABEL[role]}</td>
-                  <td style={s.td}>{p.scope === 'all' ? 'Сите' : 'Свои'}</td>
+                  <td style={s.td}>
+                    {p.scope === 'all' ? t('admin.scopeAll') : t('admin.scopeOwn')}
+                  </td>
                   {SCREENS.map((sc) => (
                     <td key={sc} style={{ ...s.td, textAlign: 'center' }}>
                       {p.nav.includes(sc) ? (

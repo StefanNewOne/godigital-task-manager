@@ -1,13 +1,14 @@
 import type React from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { t } from '@gd/ui';
 
 const SECTIONS = [
-  { path: '/admin/clients', label: 'Клиенти' },
-  { path: '/admin/employees', label: 'Вработени и улоги' },
-  { path: '/admin/permissions', label: 'Улоги и дозволи' },
-  { path: '/admin/calendars', label: 'Календари' },
-  { path: '/admin/automations', label: 'Автоматизации' },
-  { path: '/admin/alarms', label: 'Аларми' },
+  { path: '/admin/clients', label: t('admin.secClients') },
+  { path: '/admin/employees', label: t('admin.secEmployees') },
+  { path: '/admin/permissions', label: t('admin.secPermissions') },
+  { path: '/admin/calendars', label: t('admin.secCalendars') },
+  { path: '/admin/automations', label: t('admin.secAutomations') },
+  { path: '/admin/alarms', label: t('admin.secAlarms') },
 ];
 
 export function AdminLayout() {
@@ -17,7 +18,7 @@ export function AdminLayout() {
   return (
     <div style={{ display: 'flex', height: '100%' }}>
       <aside style={sidebar}>
-        <div style={consoleLabel}>Админ конзола</div>
+        <div style={consoleLabel}>{t('admin.console')}</div>
         {SECTIONS.map((s) => (
           <NavLink key={s.path} to={s.path} style={sectionLink}>
             {s.label}
