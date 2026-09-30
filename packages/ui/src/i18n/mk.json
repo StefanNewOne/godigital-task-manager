@@ -91,6 +91,31 @@
     "wdSat": "Саб",
     "wdSun": "Нед"
   },
+  "clients": {
+    "monthlyPlan": "Месечен план",
+    "loading": "Вчитување…",
+    "colClient": "Клиент",
+    "colVideo": "Видео/мес",
+    "colGraphic": "Графика/мес",
+    "colActive": "Активни таскови",
+    "colCoverage": "Покриеност",
+    "colChannel": "Канал",
+    "channelEmail": "Мејл"
+  },
+  "report": {
+    "title": "Извештај · {label}",
+    "downloadCsv": "Преземи CSV",
+    "loading": "Вчитување…",
+    "colClient": "Клиент",
+    "colVideo": "Видео",
+    "colGraphic": "Графика",
+    "colReach": "Досег",
+    "colImpressions": "Импресии",
+    "colEngagement": "Ангажман",
+    "colSpend": "Потрошено",
+    "colCpr": "Цена/рез.",
+    "empty": "Нема податоци за месецот."
+  },
   "login": {
     "email": "Е-мејл",
     "password": "Лозинка",
