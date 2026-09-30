@@ -1,6 +1,7 @@
 import type React from 'react';
 import { useState } from 'react';
 import { CRM_SOURCES, type CrmSource } from '@gd/core';
+import { t } from '@gd/ui';
 import { useCreateLead, type CrmAgent } from '../../api/crm.js';
 import { ApiRequestError } from '../../lib/api.js';
 
@@ -40,7 +41,7 @@ export function NewLeadModal({
       },
       {
         onSuccess: (lead) => onCreated(lead.id),
-        onError: (e) => setErr(e instanceof ApiRequestError ? e.message : 'Грешка.'),
+        onError: (e) => setErr(e instanceof ApiRequestError ? e.message : t('crm.error')),
       },
     );
   };
@@ -48,25 +49,25 @@ export function NewLeadModal({
   return (
     <div style={overlay} onClick={onClose}>
       <div style={modal} onClick={(e) => e.stopPropagation()}>
-        <h2 style={{ margin: '0 0 4px', fontSize: 18 }}>Нов лид</h2>
+        <h2 style={{ margin: '0 0 4px', fontSize: 18 }}>{t('crm.newLead')}</h2>
         <p style={{ margin: '0 0 16px', color: 'var(--gd-ink-muted)', fontSize: 13 }}>
-          Потребни се: име на бизнис, контакт лице и телефон или мејл.
+          {t('crm.newLeadHint')}
         </p>
-        <Field label="Име на бизнис">
+        <Field label={t('crm.fBusiness')}>
           <input style={input} value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
-        <Field label="Контакт лице">
+        <Field label={t('crm.fPerson')}>
           <input style={input} value={person} onChange={(e) => setPerson(e.target.value)} />
         </Field>
         <div style={{ display: 'flex', gap: 10 }}>
-          <Field label="Телефон">
+          <Field label={t('crm.fPhone')}>
             <input style={input} value={phone} onChange={(e) => setPhone(e.target.value)} />
           </Field>
-          <Field label="Мејл">
+          <Field label={t('crm.fEmail')}>
             <input style={input} value={email} onChange={(e) => setEmail(e.target.value)} />
           </Field>
         </div>
-        <Field label="Извор">
+        <Field label={t('crm.fSource')}>
           <select
             style={input}
             value={source}
@@ -79,16 +80,16 @@ export function NewLeadModal({
             ))}
           </select>
         </Field>
-        <Field label="Потенцијален пакет">
+        <Field label={t('crm.fPackage')}>
           <input
             style={input}
             value={pkgHint}
-            placeholder="пр. 2 видеа + 6 графики"
+            placeholder={t('crm.phPackage')}
             onChange={(e) => setPkgHint(e.target.value)}
           />
         </Field>
         {isDir && (
-          <Field label="Продажен агент">
+          <Field label={t('crm.fAgent')}>
             <select style={input} value={agentId} onChange={(e) => setAgentId(e.target.value)}>
               {agents.map((a) => (
                 <option key={a.id} value={a.id}>
@@ -101,10 +102,10 @@ export function NewLeadModal({
         {err && <div style={{ color: '#B91C1C', fontSize: 13, marginTop: 8 }}>{err}</div>}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
           <button type="button" onClick={onClose} style={btnGhost}>
-            Откажи
+            {t('crm.cancel')}
           </button>
           <button type="button" onClick={save} disabled={create.isPending} style={btnPrimary}>
-            Креирај лид
+            {t('crm.createLead')}
           </button>
         </div>
       </div>
