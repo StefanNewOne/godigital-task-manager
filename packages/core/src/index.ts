@@ -20,3 +20,4 @@ export * from './clientLifecycle.js';
 export * from './calendar.js';
 export * from './crm.js';
 export * from './meta/index.js';
+export * from './automations.js';
