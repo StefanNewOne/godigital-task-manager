@@ -1,26 +1,35 @@
 import type React from 'react';
 import { useMemo, useState } from 'react';
 import { crmPlanKeys } from '@gd/core';
+import { t } from '@gd/ui';
 import { useSetContentPlan, type LeadRow } from '../../api/crm.js';
 
 type Cell = 'v' | 'g' | '';
 type PlanMap = Record<string, Record<number, Cell>>;
 
 const MONTH_NAMES = [
-  'Јануари',
-  'Февруари',
-  'Март',
-  'Април',
-  'Мај',
-  'Јуни',
-  'Јули',
-  'Август',
-  'Септември',
-  'Октомври',
-  'Ноември',
-  'Декември',
+  t('crm.mJan'),
+  t('crm.mFeb'),
+  t('crm.mMar'),
+  t('crm.mApr'),
+  t('crm.mMay'),
+  t('crm.mJun'),
+  t('crm.mJul'),
+  t('crm.mAug'),
+  t('crm.mSep'),
+  t('crm.mOct'),
+  t('crm.mNov'),
+  t('crm.mDec'),
 ];
-const WEEK = ['Пон', 'Вто', 'Сре', 'Чет', 'Пет', 'Саб', 'Нед'];
+const WEEK = [
+  t('crm.wMon'),
+  t('crm.wTue'),
+  t('crm.wWed'),
+  t('crm.wThu'),
+  t('crm.wFri'),
+  t('crm.wSat'),
+  t('crm.wSun'),
+];
 
 function daysInMonth(year: number, month0: number): number {
   return new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate();
@@ -62,11 +71,11 @@ export function ContentPlanner({ lead, editable }: { lead: LeadRow; editable: bo
   const persist = (next: PlanMap) => {
     const entries = Object.entries(next).flatMap(([mk, days]) =>
       Object.entries(days)
-        .filter(([, t]) => t)
-        .map(([d, t]) => ({
+        .filter(([, cell]) => cell)
+        .map(([d, cell]) => ({
           monthKey: mk,
           day: Number(d),
-          contentType: (t === 'v' ? 'video' : 'graphic') as 'video' | 'graphic',
+          contentType: (cell === 'v' ? 'video' : 'graphic') as 'video' | 'graphic',
         })),
     );
     save.mutate(entries);
@@ -91,7 +100,7 @@ export function ContentPlanner({ lead, editable }: { lead: LeadRow; editable: bo
   const offset = firstWeekday(year, month0);
   for (let i = 0; i < offset; i++) cells.push(<div key={`e${i}`} />);
   for (let d = 1; d <= daysInMonth(year, month0); d++) {
-    const t = (plan[key] ?? {})[d] ?? '';
+    const cell = (plan[key] ?? {})[d] ?? '';
     cells.push(
       <button
         key={d}
@@ -100,9 +109,9 @@ export function ContentPlanner({ lead, editable }: { lead: LeadRow; editable: bo
         style={{
           aspectRatio: '1',
           borderRadius: 6,
-          border: `1px solid ${t === 'v' ? '#0866FF' : t === 'g' ? '#DB2777' : 'var(--gd-border)'}`,
-          background: t === 'v' ? '#EBF2FF' : t === 'g' ? '#FCE7F3' : '#fff',
-          color: t === 'v' ? '#0052D9' : t === 'g' ? '#BE185D' : 'var(--gd-ink)',
+          border: `1px solid ${cell === 'v' ? '#0866FF' : cell === 'g' ? '#DB2777' : 'var(--gd-border)'}`,
+          background: cell === 'v' ? '#EBF2FF' : cell === 'g' ? '#FCE7F3' : '#fff',
+          color: cell === 'v' ? '#0052D9' : cell === 'g' ? '#BE185D' : 'var(--gd-ink)',
           fontSize: 11,
           cursor: editable ? 'pointer' : 'default',
           display: 'flex',
@@ -113,7 +122,9 @@ export function ContentPlanner({ lead, editable }: { lead: LeadRow; editable: bo
         }}
       >
         <span style={{ fontWeight: 600 }}>{d}</span>
-        {t && <span style={{ fontSize: 9 }}>{t === 'v' ? 'Видео' : 'Графика'}</span>}
+        {cell && (
+          <span style={{ fontSize: 9 }}>{cell === 'v' ? t('crm.video') : t('crm.graphic')}</span>
+        )}
       </button>,
     );
   }
@@ -121,12 +132,10 @@ export function ContentPlanner({ lead, editable }: { lead: LeadRow; editable: bo
   return (
     <div style={{ marginTop: 16 }}>
       <div style={sectionTitle}>
-        Content планер · {crmPlanKeys(lead.pkgStart ?? '').length} месеци
+        {t('crm.plannerTitle', { n: crmPlanKeys(lead.pkgStart ?? '').length })}
       </div>
       <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)', marginBottom: 8 }}>
-        {editable
-          ? 'Клик на ден: празно → видео → графика → празно. Лимитот е бројот од договорот.'
-          : 'Планерот е заклучен по чекорот „Стратегија".'}
+        {editable ? t('crm.plannerEditable') : t('crm.plannerLocked')}
       </div>
       <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
         {keys.map((k, i) => {
@@ -165,10 +174,10 @@ export function ContentPlanner({ lead, editable }: { lead: LeadRow; editable: bo
       </div>
       <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 12 }}>
         <span style={{ color: cur.v === nv ? '#15803D' : '#B45309' }}>
-          Видеа {cur.v}/{nv}
+          {t('crm.videosCount', { done: cur.v, total: nv })}
         </span>
         <span style={{ color: cur.g === ng ? '#15803D' : '#B45309' }}>
-          Графики {cur.g}/{ng}
+          {t('crm.graphicsCount', { done: cur.g, total: ng })}
         </span>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import type React from 'react';
 import { useState } from 'react';
 import { LOSS_REASONS, type LossReason } from '@gd/core';
+import { t } from '@gd/ui';
 
 /** Модал „Изгубен лид". Причината е задолжителна; за „Друго" и белешката. */
 export function LostLeadModal({
@@ -17,17 +18,17 @@ export function LostLeadModal({
   const [err, setErr] = useState<string | null>(null);
 
   const confirm = () => {
-    if (!reason) return setErr('Избери причина.');
-    if (reason === 'Друго' && !note.trim()) return setErr('За „Друго" опиши ја причината.');
+    if (!reason) return setErr(t('crm.pickReason'));
+    if (reason === 'Друго' && !note.trim()) return setErr(t('crm.otherReason'));
     onConfirm(reason, note.trim());
   };
 
   return (
     <div style={overlay} onClick={onCancel}>
       <div style={modal} onClick={(e) => e.stopPropagation()}>
-        <h2 style={{ margin: '0 0 4px', fontSize: 18 }}>Изгубен лид</h2>
+        <h2 style={{ margin: '0 0 4px', fontSize: 18 }}>{t('crm.lostTitle')}</h2>
         <p style={{ margin: '0 0 16px', color: 'var(--gd-ink-muted)', fontSize: 13 }}>
-          „{name}" — избери причина за губење.
+          {t('crm.lostHint', { name })}
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {LOSS_REASONS.map((r) => (
@@ -56,7 +57,7 @@ export function LostLeadModal({
         {reason === 'Друго' && (
           <textarea
             style={{ ...taStyle, marginTop: 10 }}
-            placeholder="Опиши ја причината…"
+            placeholder={t('crm.describeReason')}
             value={note}
             onChange={(e) => setNote(e.target.value)}
           />
@@ -64,10 +65,10 @@ export function LostLeadModal({
         {err && <div style={{ color: '#B91C1C', fontSize: 13, marginTop: 8 }}>{err}</div>}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
           <button type="button" onClick={onCancel} style={btnGhost}>
-            Откажи
+            {t('crm.cancel')}
           </button>
           <button type="button" onClick={confirm} style={btnDanger}>
-            Означи изгубен
+            {t('crm.markLost')}
           </button>
         </div>
       </div>
