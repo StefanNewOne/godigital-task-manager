@@ -9,6 +9,7 @@ import {
   isCrmBoardDraggable,
   type CrmStatus,
 } from '@gd/core';
+import { t } from '@gd/ui';
 import { useMe } from '../../api/auth.js';
 import {
   useCrmAgents,
@@ -66,7 +67,12 @@ export function CrmScreen() {
   const active = leads.filter((l) => l.status !== 'izguben' && l.status !== 'aktiviran');
   const nWaiting = active.filter((l) => l.waitDir).length;
   const nStale = active.filter((l) => l.isStale).length;
-  const summary = `${active.length} активни · ${nWaiting} чекаат директор · ${nStale} без промена ${CRM_STALE_DAYS}+ дена`;
+  const summary = t('crm.summary', {
+    active: active.length,
+    waiting: nWaiting,
+    stale: nStale,
+    days: CRM_STALE_DAYS,
+  });
 
   if (!me) return null;
 
@@ -74,12 +80,12 @@ export function CrmScreen() {
     <div style={{ display: 'flex', height: '100%', minHeight: 0 }}>
       {/* Лев контекст-панел (240px) */}
       <aside style={rail}>
-        <div style={railTitle}>{isDir ? 'Pipeline' : 'Мои лидови'}</div>
+        <div style={railTitle}>{isDir ? t('crm.railPipeline') : t('crm.railMyLeads')}</div>
         {(
           [
-            ['all', 'Сите активни', active.length],
-            ['waiting', 'Чекаат директор', nWaiting],
-            ['stale', `Без промена ${CRM_STALE_DAYS}+ дена`, nStale],
+            ['all', t('crm.filterAll'), active.length],
+            ['waiting', t('crm.filterWaiting'), nWaiting],
+            ['stale', t('crm.filterStale', { days: CRM_STALE_DAYS }), nStale],
           ] as Array<[CrmFilter, string, number]>
         ).map(([k, label, n]) => (
           <button
@@ -97,9 +103,9 @@ export function CrmScreen() {
         ))}
         {isDir && (
           <>
-            <div style={{ ...railTitle, marginTop: 16 }}>Продажни агенти</div>
+            <div style={{ ...railTitle, marginTop: 16 }}>{t('crm.agents')}</div>
             <button type="button" onClick={() => setAgent('')} style={railItem(!agentParam)}>
-              <span>Сите агенти</span>
+              <span>{t('crm.allAgents')}</span>
             </button>
             {agents.map((a) => (
               <button
@@ -125,9 +131,9 @@ export function CrmScreen() {
           <div style={{ display: 'flex', gap: 4 }}>
             {(
               [
-                ['crm', 'Pipeline'],
-                ['crmApprove', 'Одобрувања'],
-                ['crmLost', 'Изгубени'],
+                ['crm', t('crm.railPipeline')],
+                ['crmApprove', t('crm.tabApprove')],
+                ['crmLost', t('crm.tabLost')],
               ] as Array<[CrmView, string]>
             )
               .filter(([v]) => v !== 'crmApprove' || isDir)
@@ -141,7 +147,7 @@ export function CrmScreen() {
             {summary}
           </span>
           <button type="button" onClick={() => setNewOpen(true)} style={primaryBtn}>
-            + Нов лид
+            {t('crm.newLeadBtn')}
           </button>
         </header>
 
@@ -210,12 +216,12 @@ function PipelineBoard({
     setDrag(null);
     if (!d || d.from === to) return;
     if (!isCrmBoardDraggable(d.from, to)) {
-      setToast('Влечење само кон следниот чекор. Отвори го лидот за враќање/губење.');
+      setToast(t('crm.dragOnlyForward'));
       return;
     }
     move.mutate(
       { to },
-      { onError: (e) => setToast(e instanceof ApiRequestError ? e.message : 'Грешка.') },
+      { onError: (e) => setToast(e instanceof ApiRequestError ? e.message : t('crm.error')) },
     );
   };
 
@@ -295,13 +301,13 @@ function LeadCard({
   const ver =
     lead.offers && CRM_STATUS_META[lead.status].step >= 3 && CRM_STATUS_META[lead.status].step <= 5
       ? lead.offers.length
-        ? `Понуда v${lead.offers.length}`
+        ? t('crm.offerVer', { n: lead.offers.length })
         : ''
       : lead.contracts &&
           CRM_STATUS_META[lead.status].step >= 7 &&
           CRM_STATUS_META[lead.status].step <= 9
         ? lead.contracts.length
-          ? `Договор v${lead.contracts.length}`
+          ? t('crm.contractVer', { n: lead.contracts.length })
           : ''
         : '';
   return (
@@ -319,11 +325,13 @@ function LeadCard({
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
         {ver && <span style={verPill}>{ver}</span>}
         {lead.waitDir && (
-          <span style={{ ...verPill, background: '#F5F3FF', color: '#6D28D9' }}>чека директор</span>
+          <span style={{ ...verPill, background: '#F5F3FF', color: '#6D28D9' }}>
+            {t('crm.waitDir')}
+          </span>
         )}
         {lead.isStale && (
           <span style={{ ...verPill, background: '#FEF2F2', color: '#B91C1C' }}>
-            {lead.stale} дена без промена
+            {t('crm.staleDays', { n: lead.stale })}
           </span>
         )}
       </div>
@@ -333,13 +341,15 @@ function LeadCard({
 
 function ApproveList({ leads, onOpen }: { leads: LeadRow[]; onOpen: (id: string) => void }) {
   const rows = leads.filter((l) => l.waitDir);
-  if (rows.length === 0) return <Empty text="Нема лидови што чекаат одобрување." />;
+  if (rows.length === 0) return <Empty text={t('crm.emptyApprove')} />;
   return (
     <div style={listWrap}>
       {rows.map((l) => {
         const isOffer = l.status === 'ponudaOdob';
         const arr = (isOffer ? l.offers : l.contracts) ?? [];
-        const doc = `${isOffer ? 'Понуда v' : 'Договор v'}${arr.length}`;
+        const doc = isOffer
+          ? t('crm.offerVer', { n: arr.length })
+          : t('crm.contractVer', { n: arr.length });
         return (
           <button key={l.id} type="button" onClick={() => onOpen(l.id)} style={listRow}>
             <div>
@@ -360,7 +370,7 @@ function ApproveList({ leads, onOpen }: { leads: LeadRow[]; onOpen: (id: string)
 
 function LostList({ leads, onOpen }: { leads: LeadRow[]; onOpen: (id: string) => void }) {
   const rows = leads.filter((l) => l.status === 'izguben');
-  if (rows.length === 0) return <Empty text="Нема изгубени лидови." />;
+  if (rows.length === 0) return <Empty text={t('crm.emptyLost')} />;
   return (
     <div style={listWrap}>
       {rows.map((l) => (
@@ -374,7 +384,7 @@ function LostList({ leads, onOpen }: { leads: LeadRow[]; onOpen: (id: string) =>
           </div>
           {l.lostFromStatus && (
             <span style={{ ...verPill, marginLeft: 'auto' }}>
-              од {CRM_STATUS_META[l.lostFromStatus].label}
+              {t('crm.fromStatus', { status: CRM_STATUS_META[l.lostFromStatus].label })}
             </span>
           )}
         </button>
