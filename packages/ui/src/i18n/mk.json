@@ -193,7 +193,15 @@
       "fFreq": "Праг за frequency",
       "fCpr": "Праг за пораст на CPR (%)",
       "fNaming": "Конвенција за имиња",
-      "save": "Зачувај"
+      "save": "Зачувај",
+      "structure": "Структура",
+      "selectAdSet": "Избери ad set за детали.",
+      "adsInSet": "Реклами во овој ad set",
+      "actPause": "Пауза / активирај",
+      "actBudget": "Дневен буџет",
+      "adRejected": "одбиена",
+      "adLearning": "учи (LIMITED)",
+      "newCampaign": "+ Нова кампања"
     }
   }
 }
