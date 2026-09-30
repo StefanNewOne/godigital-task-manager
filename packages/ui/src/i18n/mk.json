@@ -640,6 +640,35 @@
     "pushUnsupported": "Овој прелистувач не поддржува push.",
     "pushFailed": "Неуспешно менување на push."
   },
+  "errors": {
+    "generic": "Настана грешка.",
+    "offlineQueued": "Офлајн — промената е зачувана и ќе се синхронизира кога ќе се вратиш онлајн.",
+    "uploadPartFailed": "Неуспешно прикачување на дел.",
+    "uploadFileFailed": "Неуспешно прикачување на фајлот.",
+    "uploadPartNumber": "Неуспешен дел {part}.",
+    "loading": "Вчитување…",
+    "notFound": "Ненајдена страница",
+    "missingRoot": "Недостасува #root елемент."
+  },
+  "monthApproval": {
+    "loading": "Вчитување…",
+    "needStandardBold": "Стандарден календар",
+    "needStandardPre": "Прво постави ",
+    "needStandardMid": " (Календарски поставки) — тогаш системот ќе предложи датуми по комбинација.",
+    "noClients": "Нема стандардни клиенти за овој месец.",
+    "approved": "Одобрено: {clients} клиенти{skipped}.",
+    "approvedSkipped": ", {skipped} веќе",
+    "error": "Грешка.",
+    "title": "Одобри месец · {month}",
+    "approving": "Одобрување…",
+    "approveMonth": "Одобри месец",
+    "intro": "Предлог по комбинација (број видеа · графики). Уреди ги датумите; се применува на сите стандардни клиенти со таа комбинација.",
+    "comboLine": "{videos} видеа · {graphics} графики",
+    "comboClients": "{count} клиенти: {names}",
+    "comboApproved": "одобрено ✓",
+    "video": "Видео",
+    "graphic": "Графика"
+  },
   "meta": {
     "tabs": {
       "overview": "Утрински преглед",
@@ -651,6 +680,63 @@
       "assistant": "Асистент",
       "inbox": "Инбокс",
       "comments": "Коментари"
+    },
+    "op": {
+      "O1": "Пауза / активирај",
+      "O2": "Дневен буџет",
+      "O3": "Закажан буџет",
+      "O4": "Реклама од пост",
+      "O5": "Ново видео",
+      "O6": "Копирај ad set",
+      "O7": "Нов ad set",
+      "O8": "Нова кампања",
+      "O9": "Распоред (краен датум)",
+      "O10": "CTA / линк / шаблон",
+      "O11": "Преименување",
+      "O12": "Дуплирај кампања"
+    },
+    "planStatus": {
+      "pending": "На чекање",
+      "approved": "Одобрен",
+      "syncing": "Се проверува",
+      "done": "Завршен",
+      "rejected": "Одбиен",
+      "mismatch": "Несовпаѓање",
+      "withdrawn": "Повлечен"
+    },
+    "sev": {
+      "crit": "Критично",
+      "high": "Високо",
+      "mid": "Средно",
+      "info": "Инфо"
+    },
+    "shared": {
+      "loading": "Вчитување…",
+      "unknown": "непознат",
+      "readOnly": "само читање",
+      "manage": "управување",
+      "yes": "да",
+      "no": "не"
+    },
+    "filters": {
+      "all": "Сите",
+      "unread": "Непрочитани",
+      "commentsOpen": "Необработени",
+      "commentsQuestions": "Прашања",
+      "commentsAds": "Од реклами",
+      "commentsBad": "Поплаки",
+      "alertsCrit": "Критично",
+      "alertsHigh": "Високо",
+      "alertsMid": "Средно",
+      "plansPending": "На чекање",
+      "plansApproved": "Одобрени",
+      "plansSyncing": "Се проверуваат",
+      "plansMismatch": "Несовпаѓања"
+    },
+    "tags": {
+      "done": "обработено",
+      "forClient": "за клиентот",
+      "important": "важно"
     },
     "connections": {
       "tokensTitle": "Токени",
@@ -665,7 +751,8 @@
       "colPage": "Страница",
       "colIg": "Instagram",
       "colIgMsg": "IG пораки",
-      "empty": "Нема поврзувања."
+      "empty": "Нема поврзувања.",
+      "expires": "истек: {date}"
     },
     "topbar": {
       "refresh": "Освежи сега",
@@ -683,6 +770,7 @@
     },
     "clients": {
       "footer": "Клиентите се истите од Task Manager. Сумите се во валутата на рекламниот акаунт.",
+      "empty": "Нема клиенти со Meta реклами.",
       "colClient": "Клиент",
       "colGoal": "Главна цел",
       "colToday": "Денес",
@@ -696,6 +784,7 @@
       "title": "Резултат по кампања, според нејзиниот Objective",
       "subtitle": "Метриките не се собираат меѓу различни Objective. Сортирано по влошување.",
       "footer": "Извор: Meta Insights API · атрибуција Standard · последните 7 дена не се конечни.",
+      "empty": "Нема податоци за периодот.",
       "kpiSpend": "Вкупно потрошено",
       "kpiCampaigns": "Кампањи",
       "colCampaign": "Клиент · кампања",
@@ -730,6 +819,7 @@
       "badgeQuestion": "прашање",
       "badgeComplaint": "жалба",
       "badgeAd": "реклама",
+      "empty": "Нема коментари.",
       "footer": "Ознаките се внатрешни и не се праќаат кон Meta. Одговарање и бришење од системот нема во оваа фаза."
     },
     "plans": {
@@ -744,7 +834,22 @@
       "withdraw": "Повлечи",
       "rejectReason": "Причина за одбивање (задолжително)",
       "rejectCancel": "Откажи",
-      "rejectConfirm": "Одбиј предлог"
+      "rejectConfirm": "Одбиј предлог",
+      "newPlan": "+ Нов план",
+      "empty": "Нема планови."
+    },
+    "createPlan": {
+      "title": "Нов план за промена",
+      "client": "Клиент",
+      "pick": "— избери —",
+      "op": "Операција",
+      "campaign": "Кампања (Meta ID)",
+      "newBudget": "Нов дневен буџет (€)",
+      "newName": "Ново име",
+      "note": "Белешка (опционо)",
+      "hint": "Планот не менува ништо во Meta — промената ја прави Директорот рачно во Ads Manager.",
+      "cancel": "Откажи",
+      "create": "Создај"
     },
     "archive": {
       "note": "Append-only. Секоја промена се открива при синхронизација, вклучително и оние направени директно во Ads Manager без план.",
@@ -755,14 +860,23 @@
       "colObject": "Објект",
       "colEvent": "Настан",
       "colWho": "Кој",
-      "colNarrative": "Опис"
+      "colNarrative": "Опис",
+      "systemActor": "система"
     },
     "assistant": {
       "placeholder": "Прашај или побарај промена…",
       "header": "✦ Асистент · Мета",
       "suggest1": "Кај кого поскапе цената оваа недела?",
       "suggest2": "Има ли алерти?",
-      "suggest3": "Дај ми преглед"
+      "suggest3": "Дај ми преглед",
+      "close": "Затвори",
+      "allClientsForPlan": "Сите клиенти (за план избери еден)",
+      "error": "Настана грешка. Обиди се повторно.",
+      "intro": "Прашај за преглед, алерти, пресек или структура — или подготви план (пр. „буџет 200“, „паузирај“, „преименувај“). Помошникот само предлага; ти одлучуваш.",
+      "typing": "Пишува…",
+      "openAsPlan": "Отвори како план",
+      "sendForApproval": "Прати на одобрување",
+      "send": "Прати"
     },
     "inbox": {
       "summaryTitle": "Резиме на пораките",
@@ -771,7 +885,11 @@
       "waiting": "Чекаат одговор",
       "summaryNote": "Составено од податоците, без проценки.",
       "noIg": "Овој клиент нема поврзан Instagram за пораки.",
-      "openInMeta": "Отвори во Meta"
+      "openInMeta": "Отвори во Meta",
+      "noConvos": "Нема разговори.",
+      "pickConvo": "Избери разговор.",
+      "purged": "текстот е избришан (12 месеци)",
+      "readOnlyNote": "Само читање — одговарај директно во Meta Business Suite."
     },
     "client": {
       "back": "← Назад на клиенти",
@@ -799,7 +917,20 @@
       "actBudget": "Дневен буџет",
       "adRejected": "одбиена",
       "adLearning": "учи (LIMITED)",
-      "newCampaign": "+ Нова кампања"
+      "newCampaign": "+ Нова кампања",
+      "noCampaigns": "Нема кампањи.",
+      "orgNotConnected": "Нема поврзана Instagram сметка.",
+      "orgPosts": "Објави",
+      "orgReach": "Досег",
+      "orgViews": "Прегледи",
+      "orgEngagement": "Ангажман",
+      "orgVideo": "🎬 Видео",
+      "orgImage": "🖼 Слика",
+      "orgPostStats": "досег {reach} · прегледи {views} · ангажман {engagement}",
+      "kpiSpend": "Потрошено",
+      "kpiReach": "Досег",
+      "kpiCpr": "Цена/рез",
+      "cprSuffix": "/рез"
     }
   },
   "tasks": {

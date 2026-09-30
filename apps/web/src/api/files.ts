@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { t } from '@gd/ui';
 import { api } from '../lib/api.js';
 import type { FileAssetRow } from '../lib/types.js';
 
@@ -62,7 +63,7 @@ async function putWithRetry(url: string, body: BodyInit, headers?: HeadersInit):
     }
     await sleep(500 * 2 ** attempt); // 0.5s, 1s, 2s, 4s
   }
-  throw lastErr instanceof Error ? lastErr : new Error('Неуспешно прикачување на дел.');
+  throw lastErr instanceof Error ? lastErr : new Error(t('errors.uploadPartFailed'));
 }
 
 export async function uploadFile({
@@ -83,7 +84,7 @@ export async function uploadFile({
 
   if (presign.mode === 'single') {
     const res = await putWithRetry(presign.url, file, { 'Content-Type': mime });
-    if (!res.ok) throw new Error('Неуспешно прикачување на фајлот.');
+    if (!res.ok) throw new Error(t('errors.uploadFileFailed'));
     onProgress?.(1);
     return presign.fileId;
   }
@@ -94,7 +95,7 @@ export async function uploadFile({
     const start = (p.partNumber - 1) * presign.partSize;
     const chunk = file.slice(start, start + presign.partSize);
     const res = await putWithRetry(p.url, chunk);
-    if (!res.ok) throw new Error(`Неуспешен дел ${p.partNumber}.`);
+    if (!res.ok) throw new Error(t('errors.uploadPartNumber', { part: p.partNumber }));
     const etag = (res.headers.get('ETag') ?? '').replaceAll('"', '');
     parts.push({ PartNumber: p.partNumber, ETag: etag });
     onProgress?.(parts.length / total);

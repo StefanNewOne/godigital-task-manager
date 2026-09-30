@@ -1,13 +1,14 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { t } from '@gd/ui';
 import { App } from './App.js';
 import { PwaStatus } from './components/PwaStatus.js';
 import { idbPersister, queryClient } from './lib/pwa.js';
 import './index.css';
 
 const rootEl = document.getElementById('root');
-if (!rootEl) throw new Error('Недостасува #root елемент.');
+if (!rootEl) throw new Error(t('errors.missingRoot'));
 
 createRoot(rootEl).render(
   <StrictMode>

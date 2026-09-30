@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { PERMISSIONS, type Role, type Screen } from '@gd/core';
+import { t } from '@gd/ui';
 import { useMe } from './api/auth.js';
 import { AppShell } from './components/AppShell.js';
 import { Analytics } from './screens/Analytics.js';
@@ -62,7 +63,7 @@ export function App() {
   const { data: me, isLoading, isError } = useMe();
 
   if (isLoading) {
-    return <div style={{ padding: 24, color: 'var(--gd-ink-muted)' }}>Вчитување…</div>;
+    return <div style={{ padding: 24, color: 'var(--gd-ink-muted)' }}>{t('errors.loading')}</div>;
   }
   if (isError || !me) {
     return <Login />;
@@ -156,7 +157,7 @@ export function App() {
           />
           {/* Лични поставки (H6) — не се врзани за nav дозволи; достапни за секоја улога. */}
           <Route path="settings" element={<Settings />} />
-          <Route path="*" element={<Placeholder title="Ненајдена страница" />} />
+          <Route path="*" element={<Placeholder title={t('errors.notFound')} />} />
         </Route>
       </Routes>
     </BrowserRouter>
