@@ -1,6 +1,6 @@
 import type React from 'react';
 import { useEffect, useState } from 'react';
-import { Button } from '@gd/ui';
+import { Button, t } from '@gd/ui';
 import {
   useSaveStandardCalendar,
   useStandardCalendar,
@@ -15,13 +15,13 @@ import {
 import { ApiRequestError } from '../lib/api.js';
 
 const WEEKDAYS: Array<{ n: number; l: string }> = [
-  { n: 1, l: 'Пон' },
-  { n: 2, l: 'Вто' },
-  { n: 3, l: 'Сре' },
-  { n: 4, l: 'Чет' },
-  { n: 5, l: 'Пет' },
-  { n: 6, l: 'Саб' },
-  { n: 7, l: 'Нед' },
+  { n: 1, l: t('calendarSettings.wdMon') },
+  { n: 2, l: t('calendarSettings.wdTue') },
+  { n: 3, l: t('calendarSettings.wdWed') },
+  { n: 4, l: t('calendarSettings.wdThu') },
+  { n: 5, l: t('calendarSettings.wdFri') },
+  { n: 6, l: t('calendarSettings.wdSat') },
+  { n: 7, l: t('calendarSettings.wdSun') },
 ];
 const DEFAULTS: Record<'video' | 'graphic', { weekdays: number[]; publishTime: string }> = {
   video: { weekdays: [2, 5], publishTime: '10:00' },
@@ -44,8 +44,8 @@ export function CalendarSettings({
     <div style={panel}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
-          <h3 style={h3}>Стандарден календар</h3>
-          <p style={hint}>Важи за клиентите со тип „Стандарден".</p>
+          <h3 style={h3}>{t('calendarSettings.standardTitle')}</h3>
+          <p style={hint}>{t('calendarSettings.standardHint')}</p>
           {(['video', 'graphic'] as const).map((ct) => (
             <StandardRow
               key={ct}
@@ -58,8 +58,12 @@ export function CalendarSettings({
 
         {clientId && (
           <div>
-            <h3 style={h3}>Посебен календар · {clientName ?? 'клиент'}</h3>
-            <p style={hint}>Го заменува стандардниот само за овој клиент.</p>
+            <h3 style={h3}>
+              {t('calendarSettings.clientTitle', {
+                name: clientName ?? t('calendarSettings.client'),
+              })}
+            </h3>
+            <p style={hint}>{t('calendarSettings.clientHint')}</p>
             {(['video', 'graphic'] as const).map((ct) => (
               <ClientRow
                 key={ct}
@@ -96,8 +100,9 @@ function StandardRow({
       pending={save.isPending}
       onSave={(input) =>
         save.mutate(input as StdInput, {
-          onSuccess: () => onToast('Стандардниот календар е зачуван.'),
-          onError: (e) => onToast(e instanceof ApiRequestError ? e.message : 'Грешка.'),
+          onSuccess: () => onToast(t('calendarSettings.savedStandard')),
+          onError: (e) =>
+            onToast(e instanceof ApiRequestError ? e.message : t('calendarSettings.error')),
         })
       }
     />
@@ -131,8 +136,9 @@ function ClientRow({
       pending={save.isPending}
       onSave={(input) =>
         save.mutate(input as CalendarConfigInput, {
-          onSuccess: () => onToast('Посебниот календар е зачуван.'),
-          onError: (e) => onToast(e instanceof ApiRequestError ? e.message : 'Грешка.'),
+          onSuccess: () => onToast(t('calendarSettings.savedClient')),
+          onError: (e) =>
+            onToast(e instanceof ApiRequestError ? e.message : t('calendarSettings.error')),
         })
       }
     />
@@ -179,7 +185,7 @@ function WeekdayRow({
   return (
     <div style={row}>
       <div style={{ fontWeight: 600, fontSize: 13, minWidth: 64 }}>
-        {contentType === 'video' ? 'Видео' : 'Графика'}
+        {contentType === 'video' ? t('calendarSettings.video') : t('calendarSettings.graphic')}
       </div>
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
         {WEEKDAYS.map((d) => {
@@ -192,7 +198,7 @@ function WeekdayRow({
         })}
       </div>
       <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
-        Време
+        {t('calendarSettings.time')}
         <input
           type="time"
           value={publishTime}
@@ -202,7 +208,7 @@ function WeekdayRow({
       </label>
       <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
         <input type="checkbox" checked={allowTwo} onChange={(e) => setAllowTwo(e.target.checked)} />
-        2 по ден
+        {t('calendarSettings.twoPerDay')}
       </label>
       <Button
         variant="primary"
@@ -211,7 +217,7 @@ function WeekdayRow({
         disabled={pending || !weekdays.length}
         onClick={() => onSave({ contentType, weekdays, publishTime, allowTwoPerDay: allowTwo })}
       >
-        {pending ? 'Се зачувува…' : 'Зачувај'}
+        {pending ? t('calendarSettings.saving') : t('common.save')}
       </Button>
     </div>
   );
