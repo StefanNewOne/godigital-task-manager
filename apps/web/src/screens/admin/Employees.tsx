@@ -9,7 +9,7 @@ import {
   employeeUpdateSchema,
   type EmployeeCreateInput,
 } from '@gd/core';
-import { Button, Modal } from '@gd/ui';
+import { Button, Modal, t } from '@gd/ui';
 import { useCreateEmployee, useEmployees, useUpdateEmployee } from '../../api/admin.js';
 import { ApiRequestError } from '../../lib/api.js';
 import { tableStyles as s } from '../../components/table.js';
@@ -24,21 +24,21 @@ export function AdminEmployees() {
     <div>
       <div style={{ ...headerRow, justifyContent: 'flex-end' }}>
         <Button variant="primary" size="form" onClick={() => setCreating(true)}>
-          + Нов вработен
+          {t('admin.newEmployee')}
         </Button>
       </div>
 
-      {isLoading && <p style={{ color: 'var(--gd-ink-muted)' }}>Вчитување…</p>}
+      {isLoading && <p style={{ color: 'var(--gd-ink-muted)' }}>{t('admin.loading')}</p>}
 
       {data && (
         <div style={s.wrap}>
           <table style={s.table}>
             <thead>
               <tr>
-                <th style={s.th}>Име и е-мејл</th>
-                <th style={s.th}>Улога</th>
-                <th style={s.th}>Статус</th>
-                <th style={s.th}>Последна активност</th>
+                <th style={s.th}>{t('admin.colNameEmail')}</th>
+                <th style={s.th}>{t('admin.colRole')}</th>
+                <th style={s.th}>{t('admin.colStatus')}</th>
+                <th style={s.th}>{t('admin.colLastActive')}</th>
                 <th style={{ ...s.th, textAlign: 'right' }}></th>
               </tr>
             </thead>
@@ -58,15 +58,15 @@ export function AdminEmployees() {
                   </td>
                   <td style={s.td}>
                     {ROLE_LABEL[e.role]}
-                    {e.isScenaristToo ? ' (+ сценарист)' : ''}
+                    {e.isScenaristToo ? t('admin.alsoScenarist') : ''}
                   </td>
-                  <td style={s.td}>{e.active ? 'Активен' : 'Неактивен'}</td>
+                  <td style={s.td}>{e.active ? t('admin.active') : t('admin.inactive')}</td>
                   <td style={s.td}>
                     {e.lastActiveAt ? new Date(e.lastActiveAt).toLocaleString('mk-MK') : '—'}
                   </td>
                   <td style={{ ...s.td, textAlign: 'right' }}>
                     <Button variant="ghost" size="toolbar" onClick={() => setEditing(e)}>
-                      Уреди
+                      {t('admin.edit')}
                     </Button>
                   </td>
                 </tr>
@@ -114,7 +114,8 @@ function EmployeeModal({ employee, onClose }: { employee?: EmployeeRow; onClose:
   const onSubmit = (values: FormValues) => {
     const opts = {
       onSuccess: () => onClose(),
-      onError: (e: unknown) => setToast(e instanceof ApiRequestError ? e.message : 'Грешка.'),
+      onError: (e: unknown) =>
+        setToast(e instanceof ApiRequestError ? e.message : t('admin.error')),
     };
     if (isEdit) update.mutate(values, opts);
     else create.mutate(values, opts);
@@ -124,28 +125,28 @@ function EmployeeModal({ employee, onClose }: { employee?: EmployeeRow; onClose:
     <Modal
       open
       onClose={onClose}
-      title={isEdit ? `Уреди · ${employee!.name}` : 'Нов вработен'}
+      title={isEdit ? t('admin.editTitle', { name: employee!.name }) : t('admin.newEmployeeTitle')}
       footer={
         <>
           <Button variant="ghost" size="form" onClick={onClose}>
-            Откажи
+            {t('admin.cancel')}
           </Button>
           <Button variant="primary" size="form" disabled={pending} onClick={handleSubmit(onSubmit)}>
-            {pending ? 'Се зачувува…' : 'Зачувај'}
+            {pending ? t('admin.saving') : t('common.save')}
           </Button>
         </>
       }
     >
       <form onSubmit={handleSubmit(onSubmit)} style={form}>
-        <Field label="Име" error={errors.name?.message}>
+        <Field label={t('admin.fName')} error={errors.name?.message}>
           <input className={fieldCls(!!errors.name)} {...register('name')} />
         </Field>
         {!isEdit && (
           <>
-            <Field label="Е-мејл" error={errors.email?.message}>
+            <Field label={t('admin.fEmail')} error={errors.email?.message}>
               <input className={fieldCls(!!errors.email)} type="email" {...register('email')} />
             </Field>
-            <Field label="Лозинка" error={errors.password?.message}>
+            <Field label={t('admin.fPassword')} error={errors.password?.message}>
               <input
                 className={fieldCls(!!errors.password)}
                 type="password"
@@ -155,7 +156,7 @@ function EmployeeModal({ employee, onClose }: { employee?: EmployeeRow; onClose:
           </>
         )}
         <div style={twoCol}>
-          <Field label="Улога" error={errors.role?.message}>
+          <Field label={t('admin.fRole')} error={errors.role?.message}>
             <select className={fieldCls(false)} {...register('role')}>
               {ROLES.map((r) => (
                 <option key={r} value={r}>
@@ -164,7 +165,7 @@ function EmployeeModal({ employee, onClose }: { employee?: EmployeeRow; onClose:
               ))}
             </select>
           </Field>
-          <Field label="Боја" error={errors.color?.message}>
+          <Field label={t('admin.fColor')} error={errors.color?.message}>
             <input
               type="color"
               className={fieldCls(false)}
@@ -173,20 +174,20 @@ function EmployeeModal({ employee, onClose }: { employee?: EmployeeRow; onClose:
             />
           </Field>
         </div>
-        <Field label="Телефон (по потреба)" error={errors.phone?.message}>
+        <Field label={t('admin.fPhone')} error={errors.phone?.message}>
           <input className={fieldCls(false)} {...register('phone')} />
         </Field>
-        <Field label="Белешка за капацитет (по потреба)" error={errors.capacityNote?.message}>
+        <Field label={t('admin.fCapacity')} error={errors.capacityNote?.message}>
           <input className={fieldCls(false)} {...register('capacityNote')} />
         </Field>
         {role === 'rez' && (
           <label style={checkRow}>
-            <input type="checkbox" {...register('isScenaristToo')} /> Е и сценарист
+            <input type="checkbox" {...register('isScenaristToo')} /> {t('admin.isScenarist')}
           </label>
         )}
         {isEdit && (
           <label style={checkRow}>
-            <input type="checkbox" {...register('active')} /> Активен
+            <input type="checkbox" {...register('active')} /> {t('admin.activeCheck')}
           </label>
         )}
       </form>

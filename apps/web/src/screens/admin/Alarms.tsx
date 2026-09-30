@@ -1,3 +1,4 @@
+import { t } from '@gd/ui';
 import { useRules, useToggleRule } from '../../api/notifications.js';
 import { tableStyles as s } from '../../components/table.js';
 
@@ -9,26 +10,28 @@ export function AdminAlarms() {
   return (
     <div>
       <p style={{ color: 'var(--gd-ink-muted)', fontSize: 13, marginTop: -8, marginBottom: 16 }}>
-        Системските правила за известувања — вклучи или исклучи по потреба.
+        {t('admin.alarmsHint')}
       </p>
-      {isLoading && <p style={{ color: 'var(--gd-ink-muted)' }}>Вчитување…</p>}
+      {isLoading && <p style={{ color: 'var(--gd-ink-muted)' }}>{t('admin.loading')}</p>}
       {rules && (
         <div style={s.wrap}>
           <table style={s.table}>
             <thead>
               <tr>
-                <th style={s.th}>Правило</th>
-                <th style={s.th}>Опсег</th>
-                <th style={s.th}>Тип</th>
-                <th style={{ ...s.th, textAlign: 'right' }}>Состојба</th>
+                <th style={s.th}>{t('admin.colRule')}</th>
+                <th style={s.th}>{t('admin.colScope')}</th>
+                <th style={s.th}>{t('admin.colType')}</th>
+                <th style={{ ...s.th, textAlign: 'right' }}>{t('admin.colState')}</th>
               </tr>
             </thead>
             <tbody>
               {rules.map((r) => (
                 <tr key={r.id}>
                   <td style={{ ...s.td, fontWeight: 500 }}>{r.name}</td>
-                  <td style={s.td}>{r.scope === 'global' ? 'Глобално' : 'По клиент'}</td>
-                  <td style={s.td}>{r.isSystem ? 'Системско' : 'Прилагодено'}</td>
+                  <td style={s.td}>
+                    {r.scope === 'global' ? t('admin.global') : t('admin.perClient')}
+                  </td>
+                  <td style={s.td}>{r.isSystem ? t('admin.system') : t('admin.custom')}</td>
                   <td style={{ ...s.td, textAlign: 'right' }}>
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                       <button
@@ -61,7 +64,7 @@ export function AdminAlarms() {
                         />
                       </button>
                       <span style={{ fontSize: 12, color: 'var(--gd-ink-muted)', width: 64 }}>
-                        {r.enabled ? 'Вклучено' : 'Исклучено'}
+                        {r.enabled ? t('admin.on') : t('admin.off')}
                       </span>
                     </div>
                   </td>
