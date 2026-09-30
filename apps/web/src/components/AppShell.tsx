@@ -18,6 +18,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { PERMISSIONS, type Role, type Screen } from '@gd/core';
+import { t } from '@gd/ui';
 import { useLogout, useMe } from '../api/auth.js';
 import { MONTH_LABELS } from '../lib/calendar.js';
 import { NotificationsBell } from './NotificationsBell.js';
@@ -35,43 +36,55 @@ const NAV: Array<{
   {
     screen: 'director',
     icon: LayoutDashboard,
-    label: 'Преглед',
-    title: 'Директорски преглед',
+    label: t('components.navOverview'),
+    title: t('components.navOverviewTitle'),
     path: '/',
   },
-  { screen: 'list', icon: ListChecks, label: 'Задачи', path: '/tasks' },
+  { screen: 'list', icon: ListChecks, label: t('components.navTasks'), path: '/tasks' },
   {
     screen: 'calendar',
     icon: CalendarIcon,
-    label: 'Календар',
-    title: 'Календар на објави',
+    label: t('components.navCalendar'),
+    title: t('components.navCalendarTitle'),
     path: '/calendar',
   },
   {
     screen: 'shootCalendar',
     icon: Clapperboard,
-    label: 'Снимања',
-    title: 'Календар на снимање',
+    label: t('components.navShoot'),
+    title: t('components.navShootTitle'),
     path: '/shoot-calendar',
   },
-  { screen: 'clients', icon: Building2, label: 'Клиенти', path: '/clients' },
-  { screen: 'analytics', icon: BarChart3, label: 'Аналитика', path: '/analytics' },
-  { screen: 'admin', icon: Settings, label: 'Админ', path: '/admin' },
-  { screen: 'crm', icon: Handshake, label: 'Продажба', title: 'Продажба', path: '/crm' },
-  { screen: 'meta', icon: Megaphone, label: 'Мета', title: 'Мета', path: '/meta' },
+  { screen: 'clients', icon: Building2, label: t('components.navClients'), path: '/clients' },
+  { screen: 'analytics', icon: BarChart3, label: t('components.navAnalytics'), path: '/analytics' },
+  { screen: 'admin', icon: Settings, label: t('components.navAdmin'), path: '/admin' },
+  {
+    screen: 'crm',
+    icon: Handshake,
+    label: t('components.navCrm'),
+    title: t('components.navCrm'),
+    path: '/crm',
+  },
+  {
+    screen: 'meta',
+    icon: Megaphone,
+    label: t('components.navMeta'),
+    title: t('components.navMeta'),
+    path: '/meta',
+  },
 ];
 
 const TASK_TABS = [
-  { key: 'my', label: 'Мои задачи' },
-  { key: 'list', label: 'Список' },
-  { key: 'board', label: 'Табла' },
+  { key: 'my', label: t('components.tabMy') },
+  { key: 'list', label: t('components.tabList') },
+  { key: 'board', label: t('components.tabBoard') },
 ] as const;
 
 // Екрани што носат 240px контекст-панел + неговото заглавие во топ-стрипот.
 const SIDEBAR_LABEL: Partial<Record<Screen, string>> = {
-  director: 'Преглед',
-  list: 'Работа',
-  clients: 'Клиенти',
+  director: t('components.sbOverview'),
+  list: t('components.sbWork'),
+  clients: t('components.sbClients'),
 };
 
 /** Боја на аватар по улога (Handoff §Employee Avatar Colors). */
@@ -109,10 +122,10 @@ export function AppShell() {
 
   const onTasks = loc.pathname.startsWith('/tasks');
   const currentTab = searchParams.get('tab') ?? 'my';
-  const month = MONTH_LABELS[new Date().getUTCMonth()];
+  const month = MONTH_LABELS[new Date().getUTCMonth()] ?? '';
   const title = onTasks
-    ? `GoDigital V.2 · ${month}`
-    : (active?.title ?? active?.label ?? 'GoDigital');
+    ? t('components.tasksTitle', { month })
+    : (active?.title ?? active?.label ?? t('components.brandFallback'));
 
   // Контекст-панелот (240px) го носи екранот; заглавието стои во истиот топ-стрип,
   // порамнето над панелот (Handoff). Собирањето се води преку ?sb=0.
@@ -157,16 +170,16 @@ export function AppShell() {
             <NavLink
               to="/settings"
               style={avatar(AVATAR_COLOR[me.role])}
-              title={`${me.name} · Поставки`}
-              aria-label="Поставки"
+              title={t('components.avatarTitle', { name: me.name })}
+              aria-label={t('components.settings')}
             >
               {initials(me.name)}
             </NavLink>
             <button
               onClick={() => logout.mutate()}
               style={railLogout}
-              title="Одјава"
-              aria-label="Одјава"
+              title={t('components.logout')}
+              aria-label={t('components.logout')}
             >
               <LogOut size={16} aria-hidden />
             </button>
@@ -183,8 +196,8 @@ export function AppShell() {
               <button
                 onClick={toggleSidebar}
                 style={collapseBtn}
-                title="Собери"
-                aria-label="Собери го панелот"
+                title={t('components.collapse')}
+                aria-label={t('components.collapsePanel')}
               >
                 <ChevronLeft size={16} aria-hidden />
               </button>
@@ -196,8 +209,8 @@ export function AppShell() {
                 <button
                   onClick={toggleSidebar}
                   style={collapseBtn}
-                  title="Отвори"
-                  aria-label="Отвори го панелот"
+                  title={t('components.expand')}
+                  aria-label={t('components.expandPanel')}
                 >
                   <ChevronRight size={16} aria-hidden />
                 </button>
@@ -205,13 +218,13 @@ export function AppShell() {
               <h1 style={brandTitle}>{title}</h1>
               {onTasks && (
                 <div style={{ display: 'flex', gap: 4 }}>
-                  {TASK_TABS.map((t) => (
+                  {TASK_TABS.map((tab) => (
                     <button
-                      key={t.key}
-                      onClick={() => setTab(t.key)}
-                      style={tabBtn(currentTab === t.key)}
+                      key={tab.key}
+                      onClick={() => setTab(tab.key)}
+                      style={tabBtn(currentTab === tab.key)}
                     >
-                      {t.label}
+                      {tab.label}
                     </button>
                   ))}
                 </div>
@@ -221,15 +234,15 @@ export function AppShell() {
               <button
                 onClick={() => setAsking(true)}
                 style={askTopBtn}
-                title="Прашај го помошникот"
-                aria-label="Прашај го помошникот"
+                title={t('components.askAssistant')}
+                aria-label={t('components.askAssistant')}
               >
-                <Sparkles size={14} aria-hidden /> Прашај
+                <Sparkles size={14} aria-hidden /> {t('components.ask')}
               </button>
               <NotificationsBell />
               {me && PERMISSIONS[me.role].nav.includes('admin') && (
                 <NavLink to="/admin" style={topBarLink}>
-                  Админ
+                  {t('components.admin')}
                 </NavLink>
               )}
             </div>

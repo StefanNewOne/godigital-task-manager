@@ -1,6 +1,7 @@
 import type React from 'react';
 import { useState } from 'react';
 import { Sparkles, X } from 'lucide-react';
+import { t } from '@gd/ui';
 import { useAssistant, type AssistantResponse } from '../api/assistant.js';
 
 /** Claude помошник панел (B4, 360px). Прашај за знаење; одговара само од системот, со извори. */
@@ -18,26 +19,30 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
       { question: q },
       {
         onSuccess: (r) => setResult(r),
-        onError: () => setError('Помошникот не е достапен во моментов.'),
+        onError: () => setError(t('components.assistantError')),
       },
     );
   };
 
   return (
-    <aside style={panel} className="gd-slide-in" aria-label="Claude помошник">
+    <aside style={panel} className="gd-slide-in" aria-label={t('components.assistantLabel')}>
       <div style={header}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
-          <Sparkles size={16} aria-hidden /> Прашај
+          <Sparkles size={16} aria-hidden /> {t('components.ask')}
         </span>
-        <button onClick={onClose} style={iconBtn} title="Затвори" aria-label="Затвори">
+        <button
+          onClick={onClose}
+          style={iconBtn}
+          title={t('components.close')}
+          aria-label={t('components.close')}
+        >
           <X size={16} />
         </button>
       </div>
 
       <div style={{ padding: 16, overflow: 'auto', flex: 1 }}>
         <p style={{ fontSize: 13, color: 'var(--gd-ink-muted)', marginTop: 0 }}>
-          Прашај за задачи, клиенти, правила или доцнења. Помошникот чита од знаењето на системот и
-          не менува ништо.
+          {t('components.assistantIntro')}
         </p>
 
         <textarea
@@ -46,12 +51,12 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
           onKeyDown={(e) => {
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit();
           }}
-          placeholder="На пр.: Зошто доцни таскот за Астибо?"
+          placeholder={t('components.assistantPlaceholder')}
           rows={3}
           style={textarea}
         />
         <button onClick={submit} disabled={ask.isPending || !question.trim()} style={askBtn}>
-          {ask.isPending ? 'Размислувам…' : 'Прашај'}
+          {ask.isPending ? t('components.thinking') : t('components.ask')}
         </button>
 
         {error && (
@@ -64,7 +69,7 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
             {result.sources.length > 0 && (
               <div style={{ marginTop: 12 }}>
                 <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)', marginBottom: 6 }}>
-                  Извори
+                  {t('components.sources')}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {result.sources.map((s, i) => (

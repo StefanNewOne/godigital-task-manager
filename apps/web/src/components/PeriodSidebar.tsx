@@ -1,5 +1,6 @@
 import type React from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { t } from '@gd/ui';
 import { MONTH_LABELS } from '../lib/calendar.js';
 
 /**
@@ -28,7 +29,7 @@ export function PeriodSidebar() {
 
   return (
     <aside style={sidebar}>
-      <div style={groupLabel}>Периоди</div>
+      <div style={groupLabel}>{t('components.periods')}</div>
       {periods.map((p) => (
         <button
           key={p.key}

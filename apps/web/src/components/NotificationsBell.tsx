@@ -2,7 +2,7 @@ import type React from 'react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check } from 'lucide-react';
-import { Modal } from '@gd/ui';
+import { Modal, t } from '@gd/ui';
 import { useMarkRead, useNotifications } from '../api/notifications.js';
 import type { NotificationRow } from '../lib/types.js';
 
@@ -12,9 +12,9 @@ const LEVEL_COLOR: Record<string, string> = {
   potsetnik: 'var(--gd-ink-muted)',
 };
 const LEVEL_LABEL: Record<string, string> = {
-  kritichen: 'Критичен',
-  alarm: 'Аларм',
-  potsetnik: 'Потсетник',
+  kritichen: t('components.levelKritichen'),
+  alarm: t('components.levelAlarm'),
+  potsetnik: t('components.levelPotsetnik'),
 };
 
 /** Каде води известувањето: конкретен таск/капа, инаку филтриран список по клиент. */
@@ -43,19 +43,23 @@ export function NotificationsBell() {
 
   return (
     <>
-      <button onClick={() => setOpen(true)} style={bellBtn} title="Аларми">
-        Аларми
+      <button onClick={() => setOpen(true)} style={bellBtn} title={t('components.alarms')}>
+        {t('components.alarms')}
         {items.length > 0 && <span style={badge}>{items.length}</span>}
       </button>
-      <Modal open={open} onClose={() => setOpen(false)} title="Аларми" width={420}>
+      <Modal open={open} onClose={() => setOpen(false)} title={t('components.alarms')} width={420}>
         {items.length === 0 && (
           <div style={{ padding: '8px 0', color: 'var(--gd-ink-muted)', fontSize: 13 }}>
-            Сè е во ред — нема отворени аларми.
+            {t('components.noAlarms')}
           </div>
         )}
         {items.map((n) => (
           <div key={n.id} style={item}>
-            <button onClick={() => openNotification(n)} style={itemBody} title="Отвори">
+            <button
+              onClick={() => openNotification(n)}
+              style={itemBody}
+              title={t('components.open')}
+            >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
                 <span style={levelPill(n.level)}>{LEVEL_LABEL[n.level] ?? n.level}</span>
                 <span style={{ fontSize: 13, fontWeight: 500 }}>{n.title}</span>
@@ -65,8 +69,8 @@ export function NotificationsBell() {
             <button
               onClick={() => markRead.mutate(n.id)}
               style={readBtn}
-              title="Означи прочитано"
-              aria-label="Означи прочитано"
+              title={t('components.markRead')}
+              aria-label={t('components.markRead')}
             >
               <Check size={14} />
             </button>
