@@ -1,4 +1,5 @@
 /** Тенок fetch client. Испраќа/чита JSON, носи cookies, фрла грешка со { code, message }. */
+import { t } from '@gd/ui';
 import { enqueueMutation } from './offlineQueue.js';
 
 export interface ApiError {
@@ -67,10 +68,7 @@ async function request<T>(
     // Мрежна грешка додека сме офлајн → зачувај ја мутацијата за подоцна (C3).
     if (mutating && typeof navigator !== 'undefined' && !navigator.onLine) {
       await enqueueMutation({ id: key!, method, path, body, at: Date.now() });
-      throw new ApiRequestError(
-        'OFFLINE_QUEUED',
-        'Офлајн — промената е зачувана и ќе се синхронизира кога ќе се вратиш онлајн.',
-      );
+      throw new ApiRequestError('OFFLINE_QUEUED', t('errors.offlineQueued'));
     }
     throw netErr;
   }
@@ -82,7 +80,7 @@ async function request<T>(
   if (!res.ok) {
     throw new ApiRequestError(
       json?.code ?? 'UNKNOWN',
-      json?.message ?? 'Настана грешка.',
+      json?.message ?? t('errors.generic'),
       json?.details,
     );
   }

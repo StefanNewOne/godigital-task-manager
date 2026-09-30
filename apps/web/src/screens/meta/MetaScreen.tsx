@@ -42,28 +42,28 @@ type MetaTab =
 
 // Операции O1–O12 (§12) — македонски етикети за UI.
 const OP_LABELS: Record<string, string> = {
-  O1: 'Пауза / активирај',
-  O2: 'Дневен буџет',
-  O3: 'Закажан буџет',
-  O4: 'Реклама од пост',
-  O5: 'Ново видео',
-  O6: 'Копирај ad set',
-  O7: 'Нов ad set',
-  O8: 'Нова кампања',
-  O9: 'Распоред (краен датум)',
-  O10: 'CTA / линк / шаблон',
-  O11: 'Преименување',
-  O12: 'Дуплирај кампања',
+  O1: t('meta.op.O1'),
+  O2: t('meta.op.O2'),
+  O3: t('meta.op.O3'),
+  O4: t('meta.op.O4'),
+  O5: t('meta.op.O5'),
+  O6: t('meta.op.O6'),
+  O7: t('meta.op.O7'),
+  O8: t('meta.op.O8'),
+  O9: t('meta.op.O9'),
+  O10: t('meta.op.O10'),
+  O11: t('meta.op.O11'),
+  O12: t('meta.op.O12'),
 };
 
 const PLAN_STATUS_LABEL: Record<PlanStatus, string> = {
-  pending: 'На чекање',
-  approved: 'Одобрен',
-  syncing: 'Се проверува',
-  done: 'Завршен',
-  rejected: 'Одбиен',
-  mismatch: 'Несовпаѓање',
-  withdrawn: 'Повлечен',
+  pending: t('meta.planStatus.pending'),
+  approved: t('meta.planStatus.approved'),
+  syncing: t('meta.planStatus.syncing'),
+  done: t('meta.planStatus.done'),
+  rejected: t('meta.planStatus.rejected'),
+  mismatch: t('meta.planStatus.mismatch'),
+  withdrawn: t('meta.planStatus.withdrawn'),
 };
 const PLAN_STATUS_COLOR: Record<PlanStatus, string> = {
   pending: '#D97706',
@@ -82,10 +82,10 @@ const SEV_COLOR: Record<string, string> = {
   info: '#0284C7',
 };
 const SEV_LABEL: Record<string, string> = {
-  crit: 'Критично',
-  high: 'Високо',
-  mid: 'Средно',
-  info: 'Инфо',
+  crit: t('meta.sev.crit'),
+  high: t('meta.sev.high'),
+  mid: t('meta.sev.mid'),
+  info: t('meta.sev.info'),
 };
 
 const fmtMoney = (v: number, cur = '€') =>
@@ -344,14 +344,14 @@ function InboxView({ clientId }: { clientId?: string }) {
       >
         <div style={{ padding: 12, display: 'flex', gap: 6 }}>
           <button type="button" onClick={() => setUnreadOnly(false)} style={tabStyle(!unreadOnly)}>
-            Сите
+            {t('meta.filters.all')}
           </button>
           <button type="button" onClick={() => setUnreadOnly(true)} style={tabStyle(unreadOnly)}>
-            Непрочитани
+            {t('meta.filters.unread')}
           </button>
         </div>
         {isLoading && <Loading />}
-        {!isLoading && convos.length === 0 && <Empty text="Нема разговори." />}
+        {!isLoading && convos.length === 0 && <Empty text={t('meta.inbox.noConvos')} />}
         {convos.map((c) => (
           <ConversationListItem
             key={c.id}
@@ -362,7 +362,7 @@ function InboxView({ clientId }: { clientId?: string }) {
         ))}
       </div>
       <div style={{ flex: 1, minWidth: 0, overflowY: 'auto' }}>
-        {openId ? <ConversationDetail id={openId} /> : <Empty text="Избери разговор." />}
+        {openId ? <ConversationDetail id={openId} /> : <Empty text={t('meta.inbox.pickConvo')} />}
       </div>
       {/* Трета колона: Резиме на пораките (§8). */}
       <InboxSummary clientId={clientId} />
@@ -470,7 +470,7 @@ function ConversationListItem({
           />
         )}
         <span style={{ fontWeight: convo.unread ? 700 : 600, fontSize: 13 }}>
-          {convo.participantName ?? 'непознат'}
+          {convo.participantName ?? t('meta.shared.unknown')}
         </span>
         <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--gd-ink-muted)' }}>
           {CHANNEL_LABEL[convo.channel] ?? convo.channel}
@@ -490,7 +490,9 @@ function ConversationDetail({ id }: { id: string }) {
   return (
     <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ fontWeight: 700, fontSize: 15 }}>{conv.participantName ?? 'непознат'}</div>
+        <div style={{ fontWeight: 700, fontSize: 15 }}>
+          {conv.participantName ?? t('meta.shared.unknown')}
+        </div>
         <span style={{ ...sevPill, background: '#EBF2FF', color: '#0052D9' }}>
           {CHANNEL_LABEL[conv.channel] ?? conv.channel}
         </span>
@@ -515,9 +517,7 @@ function ConversationDetail({ id }: { id: string }) {
             }}
           >
             {m.bodyPurgedAt ? (
-              <span style={{ fontStyle: 'italic', opacity: 0.7 }}>
-                текстот е избришан (12 месеци)
-              </span>
+              <span style={{ fontStyle: 'italic', opacity: 0.7 }}>{t('meta.inbox.purged')}</span>
             ) : (
               (m.text ?? '—')
             )}
@@ -536,7 +536,7 @@ function ConversationDetail({ id }: { id: string }) {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <span style={{ fontSize: 11, color: 'var(--gd-ink-muted)', flex: 1 }}>
-          Само читање — одговарај директно во Meta Business Suite.
+          {t('meta.inbox.readOnlyNote')}
         </span>
         <a
           href="https://business.facebook.com/latest/inbox"
@@ -554,11 +554,11 @@ function ConversationDetail({ id }: { id: string }) {
 // ─────────────────────────── Коментари ───────────────────────────
 
 const COMMENT_FILTERS: Array<[string, string]> = [
-  ['', 'Сите'],
-  ['open', 'Необработени'],
-  ['q', 'Прашања'],
-  ['ads', 'Од реклами'],
-  ['bad', 'Поплаки'],
+  ['', t('meta.filters.all')],
+  ['open', t('meta.filters.commentsOpen')],
+  ['q', t('meta.filters.commentsQuestions')],
+  ['ads', t('meta.filters.commentsAds')],
+  ['bad', t('meta.filters.commentsBad')],
 ];
 
 function CommentsView({ clientId }: { clientId?: string }) {
@@ -574,7 +574,7 @@ function CommentsView({ clientId }: { clientId?: string }) {
         ))}
       </div>
       {isLoading && <Loading />}
-      {!isLoading && comments.length === 0 && <Empty text="Нема коментари." />}
+      {!isLoading && comments.length === 0 && <Empty text={t('meta.comments.empty')} />}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {comments.map((c) => (
           <CommentRow key={c.id} comment={c} />
@@ -595,7 +595,9 @@ function CommentRow({ comment }: { comment: MetaCommentRow }) {
     <div style={{ ...rowCard, alignItems: 'flex-start', cursor: 'default' }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontWeight: 600, fontSize: 13 }}>{comment.authorName ?? 'непознат'}</span>
+          <span style={{ fontWeight: 600, fontSize: 13 }}>
+            {comment.authorName ?? t('meta.shared.unknown')}
+          </span>
           {comment.parentObjectType === 'ad' && (
             <span style={{ ...sevPill, background: '#EBF2FF', color: '#0052D9' }}>
               {t('meta.comments.badgeAd')}
@@ -638,9 +640,9 @@ function CommentRow({ comment }: { comment: MetaCommentRow }) {
 
 // Внатрешни ознаки (обработка) — не се праќаат во Meta.
 const TAG_OPTIONS: Array<[string, string]> = [
-  ['done', 'обработено'],
-  ['forClient', 'за клиентот'],
-  ['important', 'важно'],
+  ['done', t('meta.tags.done')],
+  ['forClient', t('meta.tags.forClient')],
+  ['important', t('meta.tags.important')],
 ];
 
 function TagBar({
@@ -661,7 +663,7 @@ function TagBar({
             key={key}
             type="button"
             disabled={disabled}
-            onClick={() => onToggle(on ? tags.filter((t) => t !== key) : [...tags, key])}
+            onClick={() => onToggle(on ? tags.filter((x) => x !== key) : [...tags, key])}
             style={{
               ...sevPill,
               cursor: disabled ? 'default' : 'pointer',
@@ -679,10 +681,10 @@ function TagBar({
 }
 
 const ALERT_FILTERS: Array<[string, string]> = [
-  ['', 'Сите'],
-  ['crit', 'Критично'],
-  ['high', 'Високо'],
-  ['mid', 'Средно'],
+  ['', t('meta.filters.all')],
+  ['crit', t('meta.filters.alertsCrit')],
+  ['high', t('meta.filters.alertsHigh')],
+  ['mid', t('meta.filters.alertsMid')],
 ];
 
 function OverviewView({ clientId }: { clientId?: string }) {
@@ -855,7 +857,7 @@ function AlertRow({ alert, onPatch }: { alert: MetaAlertRow; onPatch: (state: st
         )}
         <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)', marginTop: 2 }}>
           {alert.code}
-          {alert.occurrences > 1 ? ` · ${alert.occurrences} дена` : ''}
+          {alert.occurrences > 1 ? ` · ${t('plural.day', { count: alert.occurrences })}` : ''}
         </div>
       </div>
       <div style={{ display: 'flex', gap: 6, flex: '0 0 auto' }}>
@@ -886,7 +888,7 @@ const CLIENT_COLS = '1.5fr 1.6fr .8fr .9fr .6fr .8fr .6fr 1.3fr';
 
 function ClientsView({ onOpen }: { onOpen: (id: string) => void }) {
   const { data: clients = [] } = useMetaClients();
-  if (clients.length === 0) return <Empty text="Нема клиенти со Meta реклами." />;
+  if (clients.length === 0) return <Empty text={t('meta.clients.empty')} />;
   return (
     <div style={{ padding: 20 }}>
       <div
@@ -946,7 +948,7 @@ function ClientsView({ onOpen }: { onOpen: (id: string) => void }) {
                   {c.name}
                 </span>
                 <span style={{ fontSize: 12, color: 'var(--gd-ink-muted)', marginLeft: 16 }}>
-                  {c.accessLevel === 'read' ? 'само читање' : 'управување'}
+                  {c.accessLevel === 'read' ? t('meta.shared.readOnly') : t('meta.shared.manage')}
                 </span>
               </span>
               <span style={{ fontSize: 13, color: 'var(--gd-ink-secondary)' }}>
@@ -995,7 +997,7 @@ function CrossView({ period }: { period: string }) {
         <Card title={t('meta.cross.kpiCampaigns')} value={String(data.kpis.campaigns)} />
       </div>
 
-      {!hasData && <Empty text="Нема податоци за периодот." />}
+      {!hasData && <Empty text={t('meta.cross.empty')} />}
       {hasData && (
         <div
           style={{
@@ -1135,7 +1137,7 @@ function MetaClientDetail({
               color: readOnly ? '#B45309' : '#0052D9',
             }}
           >
-            {readOnly ? 'само читање' : 'управување'}
+            {readOnly ? t('meta.shared.readOnly') : t('meta.shared.manage')}
           </span>
         )}
       </div>
@@ -1203,15 +1205,18 @@ function MetaClientDetail({
 function OrganicTab({ clientId, period }: { clientId: string; period: string }) {
   const { data } = useMetaClientOrganic(clientId, period);
   if (!data) return <Loading />;
-  if (!data.connected) return <Empty text="Нема поврзана Instagram сметка." />;
+  if (!data.connected) return <Empty text={t('meta.client.orgNotConnected')} />;
   if (data.totals.posts === 0) return <Empty text={t('meta.client.orgEmpty')} />;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        <Card title="Објави" value={String(data.totals.posts)} />
-        <Card title="Досег" value={data.totals.reach.toLocaleString('mk-MK')} />
-        <Card title="Прегледи" value={data.totals.views.toLocaleString('mk-MK')} />
-        <Card title="Ангажман" value={data.totals.engagement.toLocaleString('mk-MK')} />
+        <Card title={t('meta.client.orgPosts')} value={String(data.totals.posts)} />
+        <Card title={t('meta.client.orgReach')} value={data.totals.reach.toLocaleString('mk-MK')} />
+        <Card title={t('meta.client.orgViews')} value={data.totals.views.toLocaleString('mk-MK')} />
+        <Card
+          title={t('meta.client.orgEngagement')}
+          value={data.totals.engagement.toLocaleString('mk-MK')}
+        />
       </div>
       <div
         style={{
@@ -1227,7 +1232,7 @@ function OrganicTab({ clientId, period }: { clientId: string; period: string }) 
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
               <span style={{ fontSize: 12, fontWeight: 600 }}>
-                {p.mediaType === 'video' ? '🎬 Видео' : '🖼 Слика'}
+                {p.mediaType === 'video' ? t('meta.client.orgVideo') : t('meta.client.orgImage')}
               </span>
               {p.inAd && (
                 <span style={{ ...sevPill, background: '#EBF2FF', color: '#0052D9' }}>
@@ -1242,9 +1247,11 @@ function OrganicTab({ clientId, period }: { clientId: string; period: string }) 
               {p.caption ?? '—'}
             </div>
             <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>
-              досег {(p.reach ?? 0).toLocaleString('mk-MK')} · прегледи{' '}
-              {(p.views ?? 0).toLocaleString('mk-MK')} · ангажман{' '}
-              {(p.engagement ?? 0).toLocaleString('mk-MK')}
+              {t('meta.client.orgPostStats', {
+                reach: (p.reach ?? 0).toLocaleString('mk-MK'),
+                views: (p.views ?? 0).toLocaleString('mk-MK'),
+                engagement: (p.engagement ?? 0).toLocaleString('mk-MK'),
+              })}
             </div>
             {p.permalink && (
               <a
@@ -1366,7 +1373,7 @@ function StructureView({
   const [planInit, setPlanInit] = useState<PlanModalInit | null>(null);
 
   if (!data) return <Loading />;
-  if (data.campaigns.length === 0) return <Empty text="Нема кампањи." />;
+  if (data.campaigns.length === 0) return <Empty text={t('meta.client.noCampaigns')} />;
 
   // Најди го избраниот ad set + неговата кампања.
   let selCampaign: StructureCampaign | undefined;
@@ -1486,14 +1493,17 @@ function StructureView({
                 marginTop: 12,
               }}
             >
-              <Card title="Потрошено" value={fmtMoney(selSet.kpi.spend)} />
+              <Card title={t('meta.client.kpiSpend')} value={fmtMoney(selSet.kpi.spend)} />
               <Card
                 title={selCampaign.resultLabel}
                 value={selSet.kpi.results.toLocaleString('mk-MK')}
               />
-              <Card title="Досег" value={selSet.kpi.reach.toLocaleString('mk-MK')} />
               <Card
-                title="Цена/рез"
+                title={t('meta.client.kpiReach')}
+                value={selSet.kpi.reach.toLocaleString('mk-MK')}
+              />
+              <Card
+                title={t('meta.client.kpiCpr')}
                 value={selSet.kpi.cpr != null ? fmtMoney(selSet.kpi.cpr) : '—'}
               />
             </div>
@@ -1555,7 +1565,7 @@ function KpiInline({ kpi, resultLabel }: { kpi: Kpi; resultLabel: string }) {
   return (
     <>
       {fmtMoney(kpi.spend)} · {kpi.results.toLocaleString('mk-MK')} {resultLabel.toLowerCase()}
-      {kpi.cpr != null ? ` · ${fmtMoney(kpi.cpr)}/рез` : ''}
+      {kpi.cpr != null ? ` · ${fmtMoney(kpi.cpr)}${t('meta.client.cprSuffix')}` : ''}
     </>
   );
 }
@@ -1594,7 +1604,9 @@ function Card({ title, value, sub }: { title: string; value: string; sub?: strin
   );
 }
 function Loading() {
-  return <div style={{ padding: 40, color: 'var(--gd-ink-muted)' }}>Вчитување…</div>;
+  return (
+    <div style={{ padding: 40, color: 'var(--gd-ink-muted)' }}>{t('meta.shared.loading')}</div>
+  );
 }
 function Empty({ text }: { text: string }) {
   return (
@@ -1605,11 +1617,11 @@ function Empty({ text }: { text: string }) {
 // ─────────────────────────── Планови (§12) ───────────────────────────
 
 const PLAN_FILTERS: Array<[string, string]> = [
-  ['', 'Сите'],
-  ['pending', 'На чекање'],
-  ['approved', 'Одобрени'],
-  ['syncing', 'Се проверуваат'],
-  ['mismatch', 'Несовпаѓања'],
+  ['', t('meta.filters.all')],
+  ['pending', t('meta.filters.plansPending')],
+  ['approved', t('meta.filters.plansApproved')],
+  ['syncing', t('meta.filters.plansSyncing')],
+  ['mismatch', t('meta.filters.plansMismatch')],
 ];
 
 function PlansView({
@@ -1639,12 +1651,12 @@ function PlansView({
           onClick={() => setCreating(true)}
           style={{ ...tabStyle(false), marginLeft: 'auto', background: '#0866FF', color: '#fff' }}
         >
-          + Нов план
+          {t('meta.plans.newPlan')}
         </button>
       </div>
 
       {isLoading && <Loading />}
-      {!isLoading && plans.length === 0 && <Empty text="Нема планови." />}
+      {!isLoading && plans.length === 0 && <Empty text={t('meta.plans.empty')} />}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {plans.map((p) => (
           <PlanRow
@@ -1923,17 +1935,19 @@ function CreatePlanModal({
   return (
     <div style={modalBackdrop} onClick={onClose}>
       <div style={modalCard} onClick={(e) => e.stopPropagation()}>
-        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>Нов план за промена</div>
-        <label style={modalLabel}>Клиент</label>
+        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>
+          {t('meta.createPlan.title')}
+        </div>
+        <label style={modalLabel}>{t('meta.createPlan.client')}</label>
         <select style={modalInput} value={clientId} onChange={(e) => setClientId(e.target.value)}>
-          <option value="">— избери —</option>
+          <option value="">{t('meta.createPlan.pick')}</option>
           {clients.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
             </option>
           ))}
         </select>
-        <label style={modalLabel}>Операција</label>
+        <label style={modalLabel}>{t('meta.createPlan.op')}</label>
         <select style={modalInput} value={op} onChange={(e) => setOp(e.target.value)}>
           {Object.entries(OP_LABELS).map(([code, label]) => (
             <option key={code} value={code}>
@@ -1941,7 +1955,7 @@ function CreatePlanModal({
             </option>
           ))}
         </select>
-        <label style={modalLabel}>Кампања (Meta ID)</label>
+        <label style={modalLabel}>{t('meta.createPlan.campaign')}</label>
         <input
           style={modalInput}
           value={campaignId}
@@ -1949,7 +1963,7 @@ function CreatePlanModal({
         />
         {op === 'O2' && (
           <>
-            <label style={modalLabel}>Нов дневен буџет (€)</label>
+            <label style={modalLabel}>{t('meta.createPlan.newBudget')}</label>
             <input
               style={modalInput}
               type="number"
@@ -1960,18 +1974,18 @@ function CreatePlanModal({
         )}
         {op === 'O11' && (
           <>
-            <label style={modalLabel}>Ново име</label>
+            <label style={modalLabel}>{t('meta.createPlan.newName')}</label>
             <input style={modalInput} value={name} onChange={(e) => setName(e.target.value)} />
           </>
         )}
-        <label style={modalLabel}>Белешка (опционо)</label>
+        <label style={modalLabel}>{t('meta.createPlan.note')}</label>
         <input style={modalInput} value={note} onChange={(e) => setNote(e.target.value)} />
         <div style={{ fontSize: 11, color: 'var(--gd-ink-muted)', margin: '8px 0' }}>
-          Планот не менува ништо во Meta — промената ја прави Директорот рачно во Ads Manager.
+          {t('meta.createPlan.hint')}
         </div>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
           <button type="button" style={ghostBtn} onClick={onClose}>
-            Откажи
+            {t('meta.createPlan.cancel')}
           </button>
           <button
             type="button"
@@ -1979,7 +1993,7 @@ function CreatePlanModal({
             style={{ ...ghostBtn, background: '#0866FF', color: '#fff', border: 'none' }}
             onClick={submit}
           >
-            Создај
+            {t('meta.createPlan.create')}
           </button>
         </div>
       </div>
@@ -2071,7 +2085,7 @@ function ArchiveView({ canExport, clientId }: { canExport: boolean; clientId?: s
                 <span style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>{r.objectType}</span>
                 <span style={{ fontSize: 12, fontFamily: 'monospace' }}>{r.eventType}</span>
                 <span style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>
-                  {r.actorRole ?? 'система'}
+                  {r.actorRole ?? t('meta.archive.systemActor')}
                 </span>
                 <span>{r.narrative}</span>
               </div>
@@ -2118,10 +2132,7 @@ function AssistantPanel({
         onSuccess: (res) =>
           setMessages((m) => [...m, { role: 'assistant', text: res.answer, draft: res.draft }]),
         onError: () =>
-          setMessages((m) => [
-            ...m,
-            { role: 'assistant', text: 'Настана грешка. Обиди се повторно.' },
-          ]),
+          setMessages((m) => [...m, { role: 'assistant', text: t('meta.assistant.error') }]),
       },
     );
   };
@@ -2167,7 +2178,7 @@ function AssistantPanel({
         <span style={{ fontSize: 14, fontWeight: 600, color: '#0052D9', flex: 1 }}>
           {t('meta.assistant.header')}
         </span>
-        <button type="button" style={chipClear} title="Затвори" onClick={onClose}>
+        <button type="button" style={chipClear} title={t('meta.assistant.close')} onClick={onClose}>
           ✕
         </button>
       </div>
@@ -2177,7 +2188,7 @@ function AssistantPanel({
           value={clientId}
           onChange={(e) => setClientId(e.target.value)}
         >
-          <option value="">Сите клиенти (за план избери еден)</option>
+          <option value="">{t('meta.assistant.allClientsForPlan')}</option>
           {clients.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -2198,8 +2209,7 @@ function AssistantPanel({
       >
         {messages.length === 0 && (
           <div style={{ color: 'var(--gd-ink-muted)', fontSize: 13 }}>
-            Прашај за преглед, алерти, пресек или структура — или подготви план (пр. „буџет 200",
-            „паузирај", „преименувај"). Помошникот само предлага; ти одлучуваш.
+            {t('meta.assistant.intro')}
           </div>
         )}
         {messages.map((m, i) => (
@@ -2268,14 +2278,16 @@ function AssistantPanel({
                   style={{ ...ghostBtn, background: '#0866FF', color: '#fff', border: 'none' }}
                   onClick={() => setDraftToOpen(m.draft!)}
                 >
-                  {isDir ? 'Отвори како план' : 'Прати на одобрување'}
+                  {isDir ? t('meta.assistant.openAsPlan') : t('meta.assistant.sendForApproval')}
                 </button>
               </div>
             )}
           </div>
         ))}
         {chat.isPending && (
-          <div style={{ color: 'var(--gd-ink-muted)', fontSize: 12 }}>Пишува…</div>
+          <div style={{ color: 'var(--gd-ink-muted)', fontSize: 12 }}>
+            {t('meta.assistant.typing')}
+          </div>
         )}
       </div>
 
@@ -2312,7 +2324,7 @@ function AssistantPanel({
           onClick={send}
           disabled={chat.isPending}
         >
-          Прати
+          {t('meta.assistant.send')}
         </button>
       </div>
 
@@ -2357,7 +2369,7 @@ function ConnectionsView() {
                 </div>
                 {tok.expiresAt && (
                   <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)', marginTop: 4 }}>
-                    истек: {fmtDate(tok.expiresAt)}
+                    {t('meta.connections.expires', { date: fmtDate(tok.expiresAt) })}
                   </div>
                 )}
                 {tok.scopes.length > 0 && (
@@ -2409,7 +2421,11 @@ function ConnectionsView() {
                 <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{r.page ?? '—'}</span>
                 <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{r.ig ?? '—'}</span>
                 <span style={{ color: r.igMessages ? '#15803D' : 'var(--gd-ink-muted)' }}>
-                  {r.igMessages == null ? '—' : r.igMessages ? 'да' : 'не'}
+                  {r.igMessages == null
+                    ? '—'
+                    : r.igMessages
+                      ? t('meta.shared.yes')
+                      : t('meta.shared.no')}
                 </span>
               </div>
             ))}

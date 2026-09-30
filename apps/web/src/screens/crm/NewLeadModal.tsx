@@ -26,9 +26,17 @@ export function NewLeadModal({
   const [pkgHint, setPkgHint] = useState('');
   const [agentId, setAgentId] = useState(agents[0]?.id ?? '');
   const [err, setErr] = useState<string | null>(null);
+  const [tried, setTried] = useState(false);
+
+  // Задолжителни (И5): име на бизнис, контакт лице, и телефон ИЛИ мејл.
+  // По обид за поднесување, празните добиваат црвена рамка; серверот сепак валидира.
+  const nameBad = tried && !name.trim();
+  const personBad = tried && !person.trim();
+  const contactBad = tried && !phone.trim() && !email.trim();
 
   const save = () => {
     setErr(null);
+    setTried(true);
     create.mutate(
       {
         name,
@@ -54,17 +62,33 @@ export function NewLeadModal({
           {t('crm.newLeadHint')}
         </p>
         <Field label={t('crm.fBusiness')}>
-          <input style={input} value={name} onChange={(e) => setName(e.target.value)} />
+          <input
+            style={nameBad ? inputErr : input}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
         </Field>
         <Field label={t('crm.fPerson')}>
-          <input style={input} value={person} onChange={(e) => setPerson(e.target.value)} />
+          <input
+            style={personBad ? inputErr : input}
+            value={person}
+            onChange={(e) => setPerson(e.target.value)}
+          />
         </Field>
         <div style={{ display: 'flex', gap: 10 }}>
           <Field label={t('crm.fPhone')}>
-            <input style={input} value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <input
+              style={contactBad ? inputErr : input}
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+            />
           </Field>
           <Field label={t('crm.fEmail')}>
-            <input style={input} value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input
+              style={contactBad ? inputErr : input}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
           </Field>
         </div>
         <Field label={t('crm.fSource')}>
@@ -150,6 +174,7 @@ const input: React.CSSProperties = {
   fontSize: 13,
   boxSizing: 'border-box',
 };
+const inputErr: React.CSSProperties = { ...input, border: '1px solid #B91C1C' };
 const btnGhost: React.CSSProperties = {
   padding: '8px 14px',
   borderRadius: 6,

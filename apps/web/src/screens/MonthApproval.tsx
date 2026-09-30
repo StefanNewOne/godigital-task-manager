@@ -1,6 +1,6 @@
 import type React from 'react';
 import { useEffect, useState } from 'react';
-import { Button } from '@gd/ui';
+import { Button, t } from '@gd/ui';
 import { X } from 'lucide-react';
 import { useApproveMonth, useMonthProposal, type ComboProposal } from '../api/monthlyCalendar.js';
 import { ApiRequestError } from '../lib/api.js';
@@ -27,14 +27,15 @@ export function MonthApproval({ month }: { month: string }) {
     setEdits(init);
   }, [data]);
 
-  if (isLoading) return <div style={panel}>Вчитување…</div>;
+  if (isLoading) return <div style={panel}>{t('monthApproval.loading')}</div>;
   if (!data) return null;
   if (!data.hasStandard) {
     return (
       <div style={panel}>
         <p style={muted}>
-          Прво постави <strong>Стандарден календар</strong> (Календарски поставки) — тогаш системот
-          ќе предложи датуми по комбинација.
+          {t('monthApproval.needStandardPre')}
+          <strong>{t('monthApproval.needStandardBold')}</strong>
+          {t('monthApproval.needStandardMid')}
         </p>
       </div>
     );
@@ -42,7 +43,7 @@ export function MonthApproval({ month }: { month: string }) {
   if (data.combinations.length === 0) {
     return (
       <div style={panel}>
-        <p style={muted}>Нема стандардни клиенти за овој месец.</p>
+        <p style={muted}>{t('monthApproval.noClients')}</p>
       </div>
     );
   }
@@ -56,16 +57,22 @@ export function MonthApproval({ month }: { month: string }) {
       {
         onSuccess: (r) =>
           setToast(
-            `Одобрено: ${r.approvedClients} клиенти${r.skipped ? `, ${r.skipped} веќе` : ''}.`,
+            t('monthApproval.approved', {
+              clients: r.approvedClients,
+              skipped: r.skipped ? t('monthApproval.approvedSkipped', { skipped: r.skipped }) : '',
+            }),
           ),
-        onError: (e) => setToast(e instanceof ApiRequestError ? e.message : 'Грешка.'),
+        onError: (e) =>
+          setToast(e instanceof ApiRequestError ? e.message : t('monthApproval.error')),
       },
     );
 
   return (
     <div style={panel}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>Одобри месец · {month}</h3>
+        <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>
+          {t('monthApproval.title', { month })}
+        </h3>
         <Button
           variant="primary"
           size="toolbar"
@@ -73,13 +80,10 @@ export function MonthApproval({ month }: { month: string }) {
           disabled={approve.isPending}
           onClick={runApprove}
         >
-          {approve.isPending ? 'Одобрување…' : 'Одобри месец'}
+          {approve.isPending ? t('monthApproval.approving') : t('monthApproval.approveMonth')}
         </Button>
       </div>
-      <p style={muted}>
-        Предлог по комбинација (број видеа · графики). Уреди ги датумите; се применува на сите
-        стандардни клиенти со таа комбинација.
-      </p>
+      <p style={muted}>{t('monthApproval.intro')}</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {data.combinations.map((c) => (
           <ComboBlock
@@ -108,21 +112,24 @@ function ComboBlock({
     <div style={block}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <strong style={{ fontSize: 13 }}>
-          {combo.videos} видеа · {combo.graphics} графики
+          {t('monthApproval.comboLine', { videos: combo.videos, graphics: combo.graphics })}
         </strong>
         <span style={muted}>
-          {combo.clients.length} клиенти: {combo.clients.map((c) => c.name).join(', ')}
+          {t('monthApproval.comboClients', {
+            count: combo.clients.length,
+            names: combo.clients.map((c) => c.name).join(', '),
+          })}
         </span>
-        {combo.approved && <span style={okBadge}>одобрено ✓</span>}
+        {combo.approved && <span style={okBadge}>{t('monthApproval.comboApproved')}</span>}
       </div>
       <DateRow
-        label="Видео"
+        label={t('monthApproval.video')}
         dates={edit.videoDates}
         onChange={(d) => onChange('videoDates', d)}
         disabled={combo.approved}
       />
       <DateRow
-        label="Графика"
+        label={t('monthApproval.graphic')}
         dates={edit.graphicDates}
         onChange={(d) => onChange('graphicDates', d)}
         disabled={combo.approved}
