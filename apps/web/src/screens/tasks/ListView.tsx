@@ -17,6 +17,7 @@ import {
   Paperclip,
   Video,
 } from 'lucide-react';
+import { t } from '@gd/ui';
 
 const VIDEO_CAPA_STEPS: GroupStatus[] = ['podgotovka', 'scenarija', 'scenKajKlient', 'snimanje'];
 import type { CoverageRow } from '../../api/overview.js';
@@ -45,9 +46,9 @@ export function ListView(props: ListViewProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   const groupsByClient = grouped
-    ? [...new Set(tasks.map((t) => t.clientId))].map((cid) => ({
+    ? [...new Set(tasks.map((item) => item.clientId))].map((cid) => ({
         cid,
-        rows: tasks.filter((t) => t.clientId === cid),
+        rows: tasks.filter((item) => item.clientId === cid),
       }))
     : [{ cid: '', rows: tasks }];
 
@@ -56,7 +57,7 @@ export function ListView(props: ListViewProps) {
       <CapaStrip {...props} />
 
       {tasks.length === 0 && (
-        <p style={{ color: 'var(--gd-ink-muted)' }}>Нема задачи што одговараат на филтерот.</p>
+        <p style={{ color: 'var(--gd-ink-muted)' }}>{t('tasks.noFilterMatch')}</p>
       )}
 
       {tasks.length > 0 && (
@@ -64,13 +65,13 @@ export function ListView(props: ListViewProps) {
           <div style={{ minWidth: '100%', width: 'max-content' }}>
             <div style={headerRow}>
               {[
-                'Име',
-                'Датум на објава',
-                'Статус',
-                'Улога и доделен',
-                'Датум',
-                'Верзија',
-                'Прилози',
+                t('tasks.colName'),
+                t('tasks.colPublishDate'),
+                t('tasks.colStatus'),
+                t('tasks.colRoleAssignee'),
+                t('tasks.colDate'),
+                t('tasks.colVersion'),
+                t('tasks.colAttachments'),
               ].map((h) => (
                 <div key={h} style={th}>
                   {h}
@@ -104,7 +105,7 @@ export function ListView(props: ListViewProps) {
                           background: client?.color ?? '#ccc',
                         }}
                       />
-                      <span style={{ fontWeight: 600 }}>{client?.name ?? 'Клиент'}</span>
+                      <span style={{ fontWeight: 600 }}>{client?.name ?? t('tasks.client')}</span>
                       <span style={{ color: 'var(--gd-ink-muted)', fontWeight: 400 }}>
                         · {rows.length}
                       </span>
@@ -112,14 +113,14 @@ export function ListView(props: ListViewProps) {
                     </button>
                   )}
                   {isOpen &&
-                    rows.map((t) => (
+                    rows.map((row) => (
                       <Row
-                        key={t.id}
-                        task={t}
-                        client={clientById.get(t.clientId)}
+                        key={row.id}
+                        task={row}
+                        client={clientById.get(row.clientId)}
                         empById={props.empById}
                         compact={compact}
-                        active={openId === t.id}
+                        active={openId === row.id}
                         onOpen={onOpen}
                       />
                     ))}
@@ -163,7 +164,8 @@ function Row({
       >
         <div style={{ ...nameCell, color: 'var(--gd-ink-muted)' }}>
           <span style={{ ...stripe, background: client?.color ?? '#ccc' }} />
-          {client?.name ?? 'Клиент'} · резервиран слот · {fmtDate(task.slot?.date)}
+          {client?.name ?? t('tasks.client')} · {t('tasks.reservedSlot')} ·{' '}
+          {fmtDate(task.slot?.date)}
         </div>
         <div style={cell} />
         <div style={cell}>
@@ -205,7 +207,7 @@ function Row({
           <span style={rowAvatarEmpty} />
         )}
         <span style={ellipsis}>
-          {owner ? ROLE_LABEL[owner] : '—'} · {assignee ?? 'Недоделен'}
+          {owner ? ROLE_LABEL[owner] : '—'} · {assignee ?? t('tasks.undefinedAssignee')}
         </span>
       </div>
       <div style={{ ...cell, fontSize: 13, color: dl ? dlColor(dl.level) : 'var(--gd-ink-muted)' }}>
@@ -225,28 +227,15 @@ function Row({
   );
 }
 
-const CAPA_MONTHS = [
-  'Јануари',
-  'Февруари',
-  'Март',
-  'Април',
-  'Мај',
-  'Јуни',
-  'Јули',
-  'Август',
-  'Септември',
-  'Октомври',
-  'Ноември',
-  'Декември',
-];
-
 function CapaStrip({ groups, clientById, empById, onOpenCapa }: ListViewProps) {
   // Само активни капи (претпродукција) се прикажуваат како картички; затворените се скриени (Handoff).
   const active = groups.filter((g) => g.status !== 'zatvoren');
   if (active.length === 0) return null;
   return (
     <div style={{ marginBottom: 16 }}>
-      <div style={capaStripHead}>Капа таскови · {active.length}</div>
+      <div style={capaStripHead}>
+        {t('tasks.capaTasks')} · {active.length}
+      </div>
       <div style={active.length > 1 ? capaGrid : undefined}>
         {active.map((g) => {
           const client = clientById.get(g.clientId);
@@ -256,7 +245,7 @@ function CapaStrip({ groups, clientById, empById, onOpenCapa }: ListViewProps) {
           const ownerName = ownerId ? empById.get(ownerId)?.name : null;
           const total = g.scenariosTotal || g.plannedCount;
           const [yy, mm] = g.monthKey.split('-');
-          const monthLabel = `${CAPA_MONTHS[Number(mm) - 1] ?? mm} ${yy}`;
+          const monthLabel = `${t(`tasks.months.m${Number(mm)}`)} ${yy}`;
           return (
             <button key={g.id} style={capaBanner} onClick={() => onOpenCapa(g.id)}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -274,7 +263,7 @@ function CapaStrip({ groups, clientById, empById, onOpenCapa }: ListViewProps) {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '6px 0' }}>
                 <span style={{ fontSize: 13, color: 'var(--gd-ink-secondary)' }}>
-                  {g.contentType === 'video' ? 'Видео' : 'Графика'} · {monthLabel}
+                  {g.contentType === 'video' ? t('tasks.video') : t('tasks.graphic')} · {monthLabel}
                 </span>
                 <span style={capaChip}>{meta?.label ?? g.status}</span>
               </div>
@@ -304,8 +293,14 @@ function CapaStrip({ groups, clientById, empById, onOpenCapa }: ListViewProps) {
               )}
               <div style={{ fontSize: 13, color: 'var(--gd-ink-secondary)' }}>
                 {g.contentType === 'video'
-                  ? `${g.scenariosApproved} од ${total} сценарија одобрени${ownerName ? ` · кај ${ownerName}` : ''}`
-                  : `${g.plannedCount} слота во пакетот`}
+                  ? ownerName
+                    ? t('tasks.scenariosApprovedOwner', {
+                        approved: g.scenariosApproved,
+                        total,
+                        owner: ownerName,
+                      })
+                    : t('tasks.scenariosApproved', { approved: g.scenariosApproved, total })
+                  : t('tasks.slotsInPackage', { count: g.plannedCount })}
               </div>
             </button>
           );
@@ -330,7 +325,7 @@ function CoverageChip({ cov }: { cov: CoverageRow }) {
       }}
     >
       <span style={{ width: 24, height: 4, borderRadius: 2, background: clr }} />
-      покриеност {cov.days} {cov.days === 1 ? 'ден' : 'дена'}
+      {t('tasks.coverage', { count: cov.days })}
     </span>
   );
 }

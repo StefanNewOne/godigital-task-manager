@@ -8,7 +8,7 @@ import {
   type ContentType,
   type TaskStatus,
 } from '@gd/core';
-import { Button } from '@gd/ui';
+import { Button, t } from '@gd/ui';
 import { useEmployees } from '../../api/admin.js';
 import { useFiles } from '../../api/files.js';
 import { useActivity, useAddComment, useTask, useTransition } from '../../api/tasks.js';
@@ -65,10 +65,15 @@ export function CreativeViewer({ taskId, onClose }: { taskId: string; onClose: (
       { to, payload },
       {
         onSuccess: () => {
-          setToast(`Пренесено во „${TASK_STATUS_META[to as TaskStatus]?.label ?? to}".`);
+          setToast(
+            t('creativeViewer.movedTo', {
+              status: TASK_STATUS_META[to as TaskStatus]?.label ?? to,
+            }),
+          );
           setReturnComment('');
         },
-        onError: (e) => setToast(e instanceof ApiRequestError ? e.message : 'Грешка.'),
+        onError: (e) =>
+          setToast(e instanceof ApiRequestError ? e.message : t('creativeViewer.error')),
       },
     );
 
@@ -78,12 +83,12 @@ export function CreativeViewer({ taskId, onClose }: { taskId: string; onClose: (
       <div style={topBar}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
           <span style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
-            {selected ? `${selected.kind}` : 'Креатива'}
+            {selected ? `${selected.kind}` : t('creativeViewer.creative')}
           </span>
           {selected?.version != null && (
             <span style={versionPill}>
               v{selected.version}
-              {viewingPrevious ? ' · претходна' : ''}
+              {viewingPrevious ? t('creativeViewer.versionPrevious') : ''}
             </span>
           )}
           <span style={{ color: '#8A93A0', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -93,10 +98,15 @@ export function CreativeViewer({ taskId, onClose }: { taskId: string; onClose: (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {selected && (
             <a href={selected.url} target="_blank" rel="noreferrer" style={downloadLink}>
-              <Download size={16} /> Симни
+              <Download size={16} /> {t('creativeViewer.download')}
             </a>
           )}
-          <button onClick={onClose} style={iconBtn} title="Затвори" aria-label="Затвори">
+          <button
+            onClick={onClose}
+            style={iconBtn}
+            title={t('creativeViewer.close')}
+            aria-label={t('creativeViewer.close')}
+          >
             <X size={18} />
           </button>
         </div>
@@ -106,7 +116,9 @@ export function CreativeViewer({ taskId, onClose }: { taskId: string; onClose: (
         {/* Централна сцена + верзии */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <div style={stage}>
-            {!selected && <span style={{ color: '#8A93A0' }}>Нема прикачена креатива.</span>}
+            {!selected && (
+              <span style={{ color: '#8A93A0' }}>{t('creativeViewer.noCreative')}</span>
+            )}
             {selected && selected.mime.startsWith('image/') && (
               <img src={selected.url} alt={selected.kind} style={media} />
             )}
@@ -115,7 +127,7 @@ export function CreativeViewer({ taskId, onClose }: { taskId: string; onClose: (
             )}
             {selected && !/^(image|video)\//.test(selected.mime) && (
               <a href={selected.url} target="_blank" rel="noreferrer" style={downloadLink}>
-                <Download size={16} /> Отвори фајл
+                <Download size={16} /> {t('creativeViewer.openFile')}
               </a>
             )}
           </div>
@@ -138,7 +150,7 @@ export function CreativeViewer({ taskId, onClose }: { taskId: string; onClose: (
         {/* Странична лента: коментари + одлуки */}
         <aside style={sidebar}>
           <div style={{ padding: 16, borderBottom: '1px solid #262b33', fontWeight: 600 }}>
-            Коментари
+            {t('creativeViewer.comments')}
           </div>
           <div
             style={{
@@ -151,7 +163,9 @@ export function CreativeViewer({ taskId, onClose }: { taskId: string; onClose: (
             }}
           >
             {comments.length === 0 && (
-              <span style={{ color: '#8A93A0', fontSize: 13 }}>Сè уште нема коментари.</span>
+              <span style={{ color: '#8A93A0', fontSize: 13 }}>
+                {t('creativeViewer.noComments')}
+              </span>
             )}
             {comments.map((c, i) => {
               const who = employees?.find((e) => e.id === c.actorId);
@@ -162,7 +176,8 @@ export function CreativeViewer({ taskId, onClose }: { taskId: string; onClose: (
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ color: '#8A93A0', fontSize: 12 }}>
-                      {who?.name ?? 'Систем'} · {c.at.slice(0, 16).replace('T', ' ')}
+                      {who?.name ?? t('creativeViewer.system')} ·{' '}
+                      {c.at.slice(0, 16).replace('T', ' ')}
                     </div>
                     <div>{c.text}</div>
                   </div>
@@ -183,7 +198,7 @@ export function CreativeViewer({ taskId, onClose }: { taskId: string; onClose: (
               <input
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
-                placeholder="Додај коментар…"
+                placeholder={t('creativeViewer.commentPlaceholder')}
                 style={darkInput}
               />
               <Button
@@ -194,7 +209,7 @@ export function CreativeViewer({ taskId, onClose }: { taskId: string; onClose: (
                   addComment.mutate({ body: comment }, { onSuccess: () => setComment('') })
                 }
               >
-                Прати
+                {t('creativeViewer.send')}
               </Button>
             </div>
             {(approveTarget || returnTarget) && (
@@ -203,7 +218,7 @@ export function CreativeViewer({ taskId, onClose }: { taskId: string; onClose: (
                   <input
                     value={returnComment}
                     onChange={(e) => setReturnComment(e.target.value)}
-                    placeholder="Коментар за враќање…"
+                    placeholder={t('creativeViewer.returnCommentPlaceholder')}
                     style={darkInput}
                   />
                 )}
@@ -215,7 +230,7 @@ export function CreativeViewer({ taskId, onClose }: { taskId: string; onClose: (
                       disabled={transition.isPending}
                       onClick={() => doTransition(approveTarget)}
                     >
-                      Одобри
+                      {t('creativeViewer.approve')}
                     </Button>
                   )}
                   {returnTarget && (
@@ -225,7 +240,7 @@ export function CreativeViewer({ taskId, onClose }: { taskId: string; onClose: (
                       disabled={transition.isPending || !returnComment.trim()}
                       onClick={() => doTransition(returnTarget, { comment: returnComment })}
                     >
-                      Врати
+                      {t('creativeViewer.return')}
                     </Button>
                   )}
                 </div>

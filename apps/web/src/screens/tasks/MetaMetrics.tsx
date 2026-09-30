@@ -1,4 +1,5 @@
 import type React from 'react';
+import { t } from '@gd/ui';
 import { useTaskMeta } from '../../api/tasks.js';
 
 /**
@@ -8,11 +9,11 @@ import { useTaskMeta } from '../../api/tasks.js';
 export function MetaMetrics({ taskId, show }: { taskId: string; show: boolean }) {
   const { data, isLoading } = useTaskMeta(taskId, show);
   if (!show) return null;
-  if (isLoading) return <div style={muted}>Вчитување метрики…</div>;
+  if (isLoading) return <div style={muted}>{t('metaMetrics.loading')}</div>;
   if (!data) return null;
 
   if (!data.publication) {
-    return <div style={muted}>Објавата уште не е поврзана со Meta.</div>;
+    return <div style={muted}>{t('metaMetrics.notLinked')}</div>;
   }
   const p = data.publication;
   const cur = data.paid[0]?.currency ?? '€';
@@ -21,24 +22,30 @@ export function MetaMetrics({ taskId, show }: { taskId: string; show: boolean })
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ fontSize: 12, color: '#8A93A0' }}>
-        Meta: {p.resolveStatus === 'resolved' ? 'поврзано' : 'чека резолуција'} ·{' '}
-        {p.platform.toUpperCase()}
+        {t('metaMetrics.metaLine', {
+          state:
+            p.resolveStatus === 'resolved'
+              ? t('metaMetrics.metaConnected')
+              : t('metaMetrics.metaPending'),
+          platform: p.platform.toUpperCase(),
+        })}
       </div>
 
       {/* Органика */}
       {data.organic && (
         <div>
-          <div style={label}>Органски</div>
+          <div style={label}>{t('metaMetrics.organic')}</div>
           <div style={metricRow}>
-            <Metric k="Прегледи" v={data.organic.views.toLocaleString('mk-MK')} />
+            <Metric k={t('metaMetrics.views')} v={data.organic.views.toLocaleString('mk-MK')} />
             {!data.fbPerPostUnavailable && data.organic.reach != null && (
-              <Metric k="Досег" v={data.organic.reach.toLocaleString('mk-MK')} />
+              <Metric k={t('metaMetrics.reach')} v={data.organic.reach.toLocaleString('mk-MK')} />
             )}
-            <Metric k="Ангажман" v={data.organic.engagement.toLocaleString('mk-MK')} />
+            <Metric
+              k={t('metaMetrics.engagement')}
+              v={data.organic.engagement.toLocaleString('mk-MK')}
+            />
           </div>
-          {data.fbPerPostUnavailable && (
-            <div style={muted}>FB по објава нема досег/прегледи (Meta v21).</div>
-          )}
+          {data.fbPerPostUnavailable && <div style={muted}>{t('metaMetrics.fbNoPerPost')}</div>}
         </div>
       )}
 
@@ -46,9 +53,9 @@ export function MetaMetrics({ taskId, show }: { taskId: string; show: boolean })
       {data.paid.length > 0 && (
         <div>
           <div style={label}>
-            Платено{' '}
+            {t('metaMetrics.paid')}{' '}
             {!data.freshness.paidIsFinal && (
-              <span style={muted}>· последни 7 дена не се конечни</span>
+              <span style={muted}>{t('metaMetrics.paidNotFinal')}</span>
             )}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -59,12 +66,12 @@ export function MetaMetrics({ taskId, show }: { taskId: string; show: boolean })
                   {ad.campaignName} · {ad.adSetName}
                 </div>
                 <div style={{ ...metricRow, marginTop: 4 }}>
-                  <Metric k="Потрошено" v={money(ad.spend)} />
-                  <Metric k="Резултати" v={ad.results.toLocaleString('mk-MK')} />
-                  {ad.cpr != null && <Metric k="Цена/рез" v={money(ad.cpr)} />}
+                  <Metric k={t('metaMetrics.spend')} v={money(ad.spend)} />
+                  <Metric k={t('metaMetrics.results')} v={ad.results.toLocaleString('mk-MK')} />
+                  {ad.cpr != null && <Metric k={t('metaMetrics.cpr')} v={money(ad.cpr)} />}
                   {ad.reviewStatus === 'rejected' && (
                     <span style={{ ...pill, background: '#FEF2F2', color: '#B91C1C' }}>
-                      одбиена
+                      {t('metaMetrics.adRejected')}
                     </span>
                   )}
                 </div>
@@ -77,7 +84,7 @@ export function MetaMetrics({ taskId, show }: { taskId: string; show: boolean })
       {/* Планови */}
       {data.plans.length > 0 && (
         <div>
-          <div style={label}>Планови за промена</div>
+          <div style={label}>{t('metaMetrics.changePlans')}</div>
           {data.plans.map((pl) => (
             <div key={pl.id} style={muted}>
               {pl.op} · {pl.status}

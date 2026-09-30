@@ -8,7 +8,7 @@ import {
   canCreate,
   type TaskStatus,
 } from '@gd/core';
-import { Button } from '@gd/ui';
+import { Button, t } from '@gd/ui';
 import {
   ArrowDownUp,
   ChevronDown,
@@ -34,24 +34,10 @@ import { MyTasks } from './MyTasks.js';
 
 type Tab = 'my' | 'list' | 'board';
 const monthOf = (iso: string | null | undefined) => (iso ? iso.slice(0, 7) : null);
-const MK_MONTHS = [
-  'Јануари',
-  'Февруари',
-  'Март',
-  'Април',
-  'Мај',
-  'Јуни',
-  'Јули',
-  'Август',
-  'Септември',
-  'Октомври',
-  'Ноември',
-  'Декември',
-];
 /** „2026-09" → „Септември 2026" (како во Преглед и прототипот). */
 const fmtMonth = (mk: string) => {
   const [y, m] = mk.split('-');
-  return `${MK_MONTHS[Number(m) - 1] ?? m} ${y}`;
+  return `${t(`tasks.months.m${Number(m)}`)} ${y}`;
 };
 
 export function TasksScreen() {
@@ -78,10 +64,10 @@ export function TasksScreen() {
 
   // Отвори таск/капа од известување (?task / ?capa), па исчисти го param-от за да не се повтори.
   useEffect(() => {
-    const t = searchParams.get('task');
+    const taskParam = searchParams.get('task');
     const c = searchParams.get('capa');
-    if (!t && !c) return;
-    if (t) setOpenId(t);
+    if (!taskParam && !c) return;
+    if (taskParam) setOpenId(taskParam);
     if (c) setOpenGroupId(c);
     const next = new URLSearchParams(searchParams);
     next.delete('task');
@@ -112,8 +98,8 @@ export function TasksScreen() {
 
   const monthOptions = useMemo(() => {
     const set = new Set<string>();
-    for (const t of allTasks.data ?? []) {
-      const m = monthOf(t.slot?.date);
+    for (const item of allTasks.data ?? []) {
+      const m = monthOf(item.slot?.date);
       if (m) set.add(m);
     }
     return [...set].sort().reverse();
@@ -121,16 +107,16 @@ export function TasksScreen() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const rows = source.filter((t) => {
-      if (clientId && t.clientId !== clientId) return false;
-      if (statuses.size > 0 && !statuses.has(t.status)) return false;
+    const rows = source.filter((item) => {
+      if (clientId && item.clientId !== clientId) return false;
+      if (statuses.size > 0 && !statuses.has(item.status)) return false;
       if (months.size > 0) {
-        const m = monthOf(t.slot?.date);
+        const m = monthOf(item.slot?.date);
         if (!m || !months.has(m)) return false;
       }
       if (q) {
-        const name = clientById.get(t.clientId)?.name.toLowerCase() ?? '';
-        if (!t.title.toLowerCase().includes(q) && !name.includes(q)) return false;
+        const name = clientById.get(item.clientId)?.name.toLowerCase() ?? '';
+        if (!item.title.toLowerCase().includes(q) && !name.includes(q)) return false;
       }
       return true;
     });
@@ -166,7 +152,7 @@ export function TasksScreen() {
       {/* Контекст sidebar 240px */}
       {sidebarOpen && (
         <aside style={sidebar}>
-          <SidebarGroup label="Месеци">
+          <SidebarGroup label={t('tasks.sbMonths')}>
             {monthOptions.map((m) => (
               <label key={m} style={checkRow}>
                 <input
@@ -176,14 +162,14 @@ export function TasksScreen() {
                 />
                 {fmtMonth(m)}
                 <span style={{ marginLeft: 'auto', color: 'var(--gd-ink-muted)' }}>
-                  {(allTasks.data ?? []).filter((t) => monthOf(t.slot?.date) === m).length}
+                  {(allTasks.data ?? []).filter((item) => monthOf(item.slot?.date) === m).length}
                 </span>
               </label>
             ))}
           </SidebarGroup>
-          <SidebarGroup label="Клиенти">
+          <SidebarGroup label={t('tasks.sbClients')}>
             <button style={clientRow(clientId === '')} onClick={() => setClientId('')}>
-              Сите клиенти
+              {t('tasks.allClients')}
             </button>
             {(clients ?? []).map((c) => (
               <button
@@ -194,7 +180,7 @@ export function TasksScreen() {
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.color }} />
                 {c.name}
                 <span style={{ marginLeft: 'auto', color: 'var(--gd-ink-muted)' }}>
-                  {(allTasks.data ?? []).filter((t) => t.clientId === c.id).length}
+                  {(allTasks.data ?? []).filter((item) => item.clientId === c.id).length}
                 </span>
               </button>
             ))}
@@ -285,7 +271,7 @@ export function TasksScreen() {
           onCreated={(id) => {
             setNewTaskKind(null);
             setOpenId(id);
-            setToast('Дополнителниот таск е создаден.');
+            setToast(t('tasks.extraTaskCreated'));
           }}
           onError={(m) => setToast(m)}
         />
@@ -298,7 +284,7 @@ export function TasksScreen() {
           onCreated={(id) => {
             setNewCapaOpen(false);
             setOpenGroupId(id);
-            setToast('Видео капата е создадена.');
+            setToast(t('tasks.videoCapaCreated'));
           }}
           onError={(m) => setToast(m)}
         />
@@ -333,7 +319,7 @@ function NewTaskModal({
   const [clientId, setClientId] = useState(defaultClientId);
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
-  const startLabel = kind === 'video' ? 'Чека режија' : 'Брифинг';
+  const startLabel = kind === 'video' ? t('tasks.startChekaRezija') : t('tasks.startBrifing');
   const valid = clientId && title.trim() && date;
 
   useEffect(() => {
@@ -346,7 +332,7 @@ function NewTaskModal({
     <div style={modalBackdrop} onClick={onClose}>
       <div style={modalBox} className="gd-fade-up" onClick={(e) => e.stopPropagation()}>
         <div style={{ fontSize: 16, lineHeight: '24px', fontWeight: 600, marginBottom: 4 }}>
-          {kind === 'video' ? 'Ново видео' : 'Нова графика'}
+          {kind === 'video' ? t('tasks.newVideo') : t('tasks.newGraphic')}
         </div>
         <div
           style={{
@@ -356,12 +342,10 @@ function NewTaskModal({
             marginBottom: 16,
           }}
         >
-          Интервентен таск (пр. претходно снимен или интернет материјал) — се додава во капата за
-          месецот на резервиран слот; ако нема капа за тој месец, се создава автоматски. Стартува во
-          „{startLabel}".
+          {t('tasks.extraTaskHint', { start: startLabel })}
         </div>
         <label style={ntLabel}>
-          Клиент
+          {t('tasks.fClient')}
           <select
             className="gd-field"
             value={clientId}
@@ -376,17 +360,17 @@ function NewTaskModal({
           </select>
         </label>
         <label style={ntLabel}>
-          Наслов
+          {t('tasks.fTitle')}
           <input
             className="gd-field"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder={kind === 'video' ? 'пр. Дополнително видео' : 'пр. Дополнителна графика'}
+            placeholder={kind === 'video' ? t('tasks.phVideoTitle') : t('tasks.phGraphicTitle')}
             style={{ marginTop: 4 }}
           />
         </label>
         <label style={ntLabel}>
-          Датум на објава
+          {t('tasks.fPublishDate')}
           <input
             type="date"
             className="gd-field"
@@ -397,7 +381,7 @@ function NewTaskModal({
         </label>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
           <Button variant="secondary" size="form" onClick={onClose}>
-            Откажи
+            {t('tasks.cancel')}
           </Button>
           <Button
             variant="primary"
@@ -407,14 +391,14 @@ function NewTaskModal({
               create.mutate(
                 { clientId, contentType: kind, title: title.trim(), date },
                 {
-                  onSuccess: (t) => onCreated((t as { id: string }).id),
+                  onSuccess: (created) => onCreated((created as { id: string }).id),
                   onError: (e) =>
-                    onError(e instanceof ApiRequestError ? e.message : 'Неуспешно создавање.'),
+                    onError(e instanceof ApiRequestError ? e.message : t('tasks.createFailed')),
                 },
               )
             }
           >
-            Создај задача
+            {t('tasks.createTask')}
           </Button>
         </div>
       </div>
@@ -468,7 +452,7 @@ function NewCapaModal({
     <div style={modalBackdrop} onClick={onClose}>
       <div style={modalBox} className="gd-fade-up" onClick={(e) => e.stopPropagation()}>
         <div style={{ fontSize: 16, lineHeight: '24px', fontWeight: 600, marginBottom: 4 }}>
-          Создај капа
+          {t('tasks.createCapa')}
         </div>
         <div
           style={{
@@ -478,11 +462,10 @@ function NewCapaModal({
             marginBottom: 16,
           }}
         >
-          Нормална видео капа со цела претпродукција (подготовка → сценарија → снимање), независно
-          од календарот. Стартува во „Подготовка".
+          {t('tasks.createCapaHint')}
         </div>
         <label style={ntLabel}>
-          Клиент
+          {t('tasks.fClient')}
           <select
             className="gd-field"
             value={clientId}
@@ -497,7 +480,7 @@ function NewCapaModal({
           </select>
         </label>
         <label style={ntLabel}>
-          Месец
+          {t('tasks.fMonth')}
           <input
             type="month"
             className="gd-field"
@@ -508,7 +491,7 @@ function NewCapaModal({
         </label>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
           <Button variant="secondary" size="form" onClick={onClose}>
-            Откажи
+            {t('tasks.cancel')}
           </Button>
           <Button
             variant="primary"
@@ -520,12 +503,12 @@ function NewCapaModal({
                 {
                   onSuccess: (g) => onCreated((g as { id: string }).id),
                   onError: (e) =>
-                    onError(e instanceof ApiRequestError ? e.message : 'Неуспешно создавање.'),
+                    onError(e instanceof ApiRequestError ? e.message : t('tasks.createFailed')),
                 },
               )
             }
           >
-            Создај капа
+            {t('tasks.createCapa')}
           </Button>
         </div>
       </div>
@@ -563,7 +546,11 @@ interface ToolbarProps {
 }
 
 function Toolbar(p: ToolbarProps) {
-  const SORT_LABEL = { date: 'датум', client: 'клиент', status: 'статус' } as const;
+  const SORT_LABEL = {
+    date: t('tasks.sortDate'),
+    client: t('tasks.sortClient'),
+    status: t('tasks.sortStatus'),
+  } as const;
   const [createOpen, setCreateOpen] = useState(false);
   // Split-копче: примарно „Ново видео" + ▼ за „Нова графика" (Handoff).
   return (
@@ -580,13 +567,13 @@ function Toolbar(p: ToolbarProps) {
                   : undefined
               }
             >
-              <Plus size={14} /> Ново видео
+              <Plus size={14} /> {t('tasks.newVideo')}
             </Button>
             {p.canCreateGraphic && (
               <Button
                 size="toolbar"
                 onClick={() => setCreateOpen((o) => !o)}
-                aria-label="Повеќе"
+                aria-label={t('tasks.more')}
                 style={{
                   borderTopLeftRadius: 0,
                   borderBottomLeftRadius: 0,
@@ -606,7 +593,7 @@ function Toolbar(p: ToolbarProps) {
                     setCreateOpen(false);
                   }}
                 >
-                  Нова графика
+                  {t('tasks.newGraphic')}
                 </button>
               </div>
             )}
@@ -614,7 +601,7 @@ function Toolbar(p: ToolbarProps) {
         ) : (
           p.canCreateGraphic && (
             <Button size="toolbar" onClick={() => p.onCreate('graphic')}>
-              <Plus size={14} /> Нова графика
+              <Plus size={14} /> {t('tasks.newGraphic')}
             </Button>
           )
         )}
@@ -622,14 +609,15 @@ function Toolbar(p: ToolbarProps) {
       {/* Режисер „Создај капа" — видливо копче (нормална видео капа, независно од календар). */}
       {p.canCreateCapa && (
         <Button variant="secondary" size="toolbar" onClick={() => p.onCreate('capa')}>
-          <Plus size={14} /> Создај капа
+          <Plus size={14} /> {t('tasks.createCapa')}
         </Button>
       )}
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
         {(p.tab === 'board' || p.tab === 'list') && (
           <Button variant="secondary" size="toolbar" onClick={p.onGroupBy}>
-            <LayoutGrid size={14} /> {p.groupBy === 'client' ? 'по клиент' : 'по статус'}
+            <LayoutGrid size={14} />{' '}
+            {p.groupBy === 'client' ? t('tasks.byClient') : t('tasks.byStatus')}
           </Button>
         )}
         <select
@@ -638,7 +626,7 @@ function Toolbar(p: ToolbarProps) {
           className="gd-field"
           style={{ width: 160, height: 28 }}
         >
-          <option value="">Сите клиенти</option>
+          <option value="">{t('tasks.allClients')}</option>
           {p.clients.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -647,11 +635,11 @@ function Toolbar(p: ToolbarProps) {
         </select>
         <div style={{ position: 'relative' }}>
           <Button variant="secondary" size="toolbar" onClick={p.onToggleFilter}>
-            <FilterIcon size={14} /> Филтер
+            <FilterIcon size={14} /> {t('tasks.filter')}
           </Button>
           {p.filterOpen && (
             <div style={filterPopover}>
-              <div style={popTitle}>Месеци</div>
+              <div style={popTitle}>{t('tasks.popMonths')}</div>
               {p.monthOptions.map((m) => (
                 <label key={m} style={checkRow}>
                   <input
@@ -662,7 +650,7 @@ function Toolbar(p: ToolbarProps) {
                   {fmtMonth(m)}
                 </label>
               ))}
-              <div style={{ ...popTitle, marginTop: 8 }}>Статус</div>
+              <div style={{ ...popTitle, marginTop: 8 }}>{t('tasks.popStatus')}</div>
               <div style={{ maxHeight: 160, overflow: 'auto' }}>
                 {ALL_STATUSES.map((s) => (
                   <label key={s} style={checkRow}>
@@ -682,7 +670,7 @@ function Toolbar(p: ToolbarProps) {
                   p.setStatuses(new Set());
                 }}
               >
-                Исчисти филтри
+                {t('tasks.clearFilters')}
               </button>
             </div>
           )}
@@ -690,8 +678,13 @@ function Toolbar(p: ToolbarProps) {
         <Button variant="secondary" size="toolbar" onClick={p.onSort}>
           <ArrowDownUp size={14} /> {SORT_LABEL[p.sortBy]}
         </Button>
-        <Button variant="secondary" size="toolbar" onClick={p.onCompact} title="Компактно">
-          <SlidersHorizontal size={14} /> {p.compact ? 'збиено' : 'нормално'}
+        <Button
+          variant="secondary"
+          size="toolbar"
+          onClick={p.onCompact}
+          title={t('tasks.compactTitle')}
+        >
+          <SlidersHorizontal size={14} /> {p.compact ? t('tasks.compact') : t('tasks.normal')}
         </Button>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
           <Search
@@ -701,7 +694,7 @@ function Toolbar(p: ToolbarProps) {
           <input
             value={p.search}
             onChange={(e) => p.onSearch(e.target.value)}
-            placeholder="Пребарај…"
+            placeholder={t('tasks.searchPlaceholder')}
             className="gd-field"
             style={{ width: 180, height: 28, paddingLeft: 28 }}
           />
