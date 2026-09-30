@@ -2,7 +2,7 @@ import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { TaskStatus } from '@gd/core';
-import { Button, Modal, tokens } from '@gd/ui';
+import { Button, Modal, t, tokens } from '@gd/ui';
 import { useClients } from '../api/admin.js';
 import {
   useAllSlots,
@@ -24,24 +24,32 @@ import { StatusBadge } from '../components/StatusBadge.js';
 
 type TypeFilter = 'all' | 'video' | 'graphic';
 
-const WEEKDAY_FULL = ['Понеделник', 'Вторник', 'Среда', 'Четврток', 'Петок', 'Сабота', 'Недела'];
+const WEEKDAY_FULL = [
+  t('calendar.wdMon'),
+  t('calendar.wdTue'),
+  t('calendar.wdWed'),
+  t('calendar.wdThu'),
+  t('calendar.wdFri'),
+  t('calendar.wdSat'),
+  t('calendar.wdSun'),
+];
 
 const SLOT_STATUS_LABEL: Record<string, string> = {
-  predlog: 'предлог',
-  free: 'слободен',
-  reserved: 'резервиран',
-  used: 'искористен',
-  missed: 'пропуштен',
+  predlog: t('calendar.slotPredlog'),
+  free: t('calendar.slotFree'),
+  reserved: t('calendar.slotReserved'),
+  used: t('calendar.slotUsed'),
+  missed: t('calendar.slotMissed'),
 };
 
 /** Легенда (Handoff §2.4) — визуелен клуч на боите. */
 const LEGEND: Array<{ label: string; color: string; dashed?: boolean; prefix?: string }> = [
-  { label: 'Монтажа/Дизајн', color: tokens.statusColor.montaza },
-  { label: 'Одобрување', color: tokens.statusColor.vnatresno },
-  { label: 'Кај клиент', color: tokens.statusColor.kajKlient },
-  { label: 'Објавено', color: tokens.statusColor.mrtov, prefix: '✓' },
-  { label: 'Аналитика', color: tokens.statusColor.analitika, prefix: '◔' },
-  { label: 'Празен слот', color: 'var(--gd-danger)', dashed: true },
+  { label: t('calendar.legMontaza'), color: tokens.statusColor.montaza },
+  { label: t('calendar.legOdobruvanje'), color: tokens.statusColor.vnatresno },
+  { label: t('calendar.legKajKlient'), color: tokens.statusColor.kajKlient },
+  { label: t('calendar.legObjaveno'), color: tokens.statusColor.mrtov, prefix: '✓' },
+  { label: t('calendar.legAnalitika'), color: tokens.statusColor.analitika, prefix: '◔' },
+  { label: t('calendar.legEmptySlot'), color: 'var(--gd-danger)', dashed: true },
 ];
 
 export function Calendar() {
@@ -103,10 +111,10 @@ export function Calendar() {
     (calConfig ?? []).find((c) => c.contentType === 'graphic')?.weekdays ?? [],
   );
   const dayHint = (d: Date, key: string): string => {
-    if (holidaySet.has(key)) return 'празник';
+    if (holidaySet.has(key)) return t('calendar.hintHoliday');
     const wd = d.getUTCDay() === 0 ? 7 : d.getUTCDay();
-    if (videoDays.has(wd)) return 'видео';
-    if (graphicDays.has(wd)) return 'графика';
+    if (videoDays.has(wd)) return t('calendar.hintVideo');
+    if (graphicDays.has(wd)) return t('calendar.hintGraphic');
     return '';
   };
 
@@ -135,26 +143,26 @@ export function Calendar() {
 
   const runConfirm = () =>
     confirm.mutate(undefined, {
-      onSuccess: () => setToast('Месецот е потврден. Слотовите се резервирани.'),
-      onError: (e) => setToast(e instanceof ApiRequestError ? e.message : 'Грешка.'),
+      onSuccess: () => setToast(t('calendar.toastMonthConfirmed')),
+      onError: (e) => setToast(e instanceof ApiRequestError ? e.message : t('calendar.toastError')),
     });
   const runGenerate = () =>
     generate.mutate(undefined, {
-      onSuccess: () => setToast('Предлог-распоредот е генериран.'),
-      onError: (e) => setToast(e instanceof ApiRequestError ? e.message : 'Грешка.'),
+      onSuccess: () => setToast(t('calendar.toastProposalGenerated')),
+      onError: (e) => setToast(e instanceof ApiRequestError ? e.message : t('calendar.toastError')),
     });
 
   return (
     <div style={{ padding: '24px 20px' }}>
       {/* Заглавие + контроли */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-        <button onClick={() => shiftMonth(-1)} style={navBtn} aria-label="Претходен месец">
+        <button onClick={() => shiftMonth(-1)} style={navBtn} aria-label={t('calendar.prevMonth')}>
           <ChevronLeft size={16} />
         </button>
         <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, minWidth: 180 }}>
           {MONTH_LABELS[month0]} {year}
         </h1>
-        <button onClick={() => shiftMonth(1)} style={navBtn} aria-label="Следен месец">
+        <button onClick={() => shiftMonth(1)} style={navBtn} aria-label={t('calendar.nextMonth')}>
           <ChevronRight size={16} />
         </button>
         <select
@@ -163,7 +171,7 @@ export function Calendar() {
           className="gd-field"
           style={{ width: 180, height: 28 }}
         >
-          <option value="">Сите клиенти</option>
+          <option value="">{t('calendar.allClients')}</option>
           {(clients ?? []).map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -171,9 +179,13 @@ export function Calendar() {
           ))}
         </select>
         <div style={{ display: 'flex', gap: 4 }}>
-          {(['all', 'video', 'graphic'] as TypeFilter[]).map((t) => (
-            <button key={t} onClick={() => setTypeFilter(t)} style={toggleBtn(typeFilter === t)}>
-              {t === 'all' ? 'Сè' : t === 'video' ? 'Видео' : 'Графика'}
+          {(['all', 'video', 'graphic'] as TypeFilter[]).map((tf) => (
+            <button key={tf} onClick={() => setTypeFilter(tf)} style={toggleBtn(typeFilter === tf)}>
+              {tf === 'all'
+                ? t('calendar.filterAll')
+                : tf === 'video'
+                  ? t('calendar.filterVideo')
+                  : t('calendar.filterGraphic')}
             </button>
           ))}
         </div>
@@ -185,10 +197,10 @@ export function Calendar() {
               onClick={() => setShowSettings((s) => !s)}
               style={{ marginLeft: 'auto' }}
             >
-              {showSettings ? 'Сокриј поставки' : 'Календарски поставки'}
+              {showSettings ? t('calendar.hideSettings') : t('calendar.settings')}
             </Button>
             <Button variant="secondary" size="toolbar" onClick={() => setShowApproval((s) => !s)}>
-              {showApproval ? 'Сокриј одобрување' : 'Одобри месец'}
+              {showApproval ? t('calendar.hideApproval') : t('calendar.approveMonth')}
             </Button>
           </>
         )}
@@ -225,12 +237,14 @@ export function Calendar() {
       {!allMode && isProposal && (
         <div style={proposalBanner}>
           <span>
-            Предлог за {MONTH_LABELS[month0]}:{' '}
-            {proposal.filter((s) => s.contentType === 'video').length} видео ·{' '}
-            {proposal.filter((s) => s.contentType === 'graphic').length} графика
+            {t('calendar.proposalFor', {
+              month: MONTH_LABELS[month0] ?? '',
+              video: proposal.filter((s) => s.contentType === 'video').length,
+              graphic: proposal.filter((s) => s.contentType === 'graphic').length,
+            })}
           </span>
           <Button size="form" onClick={runConfirm} disabled={confirm.isPending}>
-            {confirm.isPending ? 'Потврдување…' : 'Потврди месец'}
+            {confirm.isPending ? t('calendar.confirming') : t('calendar.confirmMonth')}
           </Button>
         </div>
       )}
@@ -239,17 +253,17 @@ export function Calendar() {
       {!allMode && !isLoading && (slots?.length ?? 0) === 0 && (
         <div style={emptyState}>
           <p style={{ color: 'var(--gd-ink-muted)', margin: '0 0 12px' }}>
-            {MONTH_LABELS[month0]} уште не е испланиран.
+            {t('empty.monthNotPlanned', { month: MONTH_LABELS[month0] ?? '' })}
           </p>
           <Button size="form" onClick={runGenerate} disabled={generate.isPending}>
-            {generate.isPending ? 'Генерирање…' : 'Генерирај распоред'}
+            {generate.isPending ? t('calendar.generating') : t('calendar.generate')}
           </Button>
         </div>
       )}
       {allMode && !isLoading && (slots?.length ?? 0) === 0 && (
         <div style={emptyState}>
           <p style={{ color: 'var(--gd-ink-muted)', margin: 0 }}>
-            Нема слотови за {MONTH_LABELS[month0]} кај ниту еден клиент.
+            {t('calendar.noSlotsAll', { month: MONTH_LABELS[month0] ?? '' })}
           </p>
         </div>
       )}
@@ -280,7 +294,7 @@ export function Calendar() {
                     onDrop={() => {
                       if (!drag) return;
                       if (isPast) {
-                        setToast('Не може да се помести во минато.');
+                        setToast(t('calendar.toastPastDate'));
                         setDrag(null);
                         return;
                       }
@@ -324,9 +338,9 @@ export function Calendar() {
                             style={slotBar(s)}
                             title={
                               s.status === 'predlog'
-                                ? 'Кликни за поместување'
+                                ? t('calendar.moveHint')
                                 : draggable
-                                  ? 'Влечи за промена на датум'
+                                  ? t('calendar.dragHint')
                                   : SLOT_STATUS_LABEL[s.status]
                             }
                           >
@@ -334,8 +348,8 @@ export function Calendar() {
                             {s.task
                               ? s.task.title
                               : s.contentType === 'video'
-                                ? 'Видео'
-                                : 'Графика'}
+                                ? t('calendar.video')
+                                : t('calendar.graphic')}
                             {s.orderInDay === 2 ? ' ②' : ''}
                           </span>
                         );
@@ -355,7 +369,7 @@ export function Calendar() {
           </div>
           {daySlots.length === 0 ? (
             <p style={{ color: 'var(--gd-ink-muted)', fontSize: 13, padding: '8px 0' }}>
-              Нема таскови за овој ден.
+              {t('calendar.noTasksDay')}
             </p>
           ) : (
             daySlots.map((s) => (
@@ -385,7 +399,11 @@ export function Calendar() {
                   )}
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {allMode ? `${clientById.get(s.clientId)?.name ?? '—'} · ` : ''}
-                    {s.task ? s.task.title : s.contentType === 'video' ? '▶ Видео' : '▧ Графика'}
+                    {s.task
+                      ? s.task.title
+                      : s.contentType === 'video'
+                        ? `▶ ${t('calendar.video')}`
+                        : `▧ ${t('calendar.graphic')}`}
                   </span>
                 </span>
                 {s.task ? (
@@ -404,7 +422,7 @@ export function Calendar() {
       <Modal
         open={!!moving}
         onClose={() => setMoving(null)}
-        title="Помести предлог-слот"
+        title={t('calendar.moveSlotTitle')}
         width={360}
       >
         {moving && (
@@ -417,7 +435,12 @@ export function Calendar() {
         )}
       </Modal>
 
-      <Modal open={!!dc} onClose={() => setDc(null)} title="Промени датум" width={360}>
+      <Modal
+        open={!!dc}
+        onClose={() => setDc(null)}
+        title={t('calendar.changeDateTitle')}
+        width={360}
+      >
         {dc && (
           <div>
             <p style={{ fontSize: 13, margin: '0 0 12px' }}>
@@ -425,7 +448,7 @@ export function Calendar() {
               {dc.newDate.slice(0, 4)}
             </p>
             <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--gd-ink-muted)' }}>
-              Причина
+              {t('calendar.reason')}
               <input
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
@@ -435,7 +458,7 @@ export function Calendar() {
             </label>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
               <Button variant="secondary" size="form" onClick={() => setDc(null)}>
-                Откажи
+                {t('calendar.cancel')}
               </Button>
               <Button
                 size="form"
@@ -446,15 +469,17 @@ export function Calendar() {
                     {
                       onSuccess: () => {
                         setDc(null);
-                        setToast('Датумот е променет.');
+                        setToast(t('calendar.toastDateChanged'));
                       },
                       onError: (e) =>
-                        setToast(e instanceof ApiRequestError ? e.message : 'Грешка.'),
+                        setToast(
+                          e instanceof ApiRequestError ? e.message : t('calendar.toastError'),
+                        ),
                     },
                   )
                 }
               >
-                Промени
+                {t('calendar.change')}
               </Button>
             </div>
           </div>
@@ -512,7 +537,7 @@ function MoveForm({
   return (
     <div>
       <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--gd-ink-muted)' }}>
-        Нов датум
+        {t('calendar.newDate')}
         <input
           type="date"
           value={date}
@@ -523,7 +548,7 @@ function MoveForm({
       </label>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
         <Button variant="secondary" size="form" onClick={onClose}>
-          Откажи
+          {t('calendar.cancel')}
         </Button>
         <Button
           size="form"
@@ -534,14 +559,15 @@ function MoveForm({
               {
                 onSuccess: () => {
                   onClose();
-                  setToast('Слотот е поместен.');
+                  setToast(t('calendar.toastSlotMoved'));
                 },
-                onError: (e) => setToast(e instanceof ApiRequestError ? e.message : 'Грешка.'),
+                onError: (e) =>
+                  setToast(e instanceof ApiRequestError ? e.message : t('calendar.toastError')),
               },
             )
           }
         >
-          Помести
+          {t('calendar.move')}
         </Button>
       </div>
     </div>
