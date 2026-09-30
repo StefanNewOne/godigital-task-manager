@@ -50,6 +50,18 @@ Severity: **S1** блокира · **S2** голем · **S3** мал/козме
 - **Инбокс** 4 разговори · **Коментари** 4 · **Пресек** 200. ✓
 - Токен-refresh на 401 работи и низ Мета повиците.
 
+### Продажба — целосен 11-чекор pipeline (точка 1, backend end-to-end)
+
+Лид „Кафе Мока" (Марија агент, Алекс директор) поминат низ сите статуси со реални inputs:
+`novLid→analiza→ponudaIzr→ponudaOdob→ponudaKlient→sostanok→dogIzr→dogOdob→dogKlient→strategija→aktivacija→aktiviran` — секој 200.
+
+- **Presigned R2 upload (И7)** — `POST /files/presign` 201 (single mode) → **PUT на MinIO 200** → `POST /crm/leads/:id/docs` 201. Прикачени: analysis, offer, contract, signed, strategy, fable.
+- **Guard-success** — по прикачување, file-гардираните преоди (analiza→ponudaIzr, ponudaIzr→ponudaOdob, dogIzr→dogOdob, dogKlient→strategija, strategija→aktivacija) поминуваат.
+- **Директорски одобрувања (E_APPROVAL)** — ponudaOdob→ponudaKlient и dogOdob→dogKlient од Директор; наративи „Директорот ја одобри понудата/договорот v1".
+- **Meeting / Package** — `PUT /meeting {held:true}` и `PUT /package` 200 како задолжителен внес пред соодветните преоди.
+- **Активација (E_ACTIVATE)** — aktivacija→aktiviran **создаде реален `Client` „Кафе Мока"** (usesMetaAds=false, standarden календар); наратив „Активираше клиент во Task Manager."
+- Сите наративи append-only, детерминистички, македонски; верзионирање (понуда/договор v1). ✓
+
 ---
 
 ## Тек на тестирање (лог)
