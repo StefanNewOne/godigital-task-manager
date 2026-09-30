@@ -1,7 +1,7 @@
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button } from '@gd/ui';
+import { Button, t } from '@gd/ui';
 import { ChevronDown, ChevronRight, Megaphone } from 'lucide-react';
 import { useMe } from '../api/auth.js';
 import { useClients } from '../api/admin.js';
@@ -55,38 +55,74 @@ const cell = (v: string | number | null): string => {
 function buildClientCsv(d: ClientAnalytics): string {
   const rows: string[] = [];
   const line = (...cells: Array<string | number | null>) => rows.push(cells.map(cell).join(','));
-  line('Клиент', d.clientName);
-  line('Период', `${d.from} - ${d.to}`);
+  line(t('analytics.csvClient'), d.clientName);
+  line(t('analytics.csvPeriod'), `${d.from} - ${d.to}`);
   line('');
 
-  line('INSTAGRAM (органски)');
-  line('Тип', 'Објави', 'Досег', 'Ангажман', 'Прегледи');
+  line(t('analytics.csvIgSection'));
+  line(
+    t('analytics.csvType'),
+    t('analytics.kPosts'),
+    t('analytics.kReach'),
+    t('analytics.kEngagement'),
+    t('analytics.kViews'),
+  );
   for (const k of d.instagram.byKind) {
-    line(k.kind === 'video' ? 'Видео' : 'Слика', k.posts, k.reach, k.engagement, k.views);
+    line(
+      k.kind === 'video' ? t('analytics.kVideo') : t('analytics.kImage'),
+      k.posts,
+      k.reach,
+      k.engagement,
+      k.views,
+    );
   }
   line('');
-  line('IG по месец', 'Досег', 'Ангажман', 'Прегледи', 'Објави');
+  line(
+    t('analytics.csvIgByMonth'),
+    t('analytics.kReach'),
+    t('analytics.kEngagement'),
+    t('analytics.kViews'),
+    t('analytics.kPosts'),
+  );
   for (const m of d.instagram.byMonth) {
     line(m.month, m.reach, m.engagement, m.views, m.posts);
   }
   line('');
 
-  line('FACEBOOK (страница)');
-  line('Месец', 'Следбеници', 'Ангажман', 'Прегледи', 'Нови', 'Видео', 'Реакции');
+  line(t('analytics.csvFbSection'));
+  line(
+    t('analytics.colMonth'),
+    t('analytics.colFollowers'),
+    t('analytics.kEngagement'),
+    t('analytics.kViews'),
+    t('analytics.colNew'),
+    t('analytics.kVideo'),
+    t('analytics.colReactions'),
+  );
   for (const m of d.facebook.byMonth) {
     line(m.month, m.followers, m.engagement, m.pageViews, m.newFollows, m.videoViews, m.reactions);
   }
   line('');
 
-  line('РЕКЛАМИ (платено)');
-  line('Ниво', 'Име', 'Потрошено', 'Досег', 'Импресии', 'CTR %');
+  line(t('analytics.csvAdsSection'));
+  line(
+    t('analytics.csvLevel'),
+    t('analytics.csvName'),
+    t('analytics.kSpend'),
+    t('analytics.kReach'),
+    t('analytics.kImpressions'),
+    'CTR %',
+  );
   const walk = (node: AdNode, level: string) => {
     line(level, node.name, Math.round(node.spend), node.reach, node.impressions, node.ctr ?? '');
     for (const ch of node.children ?? []) {
-      walk(ch, level === 'Кампања' ? 'Публика' : 'Ад');
+      walk(
+        ch,
+        level === t('analytics.csvCampaign') ? t('analytics.csvAudience') : t('analytics.csvAd'),
+      );
     }
   };
-  for (const c of d.ads.campaigns) walk(c, 'Кампања');
+  for (const c of d.ads.campaigns) walk(c, t('analytics.csvCampaign'));
   return rows.join('\r\n');
 }
 
@@ -134,7 +170,7 @@ export function Analytics() {
           ))}
         </select>
         <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
-          Од
+          {t('analytics.from')}
           <input
             type="month"
             className="gd-field"
@@ -145,7 +181,7 @@ export function Analytics() {
           />
         </label>
         <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
-          До
+          {t('analytics.to')}
           <input
             type="month"
             className="gd-field"
@@ -158,12 +194,12 @@ export function Analytics() {
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
           {data && (
             <Button variant="secondary" size="form" onClick={() => downloadClientCsv(data)}>
-              Преземи CSV
+              {t('analytics.downloadCsv')}
             </Button>
           )}
           {canReport && (
             <Button variant="secondary" size="form" onClick={() => setReporting(true)}>
-              Месечен извештај
+              {t('analytics.monthlyReport')}
             </Button>
           )}
         </div>
@@ -187,19 +223,15 @@ export function Analytics() {
         >
           <Megaphone size={20} color="#0866FF" />
           <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 600, fontSize: 14 }}>Отвори Мета</div>
-            <div style={muted}>
-              Кампањи во тек, алерти, пресек и планови за промена се во модулот Мета.
-            </div>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>{t('analytics.openMeta')}</div>
+            <div style={muted}>{t('analytics.openMetaDesc')}</div>
           </div>
           <ChevronRight size={18} color="var(--gd-ink-muted)" />
         </Link>
       )}
 
-      {isLoading && <div style={{ color: 'var(--gd-ink-muted)' }}>Вчитување…</div>}
-      {isError && (
-        <div style={emptyState}>Грешка при вчитување на аналитиката за овој клиент/период.</div>
-      )}
+      {isLoading && <div style={{ color: 'var(--gd-ink-muted)' }}>{t('analytics.loading')}</div>}
+      {isError && <div style={emptyState}>{t('analytics.error')}</div>}
       {data && <ClientAnalyticsView data={data} />}
 
       {reporting && <ReportModal from={from} to={to} onClose={() => setReporting(false)} />}
@@ -213,28 +245,34 @@ function ClientAnalyticsView({ data }: { data: ClientAnalytics }) {
     <>
       {/* Instagram */}
       <section style={card}>
-        <h2 style={cardTitle}>Instagram (органски)</h2>
+        <h2 style={cardTitle}>{t('analytics.igTitle')}</h2>
         {!ig.connected ? (
-          <p style={muted}>Нема поврзана Instagram сметка.</p>
+          <p style={muted}>{t('analytics.igNotConnected')}</p>
         ) : ig.totals.posts === 0 ? (
-          <p style={muted}>Нема објави во периодот.</p>
+          <p style={muted}>{t('analytics.igNoPosts')}</p>
         ) : (
           <>
             <div style={kpiGrid}>
-              <Kpi label="Досег" value={fmtNum(ig.totals.reach)} />
-              <Kpi label="Ангажман" value={fmtNum(ig.totals.engagement)} />
-              <Kpi label="Прегледи" value={fmtNum(ig.totals.views)} />
-              <Kpi label="Објави" value={String(ig.totals.posts)} />
+              <Kpi label={t('analytics.kReach')} value={fmtNum(ig.totals.reach)} />
+              <Kpi label={t('analytics.kEngagement')} value={fmtNum(ig.totals.engagement)} />
+              <Kpi label={t('analytics.kViews')} value={fmtNum(ig.totals.views)} />
+              <Kpi label={t('analytics.kPosts')} value={String(ig.totals.posts)} />
             </div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
               {ig.byKind.map((k) => (
                 <div key={k.kind} style={kindCard}>
                   <div style={{ fontWeight: 600, fontSize: 13 }}>
-                    {k.kind === 'video' ? '🎬 Видео' : '🖼 Слика'} · {k.posts}
+                    {k.kind === 'video'
+                      ? `🎬 ${t('analytics.kVideo')}`
+                      : `🖼 ${t('analytics.kImage')}`}{' '}
+                    · {k.posts}
                   </div>
                   <div style={muted}>
-                    досег {fmtNum(k.reach)} · ангажман {fmtNum(k.engagement)}
-                    {k.kind === 'video' ? ` · прегледи ${fmtNum(k.views)}` : ''}
+                    {t('analytics.kindLine', {
+                      reach: fmtNum(k.reach),
+                      engagement: fmtNum(k.engagement),
+                    })}
+                    {k.kind === 'video' ? t('analytics.kindViews', { views: fmtNum(k.views) }) : ''}
                   </div>
                 </div>
               ))}
@@ -242,10 +280,10 @@ function ClientAnalyticsView({ data }: { data: ClientAnalytics }) {
             <MonthTable
               rows={ig.byMonth}
               cols={[
-                ['Досег', (m) => fmtNum(m.reach)],
-                ['Ангажман', (m) => fmtNum(m.engagement)],
-                ['Прегледи', (m) => fmtNum(m.views)],
-                ['Објави', (m) => String(m.posts)],
+                [t('analytics.kReach'), (m) => fmtNum(m.reach)],
+                [t('analytics.kEngagement'), (m) => fmtNum(m.engagement)],
+                [t('analytics.kViews'), (m) => fmtNum(m.views)],
+                [t('analytics.kPosts'), (m) => String(m.posts)],
               ]}
             />
           </>
@@ -254,13 +292,11 @@ function ClientAnalyticsView({ data }: { data: ClientAnalytics }) {
 
       {/* Facebook */}
       <section style={card}>
-        <h2 style={cardTitle}>Facebook (страница)</h2>
+        <h2 style={cardTitle}>{t('analytics.fbTitle')}</h2>
         {!fb.connected ? (
-          <p style={muted}>Нема поврзана Facebook страница.</p>
+          <p style={muted}>{t('analytics.fbNotConnected')}</p>
         ) : fb.byMonth.length === 0 ? (
-          <p style={muted}>
-            Нема снимени метрики за периодот. Кликни „Повлечи метрики" во Клиенти.
-          </p>
+          <p style={muted}>{t('analytics.fbNoMetrics')}</p>
         ) : (
           <>
             <p style={{ ...muted, margin: '0 0 8px' }}>{fb.note}</p>
@@ -268,13 +304,13 @@ function ClientAnalyticsView({ data }: { data: ClientAnalytics }) {
               <table style={tbl}>
                 <thead>
                   <tr>
-                    <th style={th}>Месец</th>
-                    <th style={thR}>Следбеници</th>
-                    <th style={thR}>Ангажман</th>
-                    <th style={thR}>Прегледи</th>
-                    <th style={thR}>Нови</th>
-                    <th style={thR}>Видео</th>
-                    <th style={thR}>Реакции</th>
+                    <th style={th}>{t('analytics.colMonth')}</th>
+                    <th style={thR}>{t('analytics.colFollowers')}</th>
+                    <th style={thR}>{t('analytics.kEngagement')}</th>
+                    <th style={thR}>{t('analytics.kViews')}</th>
+                    <th style={thR}>{t('analytics.colNew')}</th>
+                    <th style={thR}>{t('analytics.kVideo')}</th>
+                    <th style={thR}>{t('analytics.colReactions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -298,33 +334,33 @@ function ClientAnalyticsView({ data }: { data: ClientAnalytics }) {
 
       {/* Реклами */}
       <section style={card}>
-        <h2 style={cardTitle}>Реклами (платено)</h2>
+        <h2 style={cardTitle}>{t('analytics.adsTitle')}</h2>
         {!ads.connected ? (
-          <p style={muted}>Нема поврзана рекламна сметка.</p>
+          <p style={muted}>{t('analytics.adsNotConnected')}</p>
         ) : ads.campaigns.length === 0 ? (
-          <p style={muted}>Нема реклами во периодот.</p>
+          <p style={muted}>{t('analytics.adsNoAds')}</p>
         ) : (
           <>
             <div style={kpiGrid}>
-              <Kpi label="Потрошено" value={fmtEur(ads.totals.spend)} />
-              <Kpi label="Досег" value={fmtNum(ads.totals.reach)} />
-              <Kpi label="Импресии" value={fmtNum(ads.totals.impressions)} />
-              <Kpi label="Кампањи" value={String(ads.campaigns.length)} />
+              <Kpi label={t('analytics.kSpend')} value={fmtEur(ads.totals.spend)} />
+              <Kpi label={t('analytics.kReach')} value={fmtNum(ads.totals.reach)} />
+              <Kpi label={t('analytics.kImpressions')} value={fmtNum(ads.totals.impressions)} />
+              <Kpi label={t('analytics.kCampaigns')} value={String(ads.campaigns.length)} />
             </div>
             <MonthTable
               rows={ads.byMonth.filter((m) => m.spend > 0)}
               cols={[
-                ['Потрошено', (m) => fmtEur(m.spend)],
-                ['Досег', (m) => fmtNum(m.reach)],
-                ['Импресии', (m) => fmtNum(m.impressions)],
+                [t('analytics.kSpend'), (m) => fmtEur(m.spend)],
+                [t('analytics.kReach'), (m) => fmtNum(m.reach)],
+                [t('analytics.kImpressions'), (m) => fmtNum(m.impressions)],
               ]}
             />
             <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 2 }}>
               <div style={{ ...treeRow, fontWeight: 600, color: 'var(--gd-ink-muted)' }}>
-                <span style={{ flex: 1 }}>Кампања · публика · ад</span>
-                <span style={treeCol}>Потрошено</span>
-                <span style={treeCol}>Досег</span>
-                <span style={treeCol}>CTR</span>
+                <span style={{ flex: 1 }}>{t('analytics.adTree')}</span>
+                <span style={treeCol}>{t('analytics.kSpend')}</span>
+                <span style={treeCol}>{t('analytics.kReach')}</span>
+                <span style={treeCol}>{t('analytics.colCtr')}</span>
               </div>
               {ads.campaigns.map((c) => (
                 <AdTreeRow key={c.id} node={c} depth={0} />
@@ -407,7 +443,7 @@ function MonthTable<T extends AnyMonthRow>({
       <table style={tbl}>
         <thead>
           <tr>
-            <th style={th}>Месец</th>
+            <th style={th}>{t('analytics.colMonth')}</th>
             {cols.map(([h]) => (
               <th key={h} style={thR}>
                 {h}
