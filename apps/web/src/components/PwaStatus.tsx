@@ -1,6 +1,7 @@
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
+import { t } from '@gd/ui';
 import { queryClient } from '../lib/pwa.js';
 import { flushQueue, onQueueChange } from '../lib/offlineQueue.js';
 
@@ -35,22 +36,26 @@ export function PwaStatus() {
     <>
       {!online && (
         <div style={offlineBanner} role="status">
-          Офлајн — прикажани се последно вчитани податоци.
-          {pending > 0 && ` · ${pending} чекани промени`}
+          {t('components.pwaOffline')}
+          {pending > 0 && ` · ${t('components.pwaPending', { count: pending })}`}
         </div>
       )}
       {online && pending > 0 && (
         <div style={offlineBanner} role="status">
-          Синхронизирање… {pending} чекани промени.
+          {t('components.pwaSyncing', { count: pending })}
         </div>
       )}
       {needRefresh && (
         <div style={updateToast} role="alert">
-          <span>Нова верзија е достапна.</span>
+          <span>{t('components.pwaNewVersion')}</span>
           <button style={updateBtn} onClick={() => void updateServiceWorker(true)}>
-            Освежи
+            {t('components.pwaRefresh')}
           </button>
-          <button style={dismissBtn} aria-label="Затвори" onClick={() => setNeedRefresh(false)}>
+          <button
+            style={dismissBtn}
+            aria-label={t('components.close')}
+            onClick={() => setNeedRefresh(false)}
+          >
             ×
           </button>
         </div>

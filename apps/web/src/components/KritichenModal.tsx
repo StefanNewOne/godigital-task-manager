@@ -1,5 +1,6 @@
 import type React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { t } from '@gd/ui';
 import { useMarkRead, useNotifications } from '../api/notifications.js';
 import { notificationTarget } from './NotificationsBell.js';
 
@@ -21,19 +22,28 @@ export function KritichenModal() {
   };
 
   return (
-    <div style={overlay} role="alertdialog" aria-modal="true" aria-label="Критичен аларм">
+    <div
+      style={overlay}
+      role="alertdialog"
+      aria-modal="true"
+      aria-label={t('components.critAlarm')}
+    >
       <div style={panel}>
-        <div style={badge}>Критичен</div>
+        <div style={badge}>{t('components.levelKritichen')}</div>
         <h2 style={title}>{crit.title}</h2>
         <p style={body}>{crit.body}</p>
         <div style={actions}>
           {(crit.taskId || crit.groupId || crit.clientId) && (
             <button style={openBtn} onClick={() => acknowledge(true)}>
-              {crit.taskId ? 'Отвори го таскот' : crit.groupId ? 'Отвори ја капата' : 'Отвори'}
+              {crit.taskId
+                ? t('components.openTask')
+                : crit.groupId
+                  ? t('components.openCapa')
+                  : t('components.open')}
             </button>
           )}
           <button style={seenBtn} onClick={() => acknowledge(false)} autoFocus>
-            Видено
+            {t('components.seen')}
           </button>
         </div>
       </div>
