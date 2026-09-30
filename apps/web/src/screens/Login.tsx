@@ -1,6 +1,7 @@
 import type React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Link } from 'react-router-dom';
 import { loginSchema, type LoginInput } from '@gd/core';
 import { t } from '@gd/ui';
 import { ApiRequestError } from '../lib/api.js';
@@ -78,6 +79,17 @@ export function Login() {
         <button type="submit" disabled={login.isPending} style={btnStyle}>
           {login.isPending ? t('login.signingIn') : t('login.signIn')}
         </button>
+        <Link
+          to="/forgot-password"
+          style={{
+            fontSize: 13,
+            color: 'var(--gd-primary)',
+            textDecoration: 'none',
+            textAlign: 'center',
+          }}
+        >
+          {t('login.forgotLink')}
+        </Link>
       </form>
     </div>
   );

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { LoginInput } from '@gd/core';
+import type { LoginInput, ForgotPasswordInput, ResetPasswordInput } from '@gd/core';
 import { api } from '../lib/api.js';
 import type { Me } from '../lib/types.js';
 
@@ -30,5 +30,18 @@ export function useLogout() {
     onSuccess: () => {
       qc.clear();
     },
+  });
+}
+
+// Заборавена лозинка (H4).
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: (input: ForgotPasswordInput) => api.post('/auth/forgot-password', input),
+  });
+}
+
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: (input: ResetPasswordInput) => api.post('/auth/reset-password', input),
   });
 }

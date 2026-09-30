@@ -9,6 +9,8 @@ import { Calendar } from './screens/Calendar.js';
 import { ShootCalendar } from './screens/ShootCalendar.js';
 import { Clients } from './screens/Clients.js';
 import { Login } from './screens/Login.js';
+import { ForgotPassword } from './screens/ForgotPassword.js';
+import { ResetPassword } from './screens/ResetPassword.js';
 import { Overview } from './screens/Overview.js';
 import { Placeholder } from './screens/Placeholder.js';
 import { Settings } from './screens/Settings.js';
@@ -66,7 +68,16 @@ export function App() {
     return <div style={{ padding: 24, color: 'var(--gd-ink-muted)' }}>{t('errors.loading')}</div>;
   }
   if (isError || !me) {
-    return <Login />;
+    // Најавата + јавните auth екрани (заборавена/нова лозинка, H4) живеат во свој router.
+    return (
+      <BrowserRouter>
+        <Routes>
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="*" element={<Login />} />
+        </Routes>
+      </BrowserRouter>
+    );
   }
 
   return (

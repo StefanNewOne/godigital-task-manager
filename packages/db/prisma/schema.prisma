@@ -367,6 +367,23 @@ model Employee {
   updatedAt         DateTime  @updatedAt
   // DB check (миграција): isScenaristToo = true само ако role = 'rez'.
 
+  resetTokens PasswordResetToken[]
+
+  @@index([tenantId])
+}
+
+// Заборавена лозинка (H4): еднократен токен со рок. Се чува САМО hash на токенот (§12).
+model PasswordResetToken {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  tenantId   String    @default("godigital")
+  employeeId String    @db.Uuid
+  employee   Employee  @relation(fields: [employeeId], references: [id])
+  tokenHash  String // sha-256 hex на опаковиот токен; никогаш plaintext
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([employeeId])
   @@index([tenantId])
 }
 

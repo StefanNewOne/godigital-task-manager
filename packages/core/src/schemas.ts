@@ -20,6 +20,18 @@ export const loginSchema = z.object({
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
+// ── Заборавена лозинка (H4) ──
+export const forgotPasswordSchema = z.object({
+  email: z.string().email('Неважечки е-мејл.'),
+});
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, 'Токенот е задолжителен.'),
+  password: z.string().min(8, 'Лозинката мора да има барем 8 знаци.'),
+});
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
 // ── Employee ──
 export const employeeCreateSchema = z
   .object({
