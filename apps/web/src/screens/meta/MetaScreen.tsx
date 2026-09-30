@@ -36,15 +36,7 @@ import {
 } from '../../api/meta.js';
 
 type MetaTab =
-  | 'overview'
-  | 'clients'
-  | 'cross'
-  | 'inbox'
-  | 'comments'
-  | 'plans'
-  | 'archive'
-  | 'connections'
-  | 'assistant';
+  'overview' | 'clients' | 'cross' | 'inbox' | 'comments' | 'plans' | 'archive' | 'connections';
 
 // Операции O1–O12 (§12) — македонски етикети за UI.
 const OP_LABELS: Record<string, string> = {
@@ -116,6 +108,7 @@ export function MetaScreen() {
 
   // Инбокс + Коментари се достапни за сите три улоги; управувачките табови само за dir/ana (§3).
   const isManager = me.role === 'dir' || me.role === 'ana';
+  // Асистентот е страничен панел (toggle), не таб (TD-11a).
   const managerTabs: MetaTab[] = [
     'overview',
     'clients',
@@ -123,7 +116,6 @@ export function MetaScreen() {
     'plans',
     'archive',
     'connections',
-    'assistant',
     'inbox',
     'comments',
   ];
@@ -137,6 +129,15 @@ export function MetaScreen() {
   const setTab = (t: MetaTab) => {
     const next = new URLSearchParams(params);
     next.set('tab', t);
+    setParams(next);
+  };
+
+  // Асистент панел (§11) — состојба во URL за да го отвораат и топ-барот и „Прашај" од Утрински.
+  const assistantOpen = isManager && params.get('assistant') === '1';
+  const setAssistantOpen = (open: boolean) => {
+    const next = new URLSearchParams(params);
+    if (open) next.set('assistant', '1');
+    else next.delete('assistant');
     setParams(next);
   };
 
@@ -167,39 +168,48 @@ export function MetaScreen() {
           setPeriod={setPeriod}
           filterClientId={filterClientId}
           setFilterClientId={setFilterClientId}
+          assistantOpen={assistantOpen}
+          onToggleAssistant={() => setAssistantOpen(!assistantOpen)}
         />
       )}
 
-      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-        {openClient ? (
-          <MetaClientDetail
-            clientId={openClient}
-            onBack={() => setOpenClient(null)}
-            period={period}
-            canEdit={me.role === 'dir'}
+      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+          {openClient ? (
+            <MetaClientDetail
+              clientId={openClient}
+              onBack={() => setOpenClient(null)}
+              period={period}
+              canEdit={me.role === 'dir'}
+            />
+          ) : tab === 'overview' ? (
+            <OverviewView clientId={filterClientId || undefined} />
+          ) : tab === 'clients' ? (
+            <ClientsView onOpen={setOpenClient} />
+          ) : tab === 'cross' ? (
+            <CrossView period={period} />
+          ) : tab === 'plans' ? (
+            <PlansView
+              canApprove={me.role === 'dir'}
+              myId={me.id}
+              clientId={filterClientId || undefined}
+            />
+          ) : tab === 'archive' ? (
+            <ArchiveView canExport={me.role === 'dir'} clientId={filterClientId || undefined} />
+          ) : tab === 'connections' ? (
+            <ConnectionsView />
+          ) : tab === 'inbox' ? (
+            <InboxView clientId={filterClientId || undefined} />
+          ) : (
+            <CommentsView clientId={filterClientId || undefined} />
+          )}
+        </div>
+        {assistantOpen && (
+          <AssistantPanel
+            isDir={me.role === 'dir'}
+            initialClientId={filterClientId || ''}
+            onClose={() => setAssistantOpen(false)}
           />
-        ) : tab === 'overview' ? (
-          <OverviewView clientId={filterClientId || undefined} />
-        ) : tab === 'clients' ? (
-          <ClientsView onOpen={setOpenClient} />
-        ) : tab === 'cross' ? (
-          <CrossView period={period} />
-        ) : tab === 'plans' ? (
-          <PlansView
-            canApprove={me.role === 'dir'}
-            myId={me.id}
-            clientId={filterClientId || undefined}
-          />
-        ) : tab === 'archive' ? (
-          <ArchiveView canExport={me.role === 'dir'} clientId={filterClientId || undefined} />
-        ) : tab === 'connections' ? (
-          <ConnectionsView />
-        ) : tab === 'assistant' ? (
-          <AssistantView isDir={me.role === 'dir'} />
-        ) : tab === 'inbox' ? (
-          <InboxView clientId={filterClientId || undefined} />
-        ) : (
-          <CommentsView clientId={filterClientId || undefined} />
         )}
       </div>
     </div>
@@ -219,11 +229,15 @@ function MetaControlsBar({
   setPeriod,
   filterClientId,
   setFilterClientId,
+  assistantOpen,
+  onToggleAssistant,
 }: {
   period: string;
   setPeriod: (p: string) => void;
   filterClientId: string;
   setFilterClientId: (id: string) => void;
+  assistantOpen: boolean;
+  onToggleAssistant: () => void;
 }) {
   const { data: clients = [] } = useMetaClients();
   const { data: ov } = useMetaOverview();
@@ -289,6 +303,19 @@ function MetaControlsBar({
         onClick={() => refresh.mutate(filterClientId || undefined)}
       >
         {refresh.isPending ? t('meta.topbar.refreshing') : t('meta.topbar.refresh')}
+      </button>
+      <button
+        type="button"
+        style={{
+          ...ghostBtn,
+          borderColor: '#C7DCFF',
+          background: assistantOpen ? '#0866FF' : '#fff',
+          color: assistantOpen ? '#fff' : '#0052D9',
+          fontWeight: 500,
+        }}
+        onClick={onToggleAssistant}
+      >
+        {t('meta.tabs.assistant')}
       </button>
     </div>
   );
@@ -757,7 +784,7 @@ function OverviewView({ clientId }: { clientId?: string }) {
             onClick={() =>
               setParams((p) => {
                 const n = new URLSearchParams(p);
-                n.set('tab', 'assistant');
+                n.set('assistant', '1');
                 return n;
               })
             }
@@ -1920,9 +1947,17 @@ interface ChatMsg {
   draft?: PlanDraft | null;
 }
 
-function AssistantView({ isDir }: { isDir: boolean }) {
+function AssistantPanel({
+  isDir,
+  initialClientId,
+  onClose,
+}: {
+  isDir: boolean;
+  initialClientId: string;
+  onClose: () => void;
+}) {
   const { data: clients = [] } = useMetaClients();
-  const [clientId, setClientId] = useState('');
+  const [clientId, setClientId] = useState(initialClientId);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [draftToOpen, setDraftToOpen] = useState<PlanDraft | null>(null);
@@ -1964,21 +1999,37 @@ function AssistantView({ isDir }: { isDir: boolean }) {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+    <div
+      style={{
+        width: 380,
+        flexShrink: 0,
+        borderLeft: '1px solid var(--gd-border)',
+        background: '#fff',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        minHeight: 0,
+      }}
+    >
       <div
         style={{
           padding: 12,
           borderBottom: '1px solid var(--gd-border)',
           display: 'flex',
           alignItems: 'center',
-          gap: 12,
+          gap: 8,
         }}
       >
-        <span style={{ fontSize: 14, fontWeight: 600, color: '#0052D9' }}>
+        <span style={{ fontSize: 14, fontWeight: 600, color: '#0052D9', flex: 1 }}>
           {t('meta.assistant.header')}
         </span>
+        <button type="button" style={chipClear} title="Затвори" onClick={onClose}>
+          ✕
+        </button>
+      </div>
+      <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--gd-border)' }}>
         <select
-          style={{ ...modalInput, width: 260 }}
+          style={{ ...modalInput, width: '100%' }}
           value={clientId}
           onChange={(e) => setClientId(e.target.value)}
         >
