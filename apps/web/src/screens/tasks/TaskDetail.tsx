@@ -32,7 +32,7 @@ import {
   type Role,
   type TaskStatus,
 } from '@gd/core';
-import { Button, tokens } from '@gd/ui';
+import { Button, t, tokens } from '@gd/ui';
 import { useMe } from '../../api/auth.js';
 import { useClients, useEmployees } from '../../api/admin.js';
 import { useFileUpload, useFiles } from '../../api/files.js';
@@ -131,20 +131,20 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
 
   useEffect(() => {
     if (!toasts.length) return;
-    const t = setTimeout(() => setToasts((x) => x.slice(1)), 4200);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setToasts((x) => x.slice(1)), 4200);
+    return () => clearTimeout(timer);
   }, [toasts]);
 
   const pushToast = (text: string) =>
-    setToasts((t) => [...t, { id: Date.now() + Math.random(), text }]);
+    setToasts((prev) => [...prev, { id: Date.now() + Math.random(), text }]);
   const onErr = (e: unknown) =>
-    pushToast(e instanceof ApiRequestError ? e.message : 'Настана грешка.');
+    pushToast(e instanceof ApiRequestError ? e.message : t('taskDetail.genericError'));
   const set = (patch: Partial<typeof wz>) => setWz((w) => ({ ...w, ...patch }));
 
   if (!task) {
     return (
       <aside style={panel(false)}>
-        <div style={{ padding: 24, color: 'var(--gd-ink-muted)' }}>Вчитување…</div>
+        <div style={{ padding: 24, color: 'var(--gd-ink-muted)' }}>{t('taskDetail.loading')}</div>
       </aside>
     );
   }
@@ -156,7 +156,7 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
     ['final', 'graphic', 'preview'].includes(f.kind),
   );
   const empName = (id: string | null) =>
-    id ? (employees?.find((e) => e.id === id)?.name ?? '—') : 'Недоделен';
+    id ? (employees?.find((e) => e.id === id)?.name ?? '—') : t('taskDetail.undefinedAssignee');
   const assigneeEmp = task.assigneeId
     ? employees?.find((e) => e.id === task.assigneeId)
     : undefined;
@@ -198,7 +198,11 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
 
   const doTransition = (to: string, payload: Record<string, unknown> = {}) => {
     if (actingOnBehalf && !behalfReason.trim()) {
-      pushToast(`Внеси причина — дејствуваш наместо ${owner ? ROLE_LABEL[owner] : 'улогата'}.`);
+      pushToast(
+        t('taskDetail.behalfToast', {
+          owner: owner ? ROLE_LABEL[owner] : t('taskDetail.behalfToastRole'),
+        }),
+      );
       return;
     }
     const merged = actingOnBehalf ? { reason: behalfReason, ...payload } : payload;
@@ -206,7 +210,9 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
       { to, payload: merged },
       {
         onSuccess: () => {
-          pushToast(`Пренесено во „${TASK_STATUS_META[to as TaskStatus]?.label ?? to}".`);
+          pushToast(
+            t('taskDetail.movedTo', { status: TASK_STATUS_META[to as TaskStatus]?.label ?? to }),
+          );
           set({ brief: '', copy: '', comment: '', assigneeId: '', permalink: '' });
           setBehalfReason('');
         },
@@ -221,7 +227,7 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
       {
         onSuccess: () => {
           setPromoDecision(decision);
-          pushToast(decision === 'paid' ? 'Одлука: во реклами.' : 'Одлука: органски.');
+          pushToast(decision === 'paid' ? t('taskDetail.promoPaid') : t('taskDetail.promoOrganic'));
         },
         onError: onErr,
       },
@@ -236,7 +242,7 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
         { ownerType: 'task', ownerId: task.id, kind, file },
         {
           onSuccess: () => {
-            pushToast('Фајлот е прикачен.');
+            pushToast(t('taskDetail.fileUploaded'));
             doTransition(next, { comment: undefined });
           },
           onError: onErr,
@@ -264,13 +270,17 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
           </div>
           <button
             style={iconBtn}
-            title={expanded ? 'Собери' : 'Прошири'}
+            title={expanded ? t('taskDetail.collapse') : t('taskDetail.expand')}
             onClick={() => setExpanded((v) => !v)}
           >
             {expanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
           </button>
           <div style={{ position: 'relative' }}>
-            <button style={iconBtn} title="Повеќе" onClick={() => setMenuOpen((v) => !v)}>
+            <button
+              style={iconBtn}
+              title={t('taskDetail.more')}
+              onClick={() => setMenuOpen((v) => !v)}
+            >
               <MoreHorizontal size={18} />
             </button>
             {menuOpen && (
@@ -283,7 +293,7 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
                       setMenuOpen(false);
                     }}
                   >
-                    <Play size={14} /> Врати од пауза
+                    <Play size={14} /> {t('taskDetail.resumeFromPause')}
                   </button>
                 )}
                 {canPauseNow && status !== 'pauza' && (
@@ -295,7 +305,7 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
                       setMenuOpen(false);
                     }}
                   >
-                    <Pause size={14} /> Пауза
+                    <Pause size={14} /> {t('taskDetail.pause')}
                   </button>
                 )}
                 {canDate && (
@@ -308,7 +318,7 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
                       setMenuOpen(false);
                     }}
                   >
-                    <CalendarClock size={14} /> Промени датум
+                    <CalendarClock size={14} /> {t('taskDetail.changeDate')}
                   </button>
                 )}
                 {canCancelNow && (
@@ -320,13 +330,13 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
                       setMenuOpen(false);
                     }}
                   >
-                    <Ban size={14} /> Откажи
+                    <Ban size={14} /> {t('taskDetail.cancel')}
                   </button>
                 )}
               </div>
             )}
           </div>
-          <button style={iconBtn} title="Затвори" onClick={onClose}>
+          <button style={iconBtn} title={t('taskDetail.close')} onClick={onClose}>
             <X size={18} />
           </button>
         </div>
@@ -340,7 +350,7 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
 
           {/* Мета */}
           <dl style={metaGrid}>
-            <dt style={dt}>Клиент</dt>
+            <dt style={dt}>{t('taskDetail.client')}</dt>
             <dd style={{ ...dd, display: 'flex', alignItems: 'center', gap: 6 }}>
               <span
                 style={{
@@ -353,16 +363,16 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
               />
               {task.client.name}
             </dd>
-            <dt style={dt}>Тип</dt>
-            <dd style={dd}>{ct === 'video' ? 'Видео' : 'Графика'}</dd>
-            <dt style={dt}>Доделен</dt>
+            <dt style={dt}>{t('taskDetail.type')}</dt>
+            <dd style={dd}>{ct === 'video' ? t('taskDetail.video') : t('taskDetail.graphic')}</dd>
+            <dt style={dt}>{t('taskDetail.assignee')}</dt>
             <dd style={{ ...dd, display: 'flex', alignItems: 'center', gap: 6 }}>
               {assigneeEmp && (
                 <span style={metaAvatar(assigneeEmp.color)}>{metaInitials(assigneeEmp.name)}</span>
               )}
               {empName(task.assigneeId)}
             </dd>
-            <dt style={dt}>Датум на објава</dt>
+            <dt style={dt}>{t('taskDetail.publishDate')}</dt>
             <dd style={dd}>
               {task.slot ? fmtDate(task.slot.date) : '—'}
               {canDate && (
@@ -374,13 +384,13 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
                     setModalDate('');
                   }}
                 >
-                  Промени датум
+                  {t('taskDetail.changeDate')}
                 </button>
               )}
             </dd>
             {deadline && (
               <>
-                <dt style={dt}>Рок за овој статус</dt>
+                <dt style={dt}>{t('taskDetail.statusDeadline')}</dt>
                 <dd
                   style={{
                     ...dd,
@@ -393,10 +403,12 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
                 </dd>
               </>
             )}
-            <dt style={dt}>Приоритет</dt>
+            <dt style={dt}>{t('taskDetail.priority')}</dt>
             <dd style={dd}>
               <span style={priorityChip(task.priority === 'iten')}>
-                {task.priority === 'iten' ? 'итен' : 'нормален'}
+                {task.priority === 'iten'
+                  ? t('taskDetail.priorityUrgent')
+                  : t('taskDetail.priorityNormal')}
               </span>
             </dd>
           </dl>
@@ -406,7 +418,7 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
             locked={locked}
             terminal={terminal}
             status={status}
-            ownerLabel={owner ? ROLE_LABEL[owner] : 'никој'}
+            ownerLabel={owner ? ROLE_LABEL[owner] : t('taskDetail.ownerNobody')}
             assigneeName={empName(task.assigneeId)}
             onBehalf={actingOnBehalf}
             behalfReason={behalfReason}
@@ -423,7 +435,7 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
               doTransition,
               addPublication: (input) =>
                 addPublication.mutate(input, {
-                  onSuccess: () => pushToast('Објавата е зачувана.'),
+                  onSuccess: () => pushToast(t('taskDetail.publicationSaved')),
                   onError: onErr,
                 }),
               doPromotion,
@@ -434,28 +446,28 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
 
           {/* Секции */}
           <Section
-            title="Контекст"
-            badge="брифинг · сценарио · заеднички"
+            title={t('taskDetail.context')}
+            badge={t('taskDetail.contextBadge')}
             openState={open.context}
             onToggle={() => setOpen((o) => ({ ...o, context: !o.context }))}
           >
             {task.brief ? (
               <div style={ctxRow}>
                 <div style={{ flex: 1, minWidth: 0 }}>{task.brief}</div>
-                <span style={ctxTag}>брифинг</span>
+                <span style={ctxTag}>{t('taskDetail.tagBrief')}</span>
               </div>
             ) : (
-              <p style={sectionText}>Нема внес во контекстот.</p>
+              <p style={sectionText}>{t('taskDetail.noContext')}</p>
             )}
             {task.copy && (
               <div style={ctxRow}>
                 <div style={{ flex: 1, minWidth: 0 }}>{task.copy}</div>
-                <span style={ctxTag}>копи</span>
+                <span style={ctxTag}>{t('taskDetail.tagCopy')}</span>
               </div>
             )}
           </Section>
           <Section
-            title="Креатива"
+            title={t('taskDetail.creative')}
             badge={`v${task.version}`}
             openState={open.creative}
             onToggle={() => setOpen((o) => ({ ...o, creative: !o.creative }))}
@@ -475,23 +487,23 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
               </div>
             )}
             <Button variant="secondary" size="form" onClick={() => setViewer(true)}>
-              Отвори преглед на креатива
+              {t('taskDetail.openCreative')}
             </Button>
           </Section>
           {(status === 'zaObjavuvanje' || status === 'objaveno' || status === 'analitika') && (
             <Section
-              title="Објава"
+              title={t('taskDetail.publication')}
               openState={open.publication}
               onToggle={() => setOpen((o) => ({ ...o, publication: !o.publication }))}
             >
-              <p style={sectionText}>{task.copy || 'Нема копи внесено.'}</p>
+              <p style={sectionText}>{task.copy || t('taskDetail.noCopy')}</p>
             </Section>
           )}
           {/* Модул 3 · Мета — живи метрики (§9.1). Само за клиенти со Meta реклами. */}
           {(status === 'objaveno' || status === 'analitika' || status === 'zavrseno') &&
             task.client.usesMetaAds && (
               <Section
-                title="Метрики · Meta"
+                title={t('taskDetail.metaMetrics')}
                 openState={open.meta}
                 onToggle={() => setOpen((o) => ({ ...o, meta: !o.meta }))}
               >
@@ -499,8 +511,10 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
               </Section>
             )}
           <Section
-            title="Активност"
-            badge={`${(activity ?? []).filter((a) => a.kind === 'comment').length} коментари`}
+            title={t('taskDetail.activity')}
+            badge={t('taskDetail.commentsBadge', {
+              count: (activity ?? []).filter((a) => a.kind === 'comment').length,
+            })}
             openState={open.activity}
             onToggle={() => setOpen((o) => ({ ...o, activity: !o.activity }))}
           >
@@ -514,7 +528,7 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
                 </div>
               ))}
               {(activity ?? []).length === 0 && (
-                <div style={sectionText}>Сè уште нема активност.</div>
+                <div style={sectionText}>{t('taskDetail.noActivity')}</div>
               )}
             </div>
           </Section>
@@ -528,10 +542,10 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
           className="gd-field"
           value={wz.comment}
           onChange={(e) => set({ comment: e.target.value })}
-          placeholder="Напиши коментар"
+          placeholder={t('taskDetail.commentPlaceholder')}
           style={{ flex: 1 }}
         />
-        <button style={iconBtn} title="Прикачи" type="button">
+        <button style={iconBtn} title={t('taskDetail.attach')} type="button">
           <Paperclip size={16} />
         </button>
         <Button
@@ -544,14 +558,14 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
               {
                 onSuccess: () => {
                   set({ comment: '' });
-                  pushToast('Коментарот е додаден.');
+                  pushToast(t('taskDetail.commentAdded'));
                 },
                 onError: onErr,
               },
             )
           }
         >
-          <Send size={14} /> Прати
+          <Send size={14} /> {t('taskDetail.send')}
         </Button>
       </div>
 
@@ -560,14 +574,14 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
         <div style={modalBackdrop} onClick={() => setModal(null)}>
           <div style={modalBox} className="gd-fade-up" onClick={(e) => e.stopPropagation()}>
             <h3 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 600 }}>
-              {modal === 'pause' && 'Пауза на таск'}
-              {modal === 'cancel' && 'Откажување на таск'}
-              {modal === 'date' && 'Промена на датум'}
-              {modal === 'resume' && 'Враќање од пауза'}
+              {modal === 'pause' && t('taskDetail.modalPause')}
+              {modal === 'cancel' && t('taskDetail.modalCancel')}
+              {modal === 'date' && t('taskDetail.modalDate')}
+              {modal === 'resume' && t('taskDetail.modalResume')}
             </h3>
             {(modal === 'date' || modal === 'resume') && (
               <label style={fieldLabel}>
-                Нов датум
+                {t('taskDetail.newDate')}
                 <input
                   type="date"
                   className="gd-field"
@@ -579,7 +593,7 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
             )}
             {(modal === 'pause' || modal === 'cancel' || modal === 'date') && (
               <label style={fieldLabel}>
-                Причина
+                {t('taskDetail.reason')}
                 <textarea
                   className="gd-field"
                   rows={2}
@@ -591,7 +605,7 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
             )}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
               <Button variant="secondary" size="form" onClick={() => setModal(null)}>
-                Откажи
+                {t('taskDetail.cancel')}
               </Button>
               <Button
                 variant={modal === 'cancel' ? 'danger' : 'primary'}
@@ -599,7 +613,7 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
                 onClick={() => {
                   const done = () => {
                     setModal(null);
-                    pushToast('Готово.');
+                    pushToast(t('taskDetail.done'));
                   };
                   if (modal === 'pause')
                     pause.mutate({ reason }, { onSuccess: done, onError: onErr });
@@ -614,7 +628,7 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
                     );
                 }}
               >
-                Потврди
+                {t('taskDetail.confirm')}
               </Button>
             </div>
           </div>
@@ -649,10 +663,14 @@ function WorkZone(props: {
   }
   return (
     <div style={workZone}>
-      <div style={workHeader}>Работна зона · носи {props.ownerLabel}</div>
+      <div style={workHeader}>{t('taskDetail.workZone', { owner: props.ownerLabel })}</div>
       {props.locked ? (
         <div style={lockedBox}>
-          <Lock size={14} /> Чека {props.ownerLabel} · {props.assigneeName}
+          <Lock size={14} />{' '}
+          {t('taskDetail.waitingFor', {
+            owner: props.ownerLabel,
+            assignee: props.assigneeName,
+          })}
         </div>
       ) : (
         <div style={{ padding: 12 }}>
@@ -661,17 +679,17 @@ function WorkZone(props: {
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                 <Lock size={14} aria-hidden />
                 <span style={{ fontSize: 12, fontWeight: 600 }}>
-                  Дејствуваш наместо {props.ownerLabel} (D-5)
+                  {t('taskDetail.actingOnBehalf', { owner: props.ownerLabel })}
                 </span>
               </div>
               <label style={fieldLabel}>
-                Причина · задолжително
+                {t('taskDetail.reasonRequired')}
                 <textarea
                   className="gd-field"
                   rows={2}
                   value={props.behalfReason}
                   onChange={(e) => props.setBehalfReason(e.target.value)}
-                  placeholder={`Зошто дејствуваш наместо ${props.ownerLabel}?`}
+                  placeholder={t('taskDetail.behalfPlaceholder', { owner: props.ownerLabel })}
                   style={{ marginTop: 4 }}
                 />
               </label>
@@ -724,7 +742,7 @@ function renderZone(a: ZoneArgs): React.ReactNode {
     return (
       <>
         <label style={fieldLabel}>
-          Брифинг
+          {t('taskDetail.brief')}
           <textarea
             className="gd-field"
             rows={4}
@@ -736,14 +754,14 @@ function renderZone(a: ZoneArgs): React.ReactNode {
           <span style={counter}>{wz.brief.length}/1200</span>
         </label>
         <label style={fieldLabel}>
-          Дизајнер
+          {t('taskDetail.designer')}
           <select
             className="gd-field"
             value={wz.assigneeId}
             onChange={(e) => set({ assigneeId: e.target.value })}
             style={{ marginTop: 4 }}
           >
-            <option value="">— избери —</option>
+            <option value="">{t('taskDetail.pickOption')}</option>
             {designers.map((e) => (
               <option key={e.id} value={e.id}>
                 {e.name}
@@ -757,7 +775,7 @@ function renderZone(a: ZoneArgs): React.ReactNode {
           disabled={pending || wz.brief.trim().length < 50 || !wz.assigneeId}
           onClick={() => doTransition('dizajn', { brief: wz.brief, assigneeId: wz.assigneeId })}
         >
-          Зачувај брифинг и активирај
+          {t('taskDetail.saveBriefActivate')}
         </Button>
       </>
     );
@@ -766,9 +784,9 @@ function renderZone(a: ZoneArgs): React.ReactNode {
   if (status === 'dizajn') {
     return (
       <>
-        <p style={sectionText}>Прикачи ја готовата графика, потоа испрати на одобрување.</p>
+        <p style={sectionText}>{t('taskDetail.dizajnHint')}</p>
         <label style={{ ...uploadBox }}>
-          <Upload size={16} /> Прикачи графика
+          <Upload size={16} /> {t('taskDetail.uploadGraphic')}
           <input
             type="file"
             accept="image/*"
@@ -784,25 +802,22 @@ function renderZone(a: ZoneArgs): React.ReactNode {
     const monteurs = employees.filter((e) => e.role === 'mon');
     return (
       <>
-        <p style={sectionText}>
-          Прегледај го материјалот, додели монтажер на овој таск и додади насоки за монтажа.
-          Различни таскови може да добијат различни монтажери.
-        </p>
+        <p style={sectionText}>{t('taskDetail.chekaRezijaHint')}</p>
         <div style={rawBox}>
-          <div style={rawBoxLabel}>Суров материјал од капата</div>
+          <div style={rawBoxLabel}>{t('taskDetail.rawFromCapa')}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14 }}>
-            <Film size={16} aria-hidden /> Спремен за монтажа
+            <Film size={16} aria-hidden /> {t('taskDetail.readyForEditing')}
           </div>
         </div>
         <label style={fieldLabel}>
-          Монтажер · задолжително
+          {t('taskDetail.monteurRequired')}
           <select
             className="gd-field"
             value={wz.assigneeId}
             onChange={(e) => set({ assigneeId: e.target.value })}
             style={{ marginTop: 4 }}
           >
-            <option value="">— избери —</option>
+            <option value="">{t('taskDetail.pickOption')}</option>
             {monteurs.map((e) => (
               <option key={e.id} value={e.id}>
                 {e.name}
@@ -811,7 +826,7 @@ function renderZone(a: ZoneArgs): React.ReactNode {
           </select>
         </label>
         <label style={fieldLabel}>
-          Насоки за монтажа
+          {t('taskDetail.editingNotes')}
           <textarea
             className="gd-field"
             rows={3}
@@ -828,7 +843,7 @@ function renderZone(a: ZoneArgs): React.ReactNode {
             doTransition('montaza', { assigneeId: wz.assigneeId, comment: wz.comment })
           }
         >
-          Додели монтажер и продолжи
+          {t('taskDetail.assignMonteur')}
         </Button>
       </>
     );
@@ -837,9 +852,9 @@ function renderZone(a: ZoneArgs): React.ReactNode {
   if (status === 'montaza') {
     return (
       <>
-        <p style={sectionText}>Прикачи го монтираното видео, потоа испрати на одобрување.</p>
+        <p style={sectionText}>{t('taskDetail.montazaHint')}</p>
         <label style={{ ...uploadBox }}>
-          <Upload size={16} /> Прикачи монтирано видео
+          <Upload size={16} /> {t('taskDetail.uploadEditedVideo')}
           <input type="file" accept="video/*" hidden onChange={a.runUpload('final', 'vnatresno')} />
         </label>{' '}
       </>
@@ -850,7 +865,7 @@ function renderZone(a: ZoneArgs): React.ReactNode {
     const back = ct === 'video' ? 'montaza' : 'dizajn';
     return (
       <>
-        <p style={sectionText}>Прегледај ја креативата и одлучи.</p>
+        <p style={sectionText}>{t('taskDetail.vnatresnoHint')}</p>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Button
             variant="primary"
@@ -858,7 +873,7 @@ function renderZone(a: ZoneArgs): React.ReactNode {
             disabled={pending}
             onClick={() => doTransition('kajKlient')}
           >
-            Одобри
+            {t('taskDetail.approve')}
           </Button>
           <Button
             variant="danger"
@@ -866,11 +881,11 @@ function renderZone(a: ZoneArgs): React.ReactNode {
             disabled={pending || !wz.comment.trim()}
             onClick={() => doTransition(back, { comment: wz.comment })}
           >
-            Врати со коментар
+            {t('taskDetail.returnWithComment')}
           </Button>
         </div>
         <label style={fieldLabel}>
-          Коментар (за враќање)
+          {t('taskDetail.commentForReturn')}
           <textarea
             className="gd-field"
             rows={2}
@@ -888,7 +903,7 @@ function renderZone(a: ZoneArgs): React.ReactNode {
     return (
       <>
         <label style={fieldLabel}>
-          Канал
+          {t('taskDetail.channel')}
           <select
             className="gd-field"
             value={wz.channel}
@@ -897,11 +912,11 @@ function renderZone(a: ZoneArgs): React.ReactNode {
           >
             <option value="viber">Viber</option>
             <option value="whatsapp">WhatsApp</option>
-            <option value="email">Мејл</option>
+            <option value="email">{t('taskDetail.channelEmail')}</option>
           </select>
         </label>
         <label style={fieldLabel}>
-          Коментар (за измени/враќање)
+          {t('taskDetail.commentForChanges')}
           <textarea
             className="gd-field"
             rows={2}
@@ -919,7 +934,7 @@ function renderZone(a: ZoneArgs): React.ReactNode {
               doTransition('zaObjavuvanje', { outcome: 'approved', channel: wz.channel })
             }
           >
-            Одобрено
+            {t('taskDetail.approved')}
           </Button>
           <Button
             variant="secondary"
@@ -933,7 +948,7 @@ function renderZone(a: ZoneArgs): React.ReactNode {
               })
             }
           >
-            Одобрено со измени
+            {t('taskDetail.approvedWithChanges')}
           </Button>
           <Button
             variant="danger"
@@ -941,7 +956,7 @@ function renderZone(a: ZoneArgs): React.ReactNode {
             disabled={pending || !wz.comment.trim()}
             onClick={() => doTransition(back, { comment: wz.comment })}
           >
-            Врати на доработка
+            {t('taskDetail.returnForRework')}
           </Button>
         </div>
       </>
@@ -952,7 +967,7 @@ function renderZone(a: ZoneArgs): React.ReactNode {
     return (
       <>
         <label style={fieldLabel}>
-          Копи
+          {t('taskDetail.copy')}
           <textarea
             className="gd-field"
             rows={4}
@@ -965,7 +980,7 @@ function renderZone(a: ZoneArgs): React.ReactNode {
         </label>
         <div style={{ display: 'flex', gap: 8 }}>
           <label style={{ ...fieldLabel, flex: 1 }}>
-            Платформа
+            {t('taskDetail.platform')}
             <select
               className="gd-field"
               value={wz.platform}
@@ -978,7 +993,7 @@ function renderZone(a: ZoneArgs): React.ReactNode {
             </select>
           </label>
           <label style={{ ...fieldLabel, flex: 1 }}>
-            Тип
+            {t('taskDetail.typeLabel')}
             <select
               className="gd-field"
               value={wz.postType}
@@ -993,7 +1008,7 @@ function renderZone(a: ZoneArgs): React.ReactNode {
           </label>
         </div>
         <label style={fieldLabel}>
-          Линк до објава
+          {t('taskDetail.publishLink')}
           <input
             className="gd-field"
             value={wz.permalink}
@@ -1014,7 +1029,7 @@ function renderZone(a: ZoneArgs): React.ReactNode {
               })
             }
           >
-            Зачувај објава
+            {t('taskDetail.savePublication')}
           </Button>
           <Button
             variant="primary"
@@ -1022,12 +1037,10 @@ function renderZone(a: ZoneArgs): React.ReactNode {
             disabled={pending || !wz.copy.trim()}
             onClick={() => doTransition('objaveno', { copy: wz.copy })}
           >
-            Потврди објава
+            {t('taskDetail.confirmPublication')}
           </Button>
         </div>
-        <p style={{ ...counter, marginTop: 6 }}>
-          Потребни се копи и барем една зачувана објава со линк.
-        </p>
+        <p style={{ ...counter, marginTop: 6 }}>{t('taskDetail.publishReq')}</p>
       </>
     );
   }
@@ -1036,7 +1049,7 @@ function renderZone(a: ZoneArgs): React.ReactNode {
     const pub = a.task.publications[0];
     return (
       <>
-        <p style={sectionText}>Одлучи дали објавата оди органски или во реклами, потоа заврши.</p>
+        <p style={sectionText}>{t('taskDetail.analitikaHint')}</p>
         {pub ? (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
             <Button
@@ -1045,7 +1058,7 @@ function renderZone(a: ZoneArgs): React.ReactNode {
               disabled={pending}
               onClick={() => a.doPromotion(pub.id, 'organic')}
             >
-              Органски
+              {t('taskDetail.organic')}
             </Button>
             <Button
               variant={a.promoDecision === 'paid' ? 'primary' : 'secondary'}
@@ -1053,11 +1066,11 @@ function renderZone(a: ZoneArgs): React.ReactNode {
               disabled={pending}
               onClick={() => a.doPromotion(pub.id, 'paid')}
             >
-              Во реклами
+              {t('taskDetail.inAds')}
             </Button>
           </div>
         ) : (
-          <p style={counter}>Нема објава за одлука.</p>
+          <p style={counter}>{t('taskDetail.noPubForDecision')}</p>
         )}
         <Button
           variant="primary"
@@ -1065,19 +1078,14 @@ function renderZone(a: ZoneArgs): React.ReactNode {
           disabled={pending}
           onClick={() => doTransition('zavrseno')}
         >
-          Заврши
+          {t('taskDetail.finish')}
         </Button>
       </>
     );
   }
 
   if (status === 'cekaSnimanje') {
-    return (
-      <p style={sectionText}>
-        Чека снимање. Овој таск се придвижува автоматски штом капата ќе се затвори (по прикачување
-        суров материјал). Работата се носи на капата.
-      </p>
-    );
+    return <p style={sectionText}>{t('taskDetail.cekaSnimanjeHint')}</p>;
   }
 
   // Фолбек: matrix-driven целни статуси (без системски — тие се автоматски).
@@ -1085,7 +1093,7 @@ function renderZone(a: ZoneArgs): React.ReactNode {
     (to) => findTaskTransition(status, to, ct)?.actor !== 'system',
   );
   if (targets.length === 0) {
-    return <p style={sectionText}>Нема достапни преоди за овој статус.</p>;
+    return <p style={sectionText}>{t('taskDetail.noTransitions')}</p>;
   }
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -1100,7 +1108,7 @@ function renderZone(a: ZoneArgs): React.ReactNode {
             disabled={pending}
             onClick={() => doTransition(to)}
           >
-            → {TASK_STATUS_META[to].label}
+            {t('taskDetail.toTarget', { label: TASK_STATUS_META[to].label })}
           </Button>
         );
       })}

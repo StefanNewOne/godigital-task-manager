@@ -9,7 +9,7 @@ import {
   type ContentType,
   type TaskStatus,
 } from '@gd/core';
-import { tokens } from '@gd/ui';
+import { t, tokens } from '@gd/ui';
 import { MessageSquare, MoreHorizontal, Paperclip } from 'lucide-react';
 import { daysLabel } from '../../lib/format.js';
 import { useBoardTransition } from '../../api/tasks.js';
@@ -39,29 +39,31 @@ export function Board({ tasks, clientById, empById, groupBy, onOpen }: BoardProp
     setDrag(null);
     if (!d || d.from === to) return;
     if (!isBoardDraggable(d.from as TaskStatus, to, d.type)) {
-      setToast(`Преодот „${label(d.from)}" → „${label(to)}" бара внес — отвори го панелот.`);
+      setToast(t('tasks.boardNeedsInput', { from: label(d.from), to: label(to) }));
       return;
     }
     move.mutate(
       { id: d.id, to },
-      { onError: (e) => setToast(e instanceof ApiRequestError ? e.message : 'Грешка.') },
+      {
+        onError: (e) => setToast(e instanceof ApiRequestError ? e.message : t('tasks.boardError')),
+      },
     );
   };
 
   // Групирање по статус (D-8: default кога е избран еден клиент) или по клиент.
   const columns: Array<{ key: string; title: string; color: string; cards: TaskListItem[] }> =
     groupBy === 'status'
-      ? ALL_STATUSES.filter((s) => tasks.some((t) => t.status === s)).map((s) => ({
+      ? ALL_STATUSES.filter((s) => tasks.some((item) => item.status === s)).map((s) => ({
           key: s,
           title: TASK_STATUS_META[s].label,
           color: tokens.statusColor[s as keyof typeof tokens.statusColor] ?? '#6B7280',
-          cards: tasks.filter((t) => t.status === s),
+          cards: tasks.filter((item) => item.status === s),
         }))
-      : [...new Set(tasks.map((t) => t.clientId))].map((cid) => ({
+      : [...new Set(tasks.map((item) => item.clientId))].map((cid) => ({
           key: cid,
-          title: clientById.get(cid)?.name ?? 'Клиент',
+          title: clientById.get(cid)?.name ?? t('tasks.client'),
           color: clientById.get(cid)?.color ?? '#6B7280',
-          cards: tasks.filter((t) => t.clientId === cid),
+          cards: tasks.filter((item) => item.clientId === cid),
         }));
 
   return (
@@ -78,7 +80,7 @@ export function Board({ tasks, clientById, empById, groupBy, onOpen }: BoardProp
             if (groupBy === 'status') {
               drop(col.key as TaskStatus);
             } else if (drag) {
-              setToast('Групирај „по статус" за да менуваш статус со влечење.');
+              setToast(t('tasks.boardGroupByStatus'));
               setDrag(null);
               setOver(null);
             }
@@ -109,22 +111,24 @@ export function Board({ tasks, clientById, empById, groupBy, onOpen }: BoardProp
               minHeight: 0,
             }}
           >
-            {col.cards.map((t) => (
+            {col.cards.map((card) => (
               <Card
-                key={t.id}
-                task={t}
-                stripe={clientById.get(t.clientId)?.color ?? '#ccc'}
+                key={card.id}
+                task={card}
+                stripe={clientById.get(card.clientId)?.color ?? '#ccc'}
                 empById={empById}
-                dragging={drag?.id === t.id}
+                dragging={drag?.id === card.id}
                 onOpen={onOpen}
-                onDragStart={() => setDrag({ id: t.id, from: t.status, type: t.contentType })}
+                onDragStart={() =>
+                  setDrag({ id: card.id, from: card.status, type: card.contentType })
+                }
                 onDragEnd={() => setDrag(null)}
               />
             ))}
           </div>
         </div>
       ))}
-      {columns.length === 0 && <p style={{ color: 'var(--gd-ink-muted)' }}>Нема таскови.</p>}
+      {columns.length === 0 && <p style={{ color: 'var(--gd-ink-muted)' }}>{t('tasks.noTasks')}</p>}
       {toast && (
         <div style={toastStyle} onClick={() => setToast(null)}>
           {toast}
@@ -172,7 +176,7 @@ function Card({
       title={task.title}
     >
       <span style={{ ...cardStripe, background: stripe }} />
-      {urgent && <span style={urgentTriangle} aria-label="итно" />}
+      {urgent && <span style={urgentTriangle} aria-label={t('tasks.urgent')} />}
       <div style={cardTitle}>{task.title}</div>
       <div style={{ margin: '6px 0' }}>
         <StatusBadge status={task.status} />
@@ -193,7 +197,7 @@ function Card({
             <span style={cardAvatarEmpty} />
           )}
           <span>
-            {ROLE_LABEL[owner]} · {assignee ?? 'Недоделен'}
+            {ROLE_LABEL[owner]} · {assignee ?? t('tasks.undefinedAssignee')}
           </span>
         </div>
       )}
@@ -216,7 +220,9 @@ function Card({
         )}
         {task.version > 1 && <span>v.{task.version}</span>}
         {stuck > 3 && !['objaveno', 'zavrseno', 'otkazano', 'pauza'].includes(task.status) && (
-          <span style={{ color: 'var(--gd-warning)' }}>◷ {daysLabel(stuck)} во статус</span>
+          <span style={{ color: 'var(--gd-warning)' }}>
+            ◷ {daysLabel(stuck)} {t('tasks.inStatus')}
+          </span>
         )}
       </div>
     </div>

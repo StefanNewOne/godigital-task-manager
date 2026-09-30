@@ -1,7 +1,7 @@
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import { GROUP_STATUS_META, PERMISSIONS, ROLE_LABEL, type GroupStatus, type Role } from '@gd/core';
-import { Button } from '@gd/ui';
+import { Button, t } from '@gd/ui';
 import { Check, Lock, X } from 'lucide-react';
 import { useMe } from '../../api/auth.js';
 import { useEmployees } from '../../api/admin.js';
@@ -43,10 +43,10 @@ export function CapaPanel({ groupId, onClose }: { groupId: string; onClose: () =
   const [behalfReason, setBehalfReason] = useState('');
   const pushToast = (m: string) => {
     setToast(m);
-    window.setTimeout(() => setToast((t) => (t === m ? null : t)), 4200);
+    window.setTimeout(() => setToast((cur) => (cur === m ? null : cur)), 4200);
   };
   const onErr = (e: unknown) =>
-    pushToast(e instanceof ApiRequestError ? e.message : 'Настана грешка.');
+    pushToast(e instanceof ApiRequestError ? e.message : t('capaPanel.genericError'));
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -57,7 +57,7 @@ export function CapaPanel({ groupId, onClose }: { groupId: string; onClose: () =
   if (!group) {
     return (
       <aside style={panel} className="gd-slide-in">
-        <div style={{ padding: 24, color: 'var(--gd-ink-muted)' }}>Вчитување…</div>
+        <div style={{ padding: 24, color: 'var(--gd-ink-muted)' }}>{t('capaPanel.loading')}</div>
       </aside>
     );
   }
@@ -74,8 +74,15 @@ export function CapaPanel({ groupId, onClose }: { groupId: string; onClose: () =
   return (
     <aside style={panel} className="gd-slide-in">
       <div style={header}>
-        <span style={{ fontSize: 14, fontWeight: 600 }}>Капа · {gLabel(status)}</span>
-        <button onClick={onClose} style={iconBtn} title="Затвори" aria-label="Затвори">
+        <span style={{ fontSize: 14, fontWeight: 600 }}>
+          {t('capaPanel.capaTitle', { status: gLabel(status) })}
+        </span>
+        <button
+          onClick={onClose}
+          style={iconBtn}
+          title={t('capaPanel.close')}
+          aria-label={t('capaPanel.close')}
+        >
           <X size={16} />
         </button>
       </div>
@@ -86,8 +93,8 @@ export function CapaPanel({ groupId, onClose }: { groupId: string; onClose: () =
             {group.client.name}
           </h2>
           <div style={{ fontSize: 13, color: 'var(--gd-ink-muted)', marginBottom: 16 }}>
-            {group.contentType === 'video' ? 'Видео' : 'Графика'} · {group.monthKey} ·{' '}
-            {group.plannedCount} слота
+            {group.contentType === 'video' ? t('capaPanel.video') : t('capaPanel.graphic')} ·{' '}
+            {group.monthKey} · {t('capaPanel.slotsCount', { count: group.plannedCount })}
           </div>
 
           {/* 4-чекорна прогресија */}
@@ -111,10 +118,15 @@ export function CapaPanel({ groupId, onClose }: { groupId: string; onClose: () =
 
           {/* Работна зона */}
           <div style={workZone}>
-            <div style={workHeader}>Работна зона · носи {owner ? ROLE_LABEL[owner] : 'никој'}</div>
+            <div style={workHeader}>
+              {t('capaPanel.workZone', {
+                owner: owner ? ROLE_LABEL[owner] : t('capaPanel.ownerNobody'),
+              })}
+            </div>
             {locked ? (
               <div style={lockedBox}>
-                <Lock size={14} /> Чека {owner ? ROLE_LABEL[owner] : '—'}
+                <Lock size={14} />{' '}
+                {t('capaPanel.waitingFor', { owner: owner ? ROLE_LABEL[owner] : '—' })}
               </div>
             ) : (
               <div style={{ padding: 12, opacity: 1 }}>
@@ -123,17 +135,21 @@ export function CapaPanel({ groupId, onClose }: { groupId: string; onClose: () =
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                       <Lock size={14} aria-hidden />
                       <span style={{ fontSize: 12, fontWeight: 600 }}>
-                        Дејствуваш наместо {owner ? ROLE_LABEL[owner] : 'улогата'} (D-5)
+                        {t('capaPanel.actingOnBehalf', {
+                          owner: owner ? ROLE_LABEL[owner] : t('capaPanel.ownerRole'),
+                        })}
                       </span>
                     </div>
                     <label style={{ display: 'block', fontSize: 12, fontWeight: 500 }}>
-                      Причина · задолжително
+                      {t('capaPanel.reasonRequired')}
                       <textarea
                         className="gd-field"
                         rows={2}
                         value={behalfReason}
                         onChange={(e) => setBehalfReason(e.target.value)}
-                        placeholder={`Зошто дејствуваш наместо ${owner ? ROLE_LABEL[owner] : 'улогата'}?`}
+                        placeholder={t('capaPanel.behalfPlaceholder', {
+                          owner: owner ? ROLE_LABEL[owner] : t('capaPanel.ownerRole'),
+                        })}
                         style={{ marginTop: 4 }}
                       />
                     </label>
@@ -191,7 +207,7 @@ function StoragePanel({
   if (group.localArchivePath) {
     return (
       <div style={storageBox}>
-        <div style={{ fontWeight: 500 }}>Суровиот материјал е архивиран локално</div>
+        <div style={{ fontWeight: 500 }}>{t('capaPanel.rawArchivedLocally')}</div>
         <code style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>{group.localArchivePath}</code>
       </div>
     );
@@ -202,11 +218,7 @@ function StoragePanel({
   return (
     <div style={storageBox}>
       <div>
-        Суровиот материјал се брише за{' '}
-        <strong>
-          {days} {days === 1 ? 'ден' : 'дена'}
-        </strong>
-        .
+        {t('capaPanel.rawDeleteIn')} <strong>{t('capaPanel.days', { count: days })}</strong>.
       </div>
       {canManage && (
         <div
@@ -218,17 +230,17 @@ function StoragePanel({
             disabled={extend.isPending}
             onClick={() =>
               extend.mutate(undefined, {
-                onSuccess: () => pushToast('Продолжено за +30 дена.'),
+                onSuccess: () => pushToast(t('capaPanel.extended')),
                 onError: onErr,
               })
             }
           >
-            Продолжи +30 дена
+            {t('capaPanel.extendBtn')}
           </Button>
           <input
             value={path}
             onChange={(e) => setPath(e.target.value)}
-            placeholder="Патека до локална архива"
+            placeholder={t('capaPanel.localArchivePlaceholder')}
             style={pathInput}
           />
           <Button
@@ -237,12 +249,12 @@ function StoragePanel({
             disabled={!path.trim() || archive.isPending}
             onClick={() =>
               archive.mutate(path.trim(), {
-                onSuccess: () => pushToast('Означено како локална архива.'),
+                onSuccess: () => pushToast(t('capaPanel.markedLocalArchive')),
                 onError: onErr,
               })
             }
           >
-            Локална архива
+            {t('capaPanel.localArchiveBtn')}
           </Button>
         </div>
       )}
@@ -270,9 +282,9 @@ function Zone(p: ZoneProps) {
   const outcomes = useScenarioOutcomes(group.id);
   const upload = useGroupUpload(group.id);
 
-  const move = (to: string, payload?: Record<string, unknown>, ok = 'Капата е поместена.') => {
+  const move = (to: string, payload?: Record<string, unknown>, ok = t('capaPanel.capaMoved')) => {
     if (p.onBehalf && !p.behalfReason.trim()) {
-      p.pushToast('Внеси причина — дејствуваш наместо носителот на капата.');
+      p.pushToast(t('capaPanel.behalfToast'));
       return;
     }
     const merged = p.onBehalf ? { reason: p.behalfReason, ...payload } : payload;
@@ -289,7 +301,7 @@ function Zone(p: ZoneProps) {
       if (!file) return;
       upload.mutate(
         { ownerType: 'group', ownerId: group.id, kind, file },
-        { onSuccess: () => p.pushToast('Фајлот е прикачен.'), onError: p.onErr },
+        { onSuccess: () => p.pushToast(t('capaPanel.fileUploaded')), onError: p.onErr },
       );
     };
 
@@ -314,10 +326,10 @@ function Zone(p: ZoneProps) {
         onSplit={(items) =>
           split.mutate(
             { scenarios: items },
-            { onSuccess: () => p.pushToast('Сценаријата се зачувани.'), onError: p.onErr },
+            { onSuccess: () => p.pushToast(t('capaPanel.scenariosSaved')), onError: p.onErr },
           )
         }
-        onApprove={() => move('scenKajKlient', undefined, 'Испратено кај клиент.')}
+        onApprove={() => move('scenKajKlient', undefined, t('capaPanel.sentToClient'))}
         pending={split.isPending || transition.isPending}
       />
     );
@@ -331,11 +343,11 @@ function Zone(p: ZoneProps) {
         onSave={(items) =>
           outcomes.mutate(
             { items },
-            { onSuccess: () => p.pushToast('Исходите се зачувани.'), onError: p.onErr },
+            { onSuccess: () => p.pushToast(t('capaPanel.outcomesSaved')), onError: p.onErr },
           )
         }
-        onActivate={() => move('snimanje', undefined, 'Активирано за снимање.')}
-        onReturn={(comment) => move('scenarija', { comment }, 'Вратено на сценарист.')}
+        onActivate={() => move('snimanje', undefined, t('capaPanel.activatedForShoot'))}
+        onReturn={(comment) => move('scenarija', { comment }, t('capaPanel.returnedToScenarist'))}
         pending={outcomes.isPending || transition.isPending}
       />
     );
@@ -349,7 +361,7 @@ function Zone(p: ZoneProps) {
         canManage={p.meRole === 'kam' || p.meRole === 'dir'}
         onUploadRaw={doUpload('raw')}
         uploadPending={upload.isPending}
-        onConfirm={() => move('zatvoren', undefined, 'Снимањето е потврдено, капата затворена.')}
+        onConfirm={() => move('zatvoren', undefined, t('capaPanel.shootConfirmed'))}
         confirmPending={transition.isPending}
         onErr={p.onErr}
       />
@@ -360,11 +372,9 @@ function Zone(p: ZoneProps) {
   if (status === 'gPodgotovka') {
     return (
       <>
-        <p style={sectionText}>
-          Заеднички материјали за месецот и активирање на сите слотови (D-3).
-        </p>
+        <p style={sectionText}>{t('capaPanel.gPodgotovkaHint')}</p>
         <UploadButton
-          label="Прикачи заеднички материјал"
+          label={t('capaPanel.uploadShared')}
           onChange={doUpload('sharedMaterial')}
           pending={upload.isPending}
         />{' '}
@@ -374,12 +384,12 @@ function Zone(p: ZoneProps) {
           disabled={bulk.isPending}
           onClick={() =>
             bulk.mutate(undefined, {
-              onSuccess: (r) => p.pushToast(`Активирани ${r.activated} таска.`),
+              onSuccess: (r) => p.pushToast(t('capaPanel.activated', { count: r.activated })),
               onError: p.onErr,
             })
           }
         >
-          Активирај {group.plannedCount} таска
+          {t('capaPanel.activateTasks', { count: group.plannedCount })}
         </Button>
       </>
     );
@@ -389,12 +399,15 @@ function Zone(p: ZoneProps) {
   if (status === 'zatvoren') {
     return (
       <p style={sectionText}>
-        Капа затворена · {group.activeChildren} таска во тек · {group.sharedFiles} заеднички фајла.
+        {t('capaPanel.closedInfo', {
+          active: group.activeChildren,
+          shared: group.sharedFiles,
+        })}
       </p>
     );
   }
 
-  return <p style={sectionText}>Нема достапни дејства.</p>;
+  return <p style={sectionText}>{t('capaPanel.noActions')}</p>;
 }
 
 // ── Подзони ──
@@ -419,13 +432,13 @@ function PodgotovkaZone({
 
   return (
     <>
-      <Field label="Сценарист">
+      <Field label={t('capaPanel.scenarist')}>
         <select
           className="gd-field"
           value={scenaristId}
           onChange={(e) => setScenaristId(e.target.value)}
         >
-          <option value="">— избери —</option>
+          <option value="">{t('capaPanel.pickOption')}</option>
           {scenarists.map((e) => (
             <option key={e.id} value={e.id}>
               {e.name}
@@ -433,7 +446,7 @@ function PodgotovkaZone({
           ))}
         </select>
       </Field>
-      <Field label="Термин за снимање">
+      <Field label={t('capaPanel.shootTerm')}>
         <input
           className="gd-field"
           type="datetime-local"
@@ -441,15 +454,15 @@ function PodgotovkaZone({
           onChange={(e) => setShootDate(e.target.value)}
         />
       </Field>
-      <Field label="Локација на снимање">
+      <Field label={t('capaPanel.shootLocation')}>
         <input
           className="gd-field"
           value={shootLocation}
           onChange={(e) => setShootLocation(e.target.value)}
-          placeholder="пр. Скопје, студио"
+          placeholder={t('capaPanel.phShootLocation')}
         />
       </Field>
-      <Field label="Белешки за сценаристот">
+      <Field label={t('capaPanel.scenaristNotes')}>
         <textarea
           className="gd-field"
           rows={3}
@@ -465,7 +478,7 @@ function PodgotovkaZone({
           onMove('scenarija', { scenaristId, shootDate, shootLocation, scenaristNotes: notes })
         }
       >
-        Пушти за сценарии
+        {t('capaPanel.releaseForScenarios')}
       </Button>
     </>
   );
@@ -507,7 +520,7 @@ function ScenarijaZone({
 
   return (
     <>
-      <UploadButton label="Прикачи сценариски документ" onChange={onUpload} pending={false} />
+      <UploadButton label={t('capaPanel.uploadScenarioDoc')} onChange={onUpload} pending={false} />
       <div
         style={{
           fontSize: 12,
@@ -516,7 +529,7 @@ function ScenarijaZone({
           margin: '12px 0 6px',
         }}
       >
-        Поделба на сценарија
+        {t('capaPanel.scenariosSplit')}
       </div>
       {items.map((it, i) => (
         <div key={i} style={scenarioCard}>
@@ -524,7 +537,7 @@ function ScenarijaZone({
             className="gd-field"
             value={it.title}
             onChange={(e) => setItem(i, { title: e.target.value })}
-            placeholder={`Наслов на сценарио ${i + 1}`}
+            placeholder={t('capaPanel.phScenarioTitle', { n: i + 1 })}
           />
           <textarea
             className="gd-field"
@@ -532,20 +545,20 @@ function ScenarijaZone({
             style={{ marginTop: 6 }}
             value={it.body ?? ''}
             onChange={(e) => setItem(i, { body: e.target.value })}
-            placeholder="Опис (по избор)"
+            placeholder={t('capaPanel.phScenarioDesc')}
           />
           {items.length > 1 && (
             <button
               style={removeLink}
               onClick={() => setItems((arr) => arr.filter((_, j) => j !== i))}
             >
-              Отстрани
+              {t('capaPanel.remove')}
             </button>
           )}
         </div>
       ))}
       <button style={addLink} onClick={() => setItems((arr) => [...arr, { title: '' }])}>
-        + Додај сценарио
+        {t('capaPanel.addScenario')}
       </button>
       <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
         <Button
@@ -554,7 +567,7 @@ function ScenarijaZone({
           disabled={!valid || pending}
           onClick={() => onSplit(items)}
         >
-          Зачувај сценарија
+          {t('capaPanel.saveScenarios')}
         </Button>
         <Button
           variant="primary"
@@ -562,7 +575,7 @@ function ScenarijaZone({
           disabled={pending || scenarios.length === 0}
           onClick={onApprove}
         >
-          Одобри сценарии
+          {t('capaPanel.approveScenarios')}
         </Button>
       </div>
     </>
@@ -571,9 +584,9 @@ function ScenarijaZone({
 
 type OutcomeStatus = 'odobreno' | 'odobrenoSoIzmeni' | 'otfrleno';
 const OUTCOME_OPTS: { value: OutcomeStatus; label: string }[] = [
-  { value: 'odobreno', label: 'Одобрено' },
-  { value: 'odobrenoSoIzmeni', label: 'Со измени' },
-  { value: 'otfrleno', label: 'Отфрлено' },
+  { value: 'odobreno', label: t('capaPanel.outcomeApproved') },
+  { value: 'odobrenoSoIzmeni', label: t('capaPanel.outcomeWithChanges') },
+  { value: 'otfrleno', label: t('capaPanel.outcomeRejected') },
 ];
 const isOutcome = (s: string): s is OutcomeStatus =>
   s === 'odobreno' || s === 'odobrenoSoIzmeni' || s === 'otfrleno';
@@ -629,7 +642,7 @@ function ScenKajKlientZone({
             className="gd-field"
             value={state[s.id]?.comment ?? ''}
             onChange={(e) => set(s.id, { comment: e.target.value })}
-            placeholder="Коментар од клиент (по избор)"
+            placeholder={t('capaPanel.phClientComment')}
           />
         </div>
       ))}
@@ -648,10 +661,10 @@ function ScenKajKlientZone({
             )
           }
         >
-          Зачувај исходи
+          {t('capaPanel.saveOutcomes')}
         </Button>
         <Button variant="primary" size="form" disabled={pending} onClick={onActivate}>
-          Активирај за снимање
+          {t('capaPanel.activateForShoot')}
         </Button>
       </div>
       <div style={{ marginTop: 12 }}>
@@ -659,7 +672,7 @@ function ScenKajKlientZone({
           className="gd-field"
           value={returnComment}
           onChange={(e) => setReturnComment(e.target.value)}
-          placeholder="Причина за враќање…"
+          placeholder={t('capaPanel.phReturnReason')}
         />
         <div style={{ marginTop: 6 }}>
           <Button
@@ -668,7 +681,7 @@ function ScenKajKlientZone({
             disabled={pending || !returnComment.trim()}
             onClick={() => onReturn(returnComment)}
           >
-            Врати на сценарист
+            {t('capaPanel.returnToScenarist')}
           </Button>
         </div>
       </div>
@@ -702,16 +715,16 @@ function SnimanjeZone({
 
   const fmt = (s: ShootSessionRow) => {
     const d = new Date(s.date);
-    const t =
+    const time =
       d.getUTCHours() || d.getUTCMinutes()
         ? ` ${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`
         : '';
-    return `${d.getUTCDate()}.${d.getUTCMonth() + 1}${t}`;
+    return `${d.getUTCDate()}.${d.getUTCMonth() + 1}${time}`;
   };
 
   const submit = () => {
     if (!date || !loc.trim()) {
-      onErr(new Error('Датум и локација се задолжителни.'));
+      onErr(new Error(t('capaPanel.dateLocationRequired')));
       return;
     }
     addShoot.mutate(
@@ -729,15 +742,17 @@ function SnimanjeZone({
 
   return (
     <>
-      <p style={sectionText}>Термини на снимање:</p>
+      <p style={sectionText}>{t('capaPanel.shootTerms')}</p>
       <ul style={{ margin: '0 0 10px', paddingLeft: 18, fontSize: 13 }}>
         {(shoots ?? []).map((s) => (
           <li key={s.id}>
             {fmt(s)} · {s.location || '—'}
-            {s.kind === 'additional' ? ' (доп.)' : ''}
+            {s.kind === 'additional' ? t('capaPanel.shootAdditionalTag') : ''}
           </li>
         ))}
-        {(shoots ?? []).length === 0 && <li style={{ color: 'var(--gd-ink-muted)' }}>Нема.</li>}
+        {(shoots ?? []).length === 0 && (
+          <li style={{ color: 'var(--gd-ink-muted)' }}>{t('capaPanel.none')}</li>
+        )}
       </ul>
       {canManage && (
         <div
@@ -763,25 +778,25 @@ function SnimanjeZone({
           />
           <input
             className="gd-field"
-            placeholder="Локација"
+            placeholder={t('capaPanel.phLocation')}
             value={loc}
             onChange={(e) => setLoc(e.target.value)}
             style={{ minWidth: 140 }}
           />
           <Button variant="secondary" size="form" disabled={addShoot.isPending} onClick={submit}>
-            + Дополнително снимање
+            {t('capaPanel.addShoot')}
           </Button>
         </div>
       )}
-      <p style={sectionText}>Прикачи суров материјал, потоа потврди го снимањето.</p>
+      <p style={sectionText}>{t('capaPanel.uploadRawHint')}</p>
       <UploadButton
-        label="Прикачи суров материјал"
+        label={t('capaPanel.uploadRaw')}
         onChange={onUploadRaw}
         pending={uploadPending}
       />{' '}
       {canManage && (
         <Button variant="primary" size="form" disabled={confirmPending} onClick={onConfirm}>
-          Потврди снимање
+          {t('capaPanel.confirmShoot')}
         </Button>
       )}
     </>
@@ -799,7 +814,7 @@ function UploadButton({
 }) {
   return (
     <label style={uploadBtn}>
-      {pending ? 'Се прикачува…' : label}
+      {pending ? t('capaPanel.uploading') : label}
       <input type="file" style={{ display: 'none' }} onChange={onChange} />
     </label>
   );

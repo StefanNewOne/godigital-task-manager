@@ -2,6 +2,7 @@ import type React from 'react';
 import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { GROUP_STATUS_META } from '@gd/core';
+import { t } from '@gd/ui';
 import type { ClientRow, TaskGroupRow, TaskListItem } from '../../lib/types.js';
 import {
   bucketOf,
@@ -15,11 +16,11 @@ import { StatusBadge } from '../../components/StatusBadge.js';
 type View = 'all' | 'late' | 'week';
 
 const SECTIONS: Array<{ key: UrgencyBucket; label: string; color: string }> = [
-  { key: 'overdue', label: 'Доцни', color: '#DC2626' },
-  { key: 'todayTomorrow', label: 'Денес и утре', color: '#16A34A' },
-  { key: 'soon', label: 'Наскоро', color: '#5C6672' },
-  { key: 'later', label: 'Подоцна овој месец', color: '#8A93A0' },
-  { key: 'inProgress', label: 'Во тек · објавени', color: '#DB2777' },
+  { key: 'overdue', label: t('tasks.secOverdue'), color: '#DC2626' },
+  { key: 'todayTomorrow', label: t('tasks.secTodayTomorrow'), color: '#16A34A' },
+  { key: 'soon', label: t('tasks.secSoon'), color: '#5C6672' },
+  { key: 'later', label: t('tasks.secLater'), color: '#8A93A0' },
+  { key: 'inProgress', label: t('tasks.secInProgress'), color: '#DB2777' },
 ];
 
 const VIEW_SECTIONS: Record<View, UrgencyBucket[]> = {
@@ -35,21 +36,6 @@ interface MyTasksProps {
   openId: string | null;
   onOpen: (id: string) => void;
   onOpenCapa: (id: string) => void;
-}
-
-/** Македонски плурал (CLAUDE §4): 1 задача / N задачи. */
-function taskWord(n: number): string {
-  return n === 1 ? 'задача' : 'задачи';
-}
-/** 1 капа таск / 2–4 капа таска / N капа таскови. */
-function capaWord(n: number): string {
-  const m = n % 10;
-  if (n === 1) return 'капа таск';
-  if (m >= 2 && m <= 4 && (n < 12 || n > 14)) return 'капа таска';
-  return 'капа таскови';
-}
-function lateWord(n: number): string {
-  return n === 1 ? 'доцна' : 'доцни';
 }
 
 /** Мои задачи (Handoff §2.1): секции по итност + прегледи Сите мои / Доцни / Оваа недела. */
@@ -71,14 +57,27 @@ export function MyTasks({ tasks, capas, clientById, openId, onOpen, onOpenCapa }
   return (
     <div style={{ maxWidth: 900 }}>
       <p style={{ fontSize: 14, color: 'var(--gd-ink-secondary)', margin: '0 0 12px' }}>
-        Имаш {tasks.length} {taskWord(tasks.length)}
-        {capaCount > 0 && ` и ${capaCount} ${capaWord(capaCount)}`}, {overdue} {lateWord(overdue)}.
+        {capaCount > 0
+          ? t('tasks.mySummaryWithCapas', {
+              tasks: t('tasks.taskWord', { count: tasks.length }),
+              capas: t('tasks.capaWord', { count: capaCount }),
+              late: t('tasks.lateWord', { count: overdue }),
+            })
+          : t('tasks.mySummary', {
+              tasks: t('tasks.taskWord', { count: tasks.length }),
+              late: t('tasks.lateWord', { count: overdue }),
+            })}
       </p>
 
       <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
         {(['all', 'late', 'week'] as View[]).map((v) => (
           <button key={v} onClick={() => setView(v)} style={viewChip(view === v)}>
-            {v === 'all' ? 'Сите мои' : v === 'late' ? 'Доцни' : 'Оваа недела'} ({counts[v]})
+            {v === 'all'
+              ? t('tasks.viewAll')
+              : v === 'late'
+                ? t('tasks.viewLate')
+                : t('tasks.viewWeek')}{' '}
+            ({counts[v]})
           </button>
         ))}
       </div>
@@ -90,7 +89,7 @@ export function MyTasks({ tasks, capas, clientById, openId, onOpen, onOpenCapa }
               style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--gd-primary)' }}
               aria-hidden
             />
-            <span>Капа таскови</span>
+            <span>{t('tasks.capaTasks')}</span>
             <span style={{ color: 'var(--gd-ink-muted)', fontWeight: 400 }}>· {capas.length}</span>
           </div>
           <div style={card}>
@@ -98,7 +97,7 @@ export function MyTasks({ tasks, capas, clientById, openId, onOpen, onOpenCapa }
               const client = clientById.get(g.clientId);
               const label =
                 GROUP_STATUS_META[g.status as keyof typeof GROUP_STATUS_META]?.label ?? g.status;
-              const typeLabel = g.contentType === 'video' ? 'Видео' : 'Графика';
+              const typeLabel = g.contentType === 'video' ? t('tasks.video') : t('tasks.graphic');
               return (
                 <button key={g.id} onClick={() => onOpenCapa(g.id)} style={row(false)}>
                   <span
@@ -110,12 +109,15 @@ export function MyTasks({ tasks, capas, clientById, openId, onOpen, onOpenCapa }
                       flex: '0 0 auto',
                     }}
                   />
-                  <span style={rowTitle}>{client?.name ?? 'Клиент'}</span>
+                  <span style={rowTitle}>{client?.name ?? t('tasks.client')}</span>
                   <span style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>{typeLabel}</span>
                   <span style={capaChip}>{label}</span>
                   {g.contentType === 'video' && g.scenariosTotal > 0 && (
                     <span style={rowDate}>
-                      {g.scenariosApproved}/{g.scenariosTotal} сцен.
+                      {t('tasks.scenAbbrev', {
+                        approved: g.scenariosApproved,
+                        total: g.scenariosTotal,
+                      })}
                     </span>
                   )}
                 </button>
@@ -126,7 +128,7 @@ export function MyTasks({ tasks, capas, clientById, openId, onOpen, onOpenCapa }
       )}
 
       {tasks.length === 0 && capas.length === 0 && (
-        <p style={{ color: 'var(--gd-ink-muted)' }}>Нема задачи за тебе во моментот.</p>
+        <p style={{ color: 'var(--gd-ink-muted)' }}>{t('tasks.myEmpty')}</p>
       )}
 
       {visibleSections.map((s) => {
