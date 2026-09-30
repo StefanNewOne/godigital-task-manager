@@ -1,3 +1,4 @@
+import { t } from '@gd/ui';
 import { useClients } from '../../api/admin.js';
 import { tableStyles as s } from '../../components/table.js';
 
@@ -21,22 +22,22 @@ export function AdminCalendars() {
           marginBottom: 20,
         }}
       >
-        Календарите (стандарден и посебен по клиент) се уредуваат во екранот{' '}
-        <strong>Календар → Календарски поставки</strong>. Слотовите се генерираат автоматски на
-        20-ти (06:00, Europe/Skopje); Акаунт менаџерот потврдува месец во истиот екран.
+        {t('admin.calBannerPre')}
+        <strong>{t('admin.calBannerBold')}</strong>
+        {t('admin.calBannerPost')}
       </div>
 
-      {isLoading && <p style={{ color: 'var(--gd-ink-muted)' }}>Вчитување…</p>}
+      {isLoading && <p style={{ color: 'var(--gd-ink-muted)' }}>{t('admin.loading')}</p>}
       {clients && (
         <div style={s.wrap}>
           <table style={s.table}>
             <thead>
               <tr>
-                <th style={s.th}>Клиент</th>
-                <th style={s.th}>Тип календар</th>
-                <th style={{ ...s.th, textAlign: 'center' }}>Видео/мес</th>
-                <th style={{ ...s.th, textAlign: 'center' }}>Графика/мес</th>
-                <th style={{ ...s.th, textAlign: 'center' }}>Праг за аларм</th>
+                <th style={s.th}>{t('admin.calColClient')}</th>
+                <th style={s.th}>{t('admin.calColType')}</th>
+                <th style={{ ...s.th, textAlign: 'center' }}>{t('admin.calColVideo')}</th>
+                <th style={{ ...s.th, textAlign: 'center' }}>{t('admin.calColGraphic')}</th>
+                <th style={{ ...s.th, textAlign: 'center' }}>{t('admin.calColThreshold')}</th>
               </tr>
             </thead>
             <tbody>
@@ -56,7 +57,9 @@ export function AdminCalendars() {
                     {c.name}
                   </td>
                   <td style={s.td}>
-                    {c.calendarType === 'specificen' ? 'Специфичен' : 'Стандарден'}
+                    {c.calendarType === 'specificen'
+                      ? t('admin.calSpecific')
+                      : t('admin.calStandard')}
                   </td>
                   <td style={{ ...s.td, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
                     {c.videosPerMonth}
@@ -65,7 +68,7 @@ export function AdminCalendars() {
                     {c.graphicsPerMonth}
                   </td>
                   <td style={{ ...s.td, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
-                    {c.coverageAlarmDays} дена
+                    {t('plural.day', { count: c.coverageAlarmDays })}
                   </td>
                 </tr>
               ))}
