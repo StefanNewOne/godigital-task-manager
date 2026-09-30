@@ -1,7 +1,7 @@
 import type React from 'react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@gd/ui';
+import { Button, t } from '@gd/ui';
 import { daysLabel } from '../lib/format.js';
 import { useMe } from '../api/auth.js';
 import { useClients } from '../api/admin.js';
@@ -28,7 +28,7 @@ const LEVEL_COLOR: Record<string, string> = {
 const CHANNEL_LABEL: Record<string, string> = {
   viber: 'Viber',
   whatsapp: 'WhatsApp',
-  email: 'Мејл',
+  email: t('clients.channelEmail'),
 };
 // Активен таск = не резервиран и не терминален.
 const INACTIVE = new Set(['mrtov', 'objaveno', 'zavrseno', 'otkazano', 'pauza']);
@@ -60,22 +60,22 @@ export function Clients() {
         {me?.role === 'dir' && (
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
             <Button size="form" onClick={() => setPlanOpen(true)}>
-              Месечен план
+              {t('clients.monthlyPlan')}
             </Button>
           </div>
         )}
-        {isLoading && <p style={{ color: 'var(--gd-ink-muted)' }}>Вчитување…</p>}
+        {isLoading && <p style={{ color: 'var(--gd-ink-muted)' }}>{t('clients.loading')}</p>}
         {clients && (
           <div style={s.wrap}>
             <table style={s.table}>
               <thead>
                 <tr>
-                  <th style={s.th}>Клиент</th>
-                  <th style={s.th}>Видео/мес</th>
-                  <th style={s.th}>Графика/мес</th>
-                  <th style={s.th}>Активни таскови</th>
-                  <th style={s.th}>Покриеност</th>
-                  <th style={s.th}>Канал</th>
+                  <th style={s.th}>{t('clients.colClient')}</th>
+                  <th style={s.th}>{t('clients.colVideo')}</th>
+                  <th style={s.th}>{t('clients.colGraphic')}</th>
+                  <th style={s.th}>{t('clients.colActive')}</th>
+                  <th style={s.th}>{t('clients.colCoverage')}</th>
+                  <th style={s.th}>{t('clients.colChannel')}</th>
                 </tr>
               </thead>
               <tbody>

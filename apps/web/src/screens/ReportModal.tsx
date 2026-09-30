@@ -1,5 +1,5 @@
 import type React from 'react';
-import { Modal } from '@gd/ui';
+import { Modal, t } from '@gd/ui';
 import { clientReportCsvUrl, useClientReport } from '../api/reports.js';
 
 const fmt = (n: number): string => Math.round(n).toLocaleString('mk-MK');
@@ -22,28 +22,28 @@ export function ReportModal({
     <Modal
       open
       onClose={onClose}
-      title={`Извештај · ${label}`}
+      title={t('report.title', { label })}
       width={760}
       footer={
         <a href={clientReportCsvUrl(from, to)} download style={csvBtn}>
-          Преземи CSV
+          {t('report.downloadCsv')}
         </a>
       }
     >
-      {isLoading && <p style={{ color: 'var(--gd-ink-muted)' }}>Вчитување…</p>}
+      {isLoading && <p style={{ color: 'var(--gd-ink-muted)' }}>{t('report.loading')}</p>}
       {!isLoading && (
         <div style={{ overflowX: 'auto' }}>
           <table style={table}>
             <thead>
               <tr>
-                <th style={th}>Клиент</th>
-                <th style={thNum}>Видео</th>
-                <th style={thNum}>Графика</th>
-                <th style={thNum}>Досег</th>
-                <th style={thNum}>Импресии</th>
-                <th style={thNum}>Ангажман</th>
-                <th style={thNum}>Потрошено</th>
-                <th style={thNum}>Цена/рез.</th>
+                <th style={th}>{t('report.colClient')}</th>
+                <th style={thNum}>{t('report.colVideo')}</th>
+                <th style={thNum}>{t('report.colGraphic')}</th>
+                <th style={thNum}>{t('report.colReach')}</th>
+                <th style={thNum}>{t('report.colImpressions')}</th>
+                <th style={thNum}>{t('report.colEngagement')}</th>
+                <th style={thNum}>{t('report.colSpend')}</th>
+                <th style={thNum}>{t('report.colCpr')}</th>
               </tr>
             </thead>
             <tbody>
@@ -62,7 +62,7 @@ export function ReportModal({
               {rows.length === 0 && (
                 <tr>
                   <td style={td} colSpan={8}>
-                    Нема податоци за месецот.
+                    {t('report.empty')}
                   </td>
                 </tr>
               )}
