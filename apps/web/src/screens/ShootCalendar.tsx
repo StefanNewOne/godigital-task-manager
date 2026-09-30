@@ -1,10 +1,19 @@
 import type React from 'react';
 import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
+import { t } from '@gd/ui';
 import { useShootCalendar, type ShootCalendarItem } from '../api/shoots.js';
 import { MONTH_LABELS } from '../lib/calendar.js';
 
-const WD = ['Нед', 'Пон', 'Вто', 'Сре', 'Чет', 'Пет', 'Саб'];
+const WD = [
+  t('shootCalendar.wd0'),
+  t('shootCalendar.wd1'),
+  t('shootCalendar.wd2'),
+  t('shootCalendar.wd3'),
+  t('shootCalendar.wd4'),
+  t('shootCalendar.wd5'),
+  t('shootCalendar.wd6'),
+];
 const monthKeyOf = (y: number, m0: number) => `${y}-${String(m0 + 1).padStart(2, '0')}`;
 const timeLabel = (iso: string) => {
   const d = new Date(iso);
@@ -45,21 +54,19 @@ export function ShootCalendar() {
   return (
     <div style={{ padding: '24px 20px 48px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-        <button onClick={() => shift(-1)} style={navBtn} aria-label="Претходен месец">
+        <button onClick={() => shift(-1)} style={navBtn} aria-label={t('calendar.prevMonth')}>
           <ChevronLeft size={16} />
         </button>
         <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, minWidth: 180 }}>
-          Снимања · {MONTH_LABELS[month0]} {year}
+          {t('shootCalendar.title', { month: MONTH_LABELS[month0] ?? '', year })}
         </h1>
-        <button onClick={() => shift(1)} style={navBtn} aria-label="Следен месец">
+        <button onClick={() => shift(1)} style={navBtn} aria-label={t('calendar.nextMonth')}>
           <ChevronRight size={16} />
         </button>
       </div>
 
-      {isLoading && <p style={{ color: 'var(--gd-ink-muted)' }}>Вчитување…</p>}
-      {!isLoading && byDay.length === 0 && (
-        <div style={empty}>Нема договорени снимања за овој месец.</div>
-      )}
+      {isLoading && <p style={{ color: 'var(--gd-ink-muted)' }}>{t('shootCalendar.loading')}</p>}
+      {!isLoading && byDay.length === 0 && <div style={empty}>{t('shootCalendar.empty')}</div>}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {byDay.map(([day, shoots]) => (
@@ -80,7 +87,9 @@ export function ShootCalendar() {
                   <span style={loc}>
                     <MapPin size={12} /> {s.location || '—'}
                   </span>
-                  {s.kind === 'additional' && <span style={badge}>дополнително</span>}
+                  {s.kind === 'additional' && (
+                    <span style={badge}>{t('shootCalendar.additional')}</span>
+                  )}
                 </div>
               ))}
             </div>
