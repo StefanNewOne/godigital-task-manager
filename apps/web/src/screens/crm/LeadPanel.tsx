@@ -7,6 +7,7 @@ import {
   type CrmStatus,
   type LossReason,
 } from '@gd/core';
+import { t } from '@gd/ui';
 import { uploadFile } from '../../api/files.js';
 import {
   useCrmAgents,
@@ -77,7 +78,7 @@ export function LeadPanel({
       });
       upload.mutate({ kind, fileId });
     } catch {
-      setUploadErr('Прикачувањето не успеа. Обиди се повторно.');
+      setUploadErr(t('leadPanel.uploadFailed'));
     } finally {
       setUploading(false);
     }
@@ -103,13 +104,18 @@ export function LeadPanel({
             <div style={{ fontSize: 18, fontWeight: 700 }}>{lead.name}</div>
             <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)', marginTop: 2 }}>
               {lead.status === 'izguben'
-                ? `Изгубен во чекор ${stage} од 11`
+                ? t('leadPanel.lostInStep', { stage })
                 : lead.status === 'aktiviran'
-                  ? 'Активиран · клиентот е во Task Manager'
-                  : `Чекор ${meta.step} од 11`}
+                  ? t('leadPanel.activated')
+                  : t('leadPanel.stepOf', { step: meta.step })}
             </div>
           </div>
-          <button type="button" onClick={onClose} style={closeBtn} aria-label="Затвори">
+          <button
+            type="button"
+            onClick={onClose}
+            style={closeBtn}
+            aria-label={t('leadPanel.close')}
+          >
             ✕
           </button>
         </div>
@@ -137,14 +143,14 @@ export function LeadPanel({
 
         <div style={{ padding: '0 20px 20px', overflowY: 'auto', flex: 1, minHeight: 0 }}>
           {/* Инфо */}
-          <Section title="Информации">
+          <Section title={t('leadPanel.info')}>
             <div style={infoGrid}>
               {[
-                ['Контакт лице', lead.person],
-                ['Телефон', lead.phone ?? '—'],
-                ['Мејл', lead.email ?? '—'],
-                ['Извор', lead.source],
-                ['Потенцијален пакет', lead.pkgHint],
+                [t('leadPanel.contactPerson'), lead.person],
+                [t('leadPanel.phone'), lead.phone ?? '—'],
+                [t('leadPanel.email'), lead.email ?? '—'],
+                [t('leadPanel.source'), lead.source],
+                [t('leadPanel.pkgHint'), lead.pkgHint],
               ].map(([k, v]) => (
                 <div key={k}>
                   <div style={infoK}>{k}</div>
@@ -159,7 +165,7 @@ export function LeadPanel({
           {/* Изгубен */}
           {lead.status === 'izguben' && (
             <Banner color="#DC2626" bg="#FEF2F2">
-              <b>Изгубен · {lead.lossReason}</b>
+              <b>{t('leadPanel.lostBanner', { reason: lead.lossReason ?? '' })}</b>
               {lead.lossNote ? ` — ${lead.lossNote}` : ''}
             </Banner>
           )}
@@ -167,9 +173,15 @@ export function LeadPanel({
           {/* Активиран */}
           {lead.status === 'aktiviran' && (
             <Banner color="#15803D" bg="#F0FDF4">
-              Client записот е креиран со {lead.pkgVideos} видеа и {lead.pkgGraphics} графики
-              месечно, {lead.pkgCalType === 'specificen' ? 'специфичен' : 'стандарден'} календар,
-              договор {lead.pkgMonths} месеци. Првите слотови се во Задачи.
+              {t('leadPanel.activatedBanner', {
+                videos: lead.pkgVideos,
+                graphics: lead.pkgGraphics,
+                calType:
+                  lead.pkgCalType === 'specificen'
+                    ? t('leadPanel.calSpecific')
+                    : t('leadPanel.calStandard'),
+                months: lead.pkgMonths,
+              })}
             </Banner>
           )}
 
@@ -178,14 +190,15 @@ export function LeadPanel({
 
           {!can && !terminal && (
             <Banner color="#5C6672" bg="#F7F8FA">
-              Само читање. Следниот чекор го работи{' '}
-              {meta.owner === 'dir' ? 'Директорот' : 'продажниот агент'}.
+              {t('leadPanel.readOnly', {
+                owner: meta.owner === 'dir' ? t('leadPanel.ownerDir') : t('leadPanel.ownerAgent'),
+              })}
             </Banner>
           )}
 
           {uploading && (
             <Banner color="#0052D9" bg="#EBF2FF">
-              Се прикачува фајл…
+              {t('leadPanel.uploading')}
             </Banner>
           )}
           {uploadErr && (
@@ -213,17 +226,21 @@ export function LeadPanel({
               {/* Враќање-коментар box */}
               {note ? (
                 <Section
-                  title={note.kind === 'dirRet' ? 'Коментар до агентот' : 'Што бара клиентот?'}
+                  title={
+                    note.kind === 'dirRet'
+                      ? t('leadPanel.noteDirTitle')
+                      : t('leadPanel.noteClientTitle')
+                  }
                 >
                   <textarea
                     style={ta}
                     value={noteText}
                     onChange={(e) => setNoteText(e.target.value)}
-                    placeholder="Коментар…"
+                    placeholder={t('leadPanel.notePlaceholder')}
                   />
                   <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                     <button type="button" style={btnGhost} onClick={() => setNote(null)}>
-                      Откажи
+                      {t('crm.cancel')}
                     </button>
                     <button
                       type="button"
@@ -235,7 +252,7 @@ export function LeadPanel({
                         setNoteText('');
                       }}
                     >
-                      Врати со коментар
+                      {t('leadPanel.returnWithComment')}
                     </button>
                   </div>
                 </Section>
@@ -259,7 +276,7 @@ export function LeadPanel({
 
           {/* Активност */}
           {lead.events && lead.events.length > 0 && (
-            <Section title="Активност">
+            <Section title={t('leadPanel.activity')}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {[...lead.events].reverse().map((e, i) => (
                   <div key={i} style={{ fontSize: 12, color: 'var(--gd-ink-secondary)' }}>
@@ -301,7 +318,7 @@ function AgentZone({
   const canReassign = me.role === 'dir' && !terminal;
   const agentName = agents.find((a) => a.id === lead.agentId)?.name ?? '—';
   return (
-    <Section title="Продажен агент">
+    <Section title={t('leadPanel.salesAgent')}>
       {canReassign ? (
         <select
           style={input}
@@ -355,49 +372,53 @@ function Actions({
   const buttons: React.ReactNode[] = [];
   switch (lead.status) {
     case 'novLid':
-      buttons.push(p('Започни анализа →', 'analiza'));
+      buttons.push(p(t('leadPanel.aStartAnalysis'), 'analiza'));
       break;
     case 'analiza':
-      buttons.push(p('Продолжи на понуда →', 'ponudaIzr'));
+      buttons.push(p(t('leadPanel.aToOffer'), 'ponudaIzr'));
       break;
     case 'ponudaIzr':
-      buttons.push(p('Прати на одобрување кај директор →', 'ponudaOdob'));
+      buttons.push(p(t('leadPanel.aSendDirApproval'), 'ponudaOdob'));
       break;
     case 'ponudaOdob':
-      buttons.push(p(`Одобри понуда v${lead.offers?.length ?? ''}`, 'ponudaKlient'));
-      buttons.push(s('Врати со коментар', () => onNote('ponudaIzr', 'dirRet')));
+      buttons.push(
+        p(t('leadPanel.aApproveOffer', { n: lead.offers?.length ?? '' }), 'ponudaKlient'),
+      );
+      buttons.push(s(t('leadPanel.returnWithComment'), () => onNote('ponudaIzr', 'dirRet')));
       break;
     case 'ponudaKlient':
-      buttons.push(p('Клиентот прифати → состанок', 'sostanok'));
-      buttons.push(s('Клиентот бара измени', () => onNote('ponudaIzr', 'clientRet')));
-      buttons.push(d('Изгубен лид', onLost));
+      buttons.push(p(t('leadPanel.aClientAccepted'), 'sostanok'));
+      buttons.push(s(t('leadPanel.aClientChanges'), () => onNote('ponudaIzr', 'clientRet')));
+      buttons.push(d(t('leadPanel.aLostLead'), onLost));
       break;
     case 'sostanok':
-      buttons.push(p('Продолжи на договор →', 'dogIzr'));
+      buttons.push(p(t('leadPanel.aToContract'), 'dogIzr'));
       if (lead.meetingDate && !lead.meetingHeld)
-        buttons.push(s('Не дојде · презакажи', () => noShow.mutate()));
+        buttons.push(s(t('leadPanel.aNoShow'), () => noShow.mutate()));
       break;
     case 'dogIzr':
-      buttons.push(p('Прати на одобрување кај директор →', 'dogOdob'));
+      buttons.push(p(t('leadPanel.aSendDirApproval'), 'dogOdob'));
       break;
     case 'dogOdob':
-      buttons.push(p(`Одобри договор v${lead.contracts?.length ?? ''}`, 'dogKlient'));
-      buttons.push(s('Врати со коментар', () => onNote('dogIzr', 'dirRet')));
+      buttons.push(
+        p(t('leadPanel.aApproveContract', { n: lead.contracts?.length ?? '' }), 'dogKlient'),
+      );
+      buttons.push(s(t('leadPanel.returnWithComment'), () => onNote('dogIzr', 'dirRet')));
       break;
     case 'dogKlient':
-      buttons.push(p('Договорот е потпишан →', 'strategija'));
-      buttons.push(s('Клиентот бара измени', () => onNote('dogIzr', 'clientRet')));
-      buttons.push(d('Изгубен лид', onLost));
+      buttons.push(p(t('leadPanel.aContractSigned'), 'strategija'));
+      buttons.push(s(t('leadPanel.aClientChanges'), () => onNote('dogIzr', 'clientRet')));
+      buttons.push(d(t('leadPanel.aLostLead'), onLost));
       break;
     case 'strategija':
-      buttons.push(p('Спремно за активација →', 'aktivacija'));
+      buttons.push(p(t('leadPanel.aReadyActivate'), 'aktivacija'));
       break;
     case 'aktivacija':
-      buttons.push(p('Активирај клиент', 'aktiviran'));
+      buttons.push(p(t('leadPanel.aActivate'), 'aktiviran'));
       break;
     case 'izguben':
       buttons.push(
-        p('Реактивирај лид', crmReactivateTarget(lead.lostFromStatus ?? 'ponudaKlient')),
+        p(t('leadPanel.aReactivate'), crmReactivateTarget(lead.lostFromStatus ?? 'ponudaKlient')),
       );
       break;
     default:
@@ -414,14 +435,14 @@ function ReturnBanner({ lead }: { lead: LeadRow }) {
   const lastContract = lead.contracts?.at(-1);
   if (lead.status === 'ponudaIzr' && lastOffer && (lastOffer.ret || lastOffer.clientRet)) {
     title = lastOffer.ret
-      ? `Директорот ја врати понудата v${lastOffer.version}`
-      : `Измени од клиентот на понудата v${lastOffer.version}`;
+      ? t('leadPanel.rbDirOffer', { version: lastOffer.version })
+      : t('leadPanel.rbClientOffer', { version: lastOffer.version });
     text = lastOffer.ret ?? lastOffer.clientRet ?? '';
   }
   if (lead.status === 'dogIzr' && lastContract && (lastContract.ret || lastContract.clientRet)) {
     title = lastContract.ret
-      ? `Директорот го врати договорот v${lastContract.version}`
-      : `Измени од клиентот на договорот v${lastContract.version}`;
+      ? t('leadPanel.rbDirContract', { version: lastContract.version })
+      : t('leadPanel.rbClientContract', { version: lastContract.version });
     text = lastContract.ret ?? lastContract.clientRet ?? '';
   }
   if (!title) return null;
@@ -451,18 +472,18 @@ function Checklist({ lead, onUpload }: { lead: LeadRow; onUpload: (kind: string)
     case 'novLid':
       items = [
         {
-          label: 'Контакт лице и телефон/мејл',
+          label: t('leadPanel.clContact'),
           done: !!(lead.person && (lead.phone || lead.email)),
         },
-        { label: 'Извор на лидот', done: !!lead.source },
+        { label: t('leadPanel.clSource'), done: !!lead.source },
       ];
       break;
     case 'analiza':
       items = [
         {
-          label: 'Анализа на клиентот и конкуренцијата',
+          label: t('leadPanel.clAnalysis'),
           done: !!lead.analysisFileId,
-          btn: 'Прикачи',
+          btn: t('leadPanel.btnUpload'),
           kind: 'analysis',
         },
       ];
@@ -470,31 +491,31 @@ function Checklist({ lead, onUpload }: { lead: LeadRow; onUpload: (kind: string)
     case 'ponudaIzr':
       items = [
         {
-          label: `Понуда v${offerN}`,
+          label: t('leadPanel.clOffer', { n: offerN }),
           done: lastOfferOk,
-          btn: `Прикачи v${(lead.offers?.length ?? 0) + 1}`,
+          btn: t('leadPanel.btnUploadV', { n: (lead.offers?.length ?? 0) + 1 }),
           kind: 'offer',
         },
       ];
       break;
     case 'sostanok':
       items = [
-        { label: 'Закажан датум и час', done: meetOk },
+        { label: t('leadPanel.clMeetDate'), done: meetOk },
         {
-          label: 'Аудио снимка или текстуални заклучоци',
+          label: t('leadPanel.clAudio'),
           done: notesOk,
-          btn: 'Прикачи аудио',
+          btn: t('leadPanel.btnUploadAudio'),
           kind: 'audio',
         },
       ];
       break;
     case 'dogIzr':
       items = [
-        { label: 'Параметри на пакетот', done: pkgOk },
+        { label: t('leadPanel.pkgParams'), done: pkgOk },
         {
-          label: `Договор v${contractN}`,
+          label: t('leadPanel.clContract', { n: contractN }),
           done: lastContractOk,
-          btn: `Прикачи v${(lead.contracts?.length ?? 0) + 1}`,
+          btn: t('leadPanel.btnUploadV', { n: (lead.contracts?.length ?? 0) + 1 }),
           kind: 'contract',
         },
       ];
@@ -502,9 +523,9 @@ function Checklist({ lead, onUpload }: { lead: LeadRow; onUpload: (kind: string)
     case 'dogKlient':
       items = [
         {
-          label: 'Потпишан договор (скен)',
+          label: t('leadPanel.clSigned'),
           done: !!lead.signedFileId,
-          btn: 'Прикачи',
+          btn: t('leadPanel.btnUpload'),
           kind: 'signed',
         },
       ];
@@ -513,15 +534,15 @@ function Checklist({ lead, onUpload }: { lead: LeadRow; onUpload: (kind: string)
     case 'aktivacija':
       items = [
         {
-          label: 'Стратегија за 90 дена',
+          label: t('leadPanel.clStrategy'),
           done: !!lead.strategyFileId,
-          btn: 'Прикачи',
+          btn: t('leadPanel.btnUpload'),
           kind: 'strategy',
         },
         {
-          label: 'Content планер · Fable 5 фајл',
+          label: t('leadPanel.clFable'),
           done: !!lead.fableFileId,
-          btn: 'Прикачи',
+          btn: t('leadPanel.btnUpload'),
           kind: 'fable',
         },
       ];
@@ -530,7 +551,7 @@ function Checklist({ lead, onUpload }: { lead: LeadRow; onUpload: (kind: string)
       return null;
   }
   return (
-    <Section title={`Потребно за „${CRM_STATUS_META[lead.status].label}"`}>
+    <Section title={t('leadPanel.checklistTitle', { label: CRM_STATUS_META[lead.status].label })}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {items.map((it) => (
           <div key={it.label} style={checkRow}>
@@ -564,20 +585,20 @@ function MeetingZone({ lead }: { lead: LeadRow }) {
   const [place, setPlace] = useState(lead.meetingPlace ?? '');
   const [notes, setNotes] = useState(lead.meetingNotes ?? '');
   return (
-    <Section title="Состанок">
+    <Section title={t('leadPanel.meeting')}>
       <div style={{ display: 'flex', gap: 8 }}>
         <input type="date" style={input} value={date} onChange={(e) => setDate(e.target.value)} />
         <input type="time" style={input} value={time} onChange={(e) => setTime(e.target.value)} />
       </div>
       <input
         style={{ ...input, marginTop: 8 }}
-        placeholder="Место"
+        placeholder={t('leadPanel.phPlace')}
         value={place}
         onChange={(e) => setPlace(e.target.value)}
       />
       <textarea
         style={{ ...ta, marginTop: 8 }}
-        placeholder="Заклучоци од состанокот…"
+        placeholder={t('leadPanel.phConclusions')}
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
       />
@@ -594,11 +615,11 @@ function MeetingZone({ lead }: { lead: LeadRow }) {
             })
           }
         >
-          Зачувај
+          {t('leadPanel.save')}
         </button>
         {!lead.meetingHeld && (
           <button type="button" style={btnPrimary} onClick={() => update.mutate({ held: true })}>
-            Означи одржан
+            {t('leadPanel.markHeld')}
           </button>
         )}
       </div>
@@ -616,19 +637,34 @@ function PackageZone({ lead, editable }: { lead: LeadRow; editable: boolean }) {
   const [months, setMonths] = useState(String(lead.pkgMonths));
   const [cal, setCal] = useState<'specificen' | 'standarden'>(lead.pkgCalType);
   return (
-    <Section title="Параметри на пакетот">
+    <Section title={t('leadPanel.pkgParams')}>
       <div style={{ display: 'flex', gap: 8, opacity: editable ? 1 : 0.7 }}>
-        <LabeledInput label="Видеа" value={v} disabled={!editable} onChange={setV} />
-        <LabeledInput label="Графики" value={g} disabled={!editable} onChange={setG} />
+        <LabeledInput
+          label={t('leadPanel.pkgVideos')}
+          value={v}
+          disabled={!editable}
+          onChange={setV}
+        />
+        <LabeledInput
+          label={t('leadPanel.pkgGraphics')}
+          value={g}
+          disabled={!editable}
+          onChange={setG}
+        />
       </div>
       <div style={{ display: 'flex', gap: 8, marginTop: 8, opacity: editable ? 1 : 0.7 }}>
         <LabeledInput
-          label="Старт (YYYY-MM)"
+          label={t('leadPanel.pkgStart')}
           value={start}
           disabled={!editable}
           onChange={setStart}
         />
-        <LabeledInput label="Месеци" value={months} disabled={!editable} onChange={setMonths} />
+        <LabeledInput
+          label={t('leadPanel.pkgMonths')}
+          value={months}
+          disabled={!editable}
+          onChange={setMonths}
+        />
       </div>
       <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
         <button
@@ -645,7 +681,7 @@ function PackageZone({ lead, editable }: { lead: LeadRow; editable: boolean }) {
             cursor: editable ? 'pointer' : 'default',
           }}
         >
-          Meta Ads: {meta ? 'Да' : 'Не'}
+          Meta Ads: {meta ? t('leadPanel.yes') : t('leadPanel.no')}
         </button>
         {(['specificen', 'standarden'] as const).map((c) => (
           <button
@@ -664,7 +700,7 @@ function PackageZone({ lead, editable }: { lead: LeadRow; editable: boolean }) {
               cursor: editable ? 'pointer' : 'default',
             }}
           >
-            {c === 'specificen' ? 'Специфичен' : 'Стандарден'}
+            {c === 'specificen' ? t('leadPanel.calSpecificCap') : t('leadPanel.calStandardCap')}
           </button>
         ))}
       </div>
@@ -683,7 +719,7 @@ function PackageZone({ lead, editable }: { lead: LeadRow; editable: boolean }) {
             })
           }
         >
-          Зачувај пакет
+          {t('leadPanel.savePackage')}
         </button>
       )}
     </Section>
@@ -696,24 +732,22 @@ function TeamZone({ lead, me }: { lead: LeadRow; me: { role: string } }) {
   const locked = !(me.role === 'dir' && lead.status === 'aktivacija');
   const team = lead.team ?? {};
   return (
-    <Section title="Стандарден тим">
+    <Section title={t('leadPanel.stdTeam')}>
       <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)', marginBottom: 8 }}>
-        {locked
-          ? 'Стандарден тим. Само директорот може да го смени пред активација.'
-          : 'Смени го тимот пред агентот да активира.'}
+        {locked ? t('leadPanel.teamLocked') : t('leadPanel.teamEditable')}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {(
           [
-            ['am', 'Акаунт менаџер'],
-            ['rez', 'Режисер'],
-            ['krea', 'Графички креатор'],
-            ['ana', 'Аналитичар'],
+            ['am', t('leadPanel.roleAm')],
+            ['rez', t('leadPanel.roleRez')],
+            ['krea', t('leadPanel.roleKrea')],
+            ['ana', t('leadPanel.roleAna')],
           ] as Array<[keyof NonNullable<LeadRow['team']>, string]>
         ).map(([k, label]) => (
           <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
             <span style={{ color: 'var(--gd-ink-muted)' }}>{label}</span>
-            <span>{team[k] ? 'доделен' : '—'}</span>
+            <span>{team[k] ? t('leadPanel.assigned') : '—'}</span>
           </div>
         ))}
       </div>
@@ -723,7 +757,7 @@ function TeamZone({ lead, me }: { lead: LeadRow; me: { role: string } }) {
           style={{ ...btnGhost, marginTop: 8 }}
           onClick={() => update.mutate(team)}
         >
-          Зачувај тим
+          {t('leadPanel.saveTeam')}
         </button>
       )}
     </Section>
@@ -733,28 +767,41 @@ function TeamZone({ lead, me }: { lead: LeadRow; me: { role: string } }) {
 // ── Документи ──
 function DocsList({ lead }: { lead: LeadRow }) {
   const docs: Array<{ name: string; kind: string; tag?: string }> = [];
-  if (lead.analysisFileId) docs.push({ name: 'Анализа', kind: 'Анализа · claude.ai' });
+  if (lead.analysisFileId)
+    docs.push({ name: t('leadPanel.docAnalysis'), kind: t('leadPanel.docAnalysisKind') });
   lead.offers?.forEach((o) =>
     docs.push({
-      name: `Понуда v${o.version}`,
-      kind: 'Понуда',
-      tag: o.ret ? 'вратена од директор' : o.clientRet ? 'измени од клиент' : undefined,
+      name: t('leadPanel.clOffer', { n: o.version }),
+      kind: t('leadPanel.docOffer'),
+      tag: o.ret
+        ? t('leadPanel.tagOfferRet')
+        : o.clientRet
+          ? t('leadPanel.tagClientChanges')
+          : undefined,
     }),
   );
-  if (lead.meetingAudioFileId) docs.push({ name: 'Аудио од состанок', kind: 'Аудио' });
+  if (lead.meetingAudioFileId)
+    docs.push({ name: t('leadPanel.docMeetAudio'), kind: t('leadPanel.docAudioKind') });
   lead.contracts?.forEach((o) =>
     docs.push({
-      name: `Договор v${o.version}`,
-      kind: 'Договор',
-      tag: o.ret ? 'вратен од директор' : o.clientRet ? 'измени од клиент' : undefined,
+      name: t('leadPanel.clContract', { n: o.version }),
+      kind: t('leadPanel.docContract'),
+      tag: o.ret
+        ? t('leadPanel.tagContractRet')
+        : o.clientRet
+          ? t('leadPanel.tagClientChanges')
+          : undefined,
     }),
   );
-  if (lead.signedFileId) docs.push({ name: 'Потпишан договор', kind: 'Скен' });
-  if (lead.strategyFileId) docs.push({ name: 'Стратегија 90 дена', kind: 'Стратегија' });
-  if (lead.fableFileId) docs.push({ name: 'Content планер · Fable 5', kind: 'Планер' });
+  if (lead.signedFileId)
+    docs.push({ name: t('leadPanel.docSigned'), kind: t('leadPanel.docScanKind') });
+  if (lead.strategyFileId)
+    docs.push({ name: t('leadPanel.docStrategy'), kind: t('leadPanel.docStrategyKind') });
+  if (lead.fableFileId)
+    docs.push({ name: t('leadPanel.docFable'), kind: t('leadPanel.docPlannerKind') });
   if (docs.length === 0) return null;
   return (
-    <Section title="Документи">
+    <Section title={t('leadPanel.documents')}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {docs.map((d, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
