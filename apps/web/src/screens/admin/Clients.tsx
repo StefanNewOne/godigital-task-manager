@@ -9,7 +9,7 @@ import {
   type ClientContactCreateInput,
   type ClientCreateInput,
 } from '@gd/core';
-import { Button, Modal } from '@gd/ui';
+import { Button, Modal, t } from '@gd/ui';
 import {
   useClientContacts,
   useClients,
@@ -30,13 +30,13 @@ import { ApiRequestError } from '../../lib/api.js';
 import type { ClientRow } from '../../lib/types.js';
 
 const CHANNELS = [
-  { v: 'viber', l: 'Viber' },
-  { v: 'whatsapp', l: 'WhatsApp' },
-  { v: 'email', l: 'Мејл' },
+  { v: 'viber', l: t('adminClients.chViber') },
+  { v: 'whatsapp', l: t('adminClients.chWhatsapp') },
+  { v: 'email', l: t('adminClients.chEmail') },
 ];
 const CALENDARS = [
-  { v: 'standarden', l: 'Стандарден' },
-  { v: 'specificen', l: 'Специфичен' },
+  { v: 'standarden', l: t('adminClients.calStandard') },
+  { v: 'specificen', l: t('adminClients.calSpecific') },
 ];
 
 export function AdminClients() {
@@ -54,9 +54,13 @@ export function AdminClients() {
     backfill.mutate(c.id, {
       onSuccess: (r) =>
         setToast(
-          `${c.name}: ${r.media.total} IG постови + ${r.campaigns.total} кампањи. Метриките се освежени.`,
+          t('adminClients.backfillToast', {
+            name: c.name,
+            media: r.media.total,
+            campaigns: r.campaigns.total,
+          }),
         ),
-      onError: (e) => setToast(e instanceof ApiRequestError ? e.message : 'Грешка.'),
+      onError: (e) => setToast(e instanceof ApiRequestError ? e.message : t('adminClients.error')),
     });
 
   const cutoffLabel = (iso: string) => {
@@ -69,11 +73,11 @@ export function AdminClients() {
     <div>
       <div style={{ ...headerRow, justifyContent: 'flex-end' }}>
         <Button variant="primary" size="form" onClick={() => setCreating(true)}>
-          + Нов клиент
+          {t('adminClients.newClient')}
         </Button>
       </div>
 
-      {isLoading && <p style={{ color: 'var(--gd-ink-muted)' }}>Вчитување…</p>}
+      {isLoading && <p style={{ color: 'var(--gd-ink-muted)' }}>{t('adminClients.loading')}</p>}
 
       <div style={grid}>
         {(data ?? []).map((c) => (
@@ -83,31 +87,33 @@ export function AdminClients() {
               <strong style={{ fontSize: 16 }}>{c.name}</strong>
               {c.deactivatedAt ? (
                 <span style={deactivatedBadge}>
-                  Деактивиран · до {cutoffLabel(c.deactivatedAt)}
+                  {t('adminClients.deactivated', { date: cutoffLabel(c.deactivatedAt) })}
                 </span>
               ) : (
-                <span style={activeBadge}>{c.status === 'aktiven' ? 'Активен' : c.status}</span>
+                <span style={activeBadge}>
+                  {c.status === 'aktiven' ? t('adminClients.active') : c.status}
+                </span>
               )}
             </div>
             <dl style={cardMeta}>
-              <dt style={dt}>Видео/мес</dt>
+              <dt style={dt}>{t('adminClients.cVideo')}</dt>
               <dd style={dd}>{c.videosPerMonth}</dd>
-              <dt style={dt}>Графика/мес</dt>
+              <dt style={dt}>{t('adminClients.cGraphic')}</dt>
               <dd style={dd}>{c.graphicsPerMonth}</dd>
-              <dt style={dt}>Канал</dt>
+              <dt style={dt}>{t('adminClients.cChannel')}</dt>
               <dd style={dd}>
                 {CHANNELS.find((x) => x.v === c.approvalChannel)?.l ?? c.approvalChannel}
               </dd>
-              <dt style={dt}>Meta Ads</dt>
-              <dd style={dd}>{c.usesMetaAds ? 'Да' : '—'}</dd>
-              <dt style={dt}>Календар</dt>
+              <dt style={dt}>{t('adminClients.cMetaAds')}</dt>
+              <dd style={dd}>{c.usesMetaAds ? t('adminClients.yes') : '—'}</dd>
+              <dt style={dt}>{t('adminClients.cCalendar')}</dt>
               <dd style={dd}>
                 {CALENDARS.find((x) => x.v === c.calendarType)?.l ?? c.calendarType}
               </dd>
             </dl>
             <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
               <Button variant="ghost" size="toolbar" onClick={() => setEditing(c)}>
-                Уреди
+                {t('adminClients.edit')}
               </Button>
               {isDirector &&
                 (c.deactivatedAt ? (
@@ -119,12 +125,14 @@ export function AdminClients() {
                         { id: c.id, deactivate: false },
                         {
                           onError: (e) =>
-                            setToast(e instanceof ApiRequestError ? e.message : 'Грешка.'),
+                            setToast(
+                              e instanceof ApiRequestError ? e.message : t('adminClients.error'),
+                            ),
                         },
                       )
                     }
                   >
-                    Активирај
+                    {t('adminClients.activate')}
                   </Button>
                 ) : (
                   <Button
@@ -135,12 +143,14 @@ export function AdminClients() {
                         { id: c.id, deactivate: true },
                         {
                           onError: (e) =>
-                            setToast(e instanceof ApiRequestError ? e.message : 'Грешка.'),
+                            setToast(
+                              e instanceof ApiRequestError ? e.message : t('adminClients.error'),
+                            ),
                         },
                       )
                     }
                   >
-                    Деактивирај
+                    {t('adminClients.deactivate')}
                   </Button>
                 ))}
               {canMeta && c.metaIgId && (
@@ -150,7 +160,7 @@ export function AdminClients() {
                   disabled={backfill.isPending}
                   onClick={() => runBackfill(c)}
                 >
-                  {backfill.isPending ? 'Влечење…' : 'Повлечи метрики'}
+                  {backfill.isPending ? t('adminClients.pulling') : t('adminClients.pullMetrics')}
                 </Button>
               )}
             </div>
@@ -221,7 +231,7 @@ function ClientModal({ client, onClose }: { client?: ClientRow; onClose: () => v
     const mut = isEdit ? update : create;
     mut.mutate(payload, {
       onSuccess: () => onClose(),
-      onError: (e) => setToast(e instanceof ApiRequestError ? e.message : 'Грешка.'),
+      onError: (e) => setToast(e instanceof ApiRequestError ? e.message : t('adminClients.error')),
     });
   };
 
@@ -229,28 +239,30 @@ function ClientModal({ client, onClose }: { client?: ClientRow; onClose: () => v
     <Modal
       open
       onClose={onClose}
-      title={isEdit ? `Уреди · ${client!.name}` : 'Нов клиент'}
+      title={
+        isEdit ? t('adminClients.editTitle', { name: client!.name }) : t('adminClients.newTitle')
+      }
       width={isEdit ? 560 : 480}
       footer={
         <>
           <Button variant="ghost" size="form" onClick={onClose}>
-            Откажи
+            {t('adminClients.cancel')}
           </Button>
           <Button variant="primary" size="form" disabled={pending} onClick={handleSubmit(onSubmit)}>
-            {pending ? 'Се зачувува…' : 'Зачувај'}
+            {pending ? t('adminClients.saving') : t('common.save')}
           </Button>
         </>
       }
     >
       <form onSubmit={handleSubmit(onSubmit)} style={form}>
-        <Field label="Име" error={errors.name?.message}>
+        <Field label={t('adminClients.fName')} error={errors.name?.message}>
           <input className={fieldCls(!!errors.name)} {...register('name')} />
         </Field>
-        <Field label="Правно име (по потреба)" error={errors.legalName?.message}>
+        <Field label={t('adminClients.fLegal')} error={errors.legalName?.message}>
           <input className={fieldCls(!!errors.legalName)} {...register('legalName')} />
         </Field>
         <div style={twoCol}>
-          <Field label="Боја" error={errors.color?.message}>
+          <Field label={t('adminClients.fColor')} error={errors.color?.message}>
             <input
               type="color"
               className={fieldCls(false)}
@@ -258,7 +270,7 @@ function ClientModal({ client, onClose }: { client?: ClientRow; onClose: () => v
               {...register('color')}
             />
           </Field>
-          <Field label="Аларм покриеност (дена)" error={errors.coverageAlarmDays?.message}>
+          <Field label={t('adminClients.fAlarmDays')} error={errors.coverageAlarmDays?.message}>
             <input
               type="number"
               className={fieldCls(!!errors.coverageAlarmDays)}
@@ -268,14 +280,14 @@ function ClientModal({ client, onClose }: { client?: ClientRow; onClose: () => v
         </div>
         {!isEdit && (
           <div style={twoCol}>
-            <Field label="Почеток на договор" error={errors.contractStart?.message}>
+            <Field label={t('adminClients.fContractStart')} error={errors.contractStart?.message}>
               <input
                 type="date"
                 className={fieldCls(!!errors.contractStart)}
                 {...register('contractStart')}
               />
             </Field>
-            <Field label="Времетраење (месеци)" error={errors.contractMonths?.message}>
+            <Field label={t('adminClients.fContractMonths')} error={errors.contractMonths?.message}>
               <input
                 type="number"
                 className={fieldCls(!!errors.contractMonths)}
@@ -285,14 +297,14 @@ function ClientModal({ client, onClose }: { client?: ClientRow; onClose: () => v
           </div>
         )}
         <div style={twoCol}>
-          <Field label="Видео/мес" error={errors.videosPerMonth?.message}>
+          <Field label={t('adminClients.cVideo')} error={errors.videosPerMonth?.message}>
             <input
               type="number"
               className={fieldCls(!!errors.videosPerMonth)}
               {...register('videosPerMonth', { valueAsNumber: true })}
             />
           </Field>
-          <Field label="Графика/мес" error={errors.graphicsPerMonth?.message}>
+          <Field label={t('adminClients.cGraphic')} error={errors.graphicsPerMonth?.message}>
             <input
               type="number"
               className={fieldCls(!!errors.graphicsPerMonth)}
@@ -301,7 +313,7 @@ function ClientModal({ client, onClose }: { client?: ClientRow; onClose: () => v
           </Field>
         </div>
         <div style={twoCol}>
-          <Field label="Календар" error={errors.calendarType?.message}>
+          <Field label={t('adminClients.fCalendar')} error={errors.calendarType?.message}>
             <select className={fieldCls(false)} {...register('calendarType')}>
               {CALENDARS.map((x) => (
                 <option key={x.v} value={x.v}>
@@ -310,7 +322,7 @@ function ClientModal({ client, onClose }: { client?: ClientRow; onClose: () => v
               ))}
             </select>
           </Field>
-          <Field label="Канал за одобрување" error={errors.approvalChannel?.message}>
+          <Field label={t('adminClients.fApprovalChannel')} error={errors.approvalChannel?.message}>
             <select className={fieldCls(false)} {...register('approvalChannel')}>
               {CHANNELS.map((x) => (
                 <option key={x.v} value={x.v}>
@@ -328,7 +340,7 @@ function ClientModal({ client, onClose }: { client?: ClientRow; onClose: () => v
           }}
         />
         <label style={checkRow}>
-          <input type="checkbox" {...register('usesMetaAds')} /> Користи Meta Ads
+          <input type="checkbox" {...register('usesMetaAds')} /> {t('adminClients.fUsesMeta')}
         </label>
         {watchMeta && (
           <div style={{ display: 'grid', gap: 8 }}>
@@ -336,22 +348,22 @@ function ClientModal({ client, onClose }: { client?: ClientRow; onClose: () => v
               current={watch('metaAdAccountId')}
               onPick={(id) => setValue('metaAdAccountId', id ?? '')}
             />
-            <Field label="Meta Ad Account ID" error={errors.metaAdAccountId?.message}>
+            <Field label={t('adminClients.fAdAccount')} error={errors.metaAdAccountId?.message}>
               <input
                 className={fieldCls(false)}
                 placeholder="act_..."
                 {...register('metaAdAccountId')}
               />
             </Field>
-            <Field label="Facebook Page ID" error={errors.metaPageId?.message}>
+            <Field label={t('adminClients.fPageId')} error={errors.metaPageId?.message}>
               <input className={fieldCls(false)} {...register('metaPageId')} />
             </Field>
-            <Field label="Instagram ID" error={errors.metaIgId?.message}>
+            <Field label={t('adminClients.fIgId')} error={errors.metaIgId?.message}>
               <input className={fieldCls(false)} {...register('metaIgId')} />
             </Field>
           </div>
         )}
-        <Field label="Белешки (по потреба)" error={errors.notes?.message}>
+        <Field label={t('adminClients.fNotes')} error={errors.notes?.message}>
           <textarea className={fieldCls(false)} rows={2} {...register('notes')} />
         </Field>
       </form>
@@ -377,14 +389,18 @@ function MetaAccountPicker({
   const { data: accounts, isLoading } = useMetaAccounts(true);
   const withIg = (accounts ?? []).filter((a) => a.igId);
   return (
-    <Field label="Meta сметка (Instagram)">
+    <Field label={t('adminClients.metaAccount')}>
       <select
         className={fieldCls(false)}
         value={currentIg ?? ''}
         onChange={(e) => onPick(withIg.find((a) => a.igId === e.target.value) ?? null)}
       >
         <option value="">
-          {isLoading ? 'Вчитување…' : withIg.length ? '— избери сметка —' : 'Нема достапни сметки'}
+          {isLoading
+            ? t('adminClients.loading')
+            : withIg.length
+              ? t('adminClients.pickAccount')
+              : t('adminClients.noAccounts')}
         </option>
         {withIg.map((a) => (
           <option key={a.igId} value={a.igId ?? ''}>
@@ -407,7 +423,7 @@ function AdAccountPicker({
 }) {
   const { data: accounts, isLoading } = useMetaAdAccounts(true);
   return (
-    <Field label="Рекламна сметка (Ads)">
+    <Field label={t('adminClients.adAccount')}>
       <select
         className={fieldCls(false)}
         value={current ?? ''}
@@ -415,10 +431,10 @@ function AdAccountPicker({
       >
         <option value="">
           {isLoading
-            ? 'Вчитување…'
+            ? t('adminClients.loading')
             : (accounts?.length ?? 0)
-              ? '— избери рекламна сметка —'
-              : 'Нема достапни'}
+              ? t('adminClients.pickAdAccount')
+              : t('adminClients.noAdAccounts')}
         </option>
         {(accounts ?? []).map((a) => (
           <option key={a.id} value={a.id}>
@@ -446,7 +462,9 @@ function ContactsSection({ clientId }: { clientId: string }) {
 
   return (
     <div style={{ marginTop: 20, borderTop: '1px solid var(--gd-border)', paddingTop: 16 }}>
-      <h3 style={{ fontSize: 14, fontWeight: 600, margin: '0 0 8px' }}>Контакти</h3>
+      <h3 style={{ fontSize: 14, fontWeight: 600, margin: '0 0 8px' }}>
+        {t('adminClients.contacts')}
+      </h3>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
         {(contacts ?? [])
           .filter((c) => !c.archivedAt)
@@ -469,25 +487,39 @@ function ContactsSection({ clientId }: { clientId: string }) {
                     updateContact.mutate({ contactId: c.id, isApprover: e.target.checked })
                   }
                 />
-                одобрувач
+                {t('adminClients.approver')}
               </label>
             </div>
           ))}
         {(contacts ?? []).filter((c) => !c.archivedAt).length === 0 && (
-          <div style={{ fontSize: 13, color: 'var(--gd-ink-muted)' }}>Нема контакти.</div>
+          <div style={{ fontSize: 13, color: 'var(--gd-ink-muted)' }}>
+            {t('adminClients.noContacts')}
+          </div>
         )}
       </div>
       <div style={twoCol}>
-        <input className={fieldCls(!!errors.name)} placeholder="Име" {...register('name')} />
+        <input
+          className={fieldCls(!!errors.name)}
+          placeholder={t('adminClients.phName')}
+          {...register('name')}
+        />
         <input
           className={fieldCls(false)}
-          placeholder="Улога кај клиент"
+          placeholder={t('adminClients.phRole')}
           {...register('roleAtClient')}
         />
       </div>
       <div style={{ ...twoCol, marginTop: 8 }}>
-        <input className={fieldCls(false)} placeholder="Телефон" {...register('phone')} />
-        <input className={fieldCls(!!errors.email)} placeholder="Мејл" {...register('email')} />
+        <input
+          className={fieldCls(false)}
+          placeholder={t('adminClients.phPhone')}
+          {...register('phone')}
+        />
+        <input
+          className={fieldCls(!!errors.email)}
+          placeholder={t('adminClients.phEmail')}
+          {...register('email')}
+        />
       </div>
       <div style={{ marginTop: 8 }}>
         <Button
@@ -496,7 +528,7 @@ function ContactsSection({ clientId }: { clientId: string }) {
           disabled={createContact.isPending}
           onClick={handleSubmit(onAdd)}
         >
-          + Додади контакт
+          {t('adminClients.addContact')}
         </Button>
       </div>
     </div>
