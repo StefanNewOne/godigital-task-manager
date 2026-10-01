@@ -4,6 +4,9 @@
 set -euo pipefail
 
 ENVN="${1:-staging}"
+# env_file во compose се интерполира преку ENV_FILE → контејнерите ја добиваат вистинската околина
+# (.env.staging vs .env.production), не хардкодирано staging.
+export ENV_FILE=".env.${ENVN}"
 COMPOSE="docker compose -f docker-compose.production.yml --env-file .env.${ENVN}"
 cd "$(dirname "$0")/.."
 
