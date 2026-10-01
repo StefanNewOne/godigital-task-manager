@@ -311,3 +311,42 @@ export function findGroupTransition(
     (r) => r.from === from && r.to === to && r.contentType === contentType,
   );
 }
+
+/** Канонски снимок на матрицата (`note` се исфрла — коментар, не податок). Извор за
+ * `transitions.fixture.json`, за processDoc (бот) и за Админ → Автоматизации табелите. */
+export interface SerializedMatrix {
+  task: Array<
+    Pick<
+      TransitionRule,
+      'from' | 'to' | 'contentType' | 'actor' | 'guards' | 'effects' | 'requiresInput'
+    >
+  >;
+  group: Array<
+    Pick<GroupTransitionRule, 'from' | 'to' | 'contentType' | 'actor' | 'guards' | 'effects'>
+  >;
+}
+
+export function serializeMatrix(
+  task: readonly TransitionRule[],
+  group: readonly GroupTransitionRule[],
+): SerializedMatrix {
+  return {
+    task: task.map((r) => ({
+      from: r.from,
+      to: r.to,
+      contentType: r.contentType,
+      actor: r.actor,
+      guards: r.guards,
+      effects: r.effects,
+      requiresInput: r.requiresInput,
+    })),
+    group: group.map((r) => ({
+      from: r.from,
+      to: r.to,
+      contentType: r.contentType,
+      actor: r.actor,
+      guards: r.guards,
+      effects: r.effects,
+    })),
+  };
+}
