@@ -5,7 +5,7 @@ import { AppError } from '../lib/errors.js';
 import { generateForAllActiveClients, nextMonthKey } from '../services/slots.js';
 import { remindMonthlyPlan } from '../services/monthlyPlan.js';
 import { purgeIdempotencyKeys } from '../middleware/idempotency.js';
-import { evaluateCoverageAlarms } from '../services/alarms.js';
+import { runEnabledRules } from '../services/automations/engine.js';
 import { generateDailyDigest } from '../services/digest.js';
 import { pullMetrics, resolvePublications } from '../services/meta/metrics.js';
 import {
@@ -44,7 +44,7 @@ cronRouter.post('/slots-generate', requireCronSecret, async (req, res) => {
 
 // Евалуација на аларми за покриеност (PRD §4.13). BullMQ: дневно.
 cronRouter.post('/evaluate-alarms', requireCronSecret, async (_req, res) => {
-  const result = await evaluateCoverageAlarms();
+  const result = await runEnabledRules();
   res.json({ data: result });
 });
 

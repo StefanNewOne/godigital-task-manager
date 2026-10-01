@@ -5,7 +5,7 @@
  */
 import bcrypt from 'bcryptjs';
 import { DEFAULT_GROUP_LEAD_DAYS, DEFAULT_TASK_LEAD_DAYS } from '@gd/core';
-import { prisma, type Role, type ContentType, type ModuleKind } from '../src/index.js';
+import { prisma, type Prisma, type Role, type ContentType, type ModuleKind } from '../src/index.js';
 
 const DEV_PASSWORD = 'gd-devpass-2026';
 
@@ -109,22 +109,33 @@ const CLIENTS: Array<{
 ];
 
 // 15 системски настани (PRD §13) → системски AutomationRule (isSystem).
-const SYSTEM_RULES = [
-  'Потсетник: 15 дена пред видео датум',
-  'Потсетник: 7 дена пред датум',
-  'Аларм: 2 дена пред датум',
-  'Аларм: 24ч по снимање без суров материјал',
-  'Аларм: застој во статус > 3 дена',
-  'Критичен: покриеност под 7 дена',
-  'Потсетник: рок за овој статус наближува',
-  'Аларм: враќање од клиент (3-ти пат)',
-  'Аларм: одобрени сценарија ≠ резервирани слотови',
-  'Аларм: објава без копи/линк на денот',
-  'Критичен: пропуштен резервиран слот',
-  'Технички: истечен Meta токен',
-  'Технички: неуспешно влечење метрики',
-  'Технички: недозволен преод обиден',
-  'Технички: сторидж квота 80%',
+// trigger/actions се пополнети само за правилата што ги вози Rule Builder engine-от (H3);
+// останатите се event-driven (transition effects) или идни — остануваат празни.
+type SystemRule = {
+  name: string;
+  trigger?: Prisma.InputJsonValue;
+  actions?: Prisma.InputJsonValue;
+};
+const SYSTEM_RULES: SystemRule[] = [
+  { name: 'Потсетник: 15 дена пред видео датум' },
+  { name: 'Потсетник: 7 дена пред датум' },
+  { name: 'Аларм: 2 дена пред датум' },
+  { name: 'Аларм: 24ч по снимање без суров материјал' },
+  { name: 'Аларм: застој во статус > 3 дена' },
+  {
+    name: 'Критичен: покриеност под 7 дена',
+    trigger: { type: 'coverage_below' },
+    actions: { level: 'kritichen', recipients: 'directors' },
+  },
+  { name: 'Потсетник: рок за овој статус наближува' },
+  { name: 'Аларм: враќање од клиент (3-ти пат)' },
+  { name: 'Аларм: одобрени сценарија ≠ резервирани слотови' },
+  { name: 'Аларм: објава без копи/линк на денот' },
+  { name: 'Критичен: пропуштен резервиран слот' },
+  { name: 'Технички: истечен Meta токен' },
+  { name: 'Технички: неуспешно влечење метрики' },
+  { name: 'Технички: недозволен преод обиден' },
+  { name: 'Технички: сторидж квота 80%' },
 ];
 
 async function main() {
@@ -238,20 +249,28 @@ async function main() {
   }
 
   // 15 системски правила.
-  for (const name of SYSTEM_RULES) {
-    const existing = await prisma.automationRule.findFirst({ where: { name, isSystem: true } });
+  for (const r of SYSTEM_RULES) {
+    const existing = await prisma.automationRule.findFirst({
+      where: { name: r.name, isSystem: true },
+    });
     if (!existing) {
       await prisma.automationRule.create({
         data: {
-          name,
+          name: r.name,
           scope: 'global',
-          trigger: {},
+          trigger: r.trigger ?? {},
           conditions: [],
-          actions: [],
+          actions: r.actions ?? [],
           enabled: true,
           isSystem: true,
           createdById: director?.id,
         },
+      });
+    } else if (r.trigger && !(existing.trigger as { type?: string } | null)?.type) {
+      // Backfill: постоечко системско правило без тип — додади trigger/actions (H3 engine).
+      await prisma.automationRule.update({
+        where: { id: existing.id },
+        data: { trigger: r.trigger, actions: r.actions ?? [] },
       });
     }
   }
