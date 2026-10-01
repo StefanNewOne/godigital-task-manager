@@ -33,6 +33,10 @@ const schema = z.object({
     .enum(['true', 'false'])
     .default('true')
     .transform((v) => v === 'true'),
+  // SMS за критични аларми (D-12 / O-B1). Без credentials → dev-stub (нема испраќање).
+  TWILIO_ACCOUNT_SID: z.string().optional(),
+  TWILIO_AUTH_TOKEN: z.string().optional(),
+  TWILIO_FROM: z.string().optional(),
   // Meta Graph API (B2). Без токен → детерминистички stub адаптер (dev/тест). Никогаш на frontend.
   META_SYSTEM_TOKEN: z.string().optional(),
   // Модул 3 · Мета (§5): втор System User токен за пораки/коментари (Инбокс). Опционен;

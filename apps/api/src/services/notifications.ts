@@ -1,6 +1,7 @@
 import { dedupeKey, notificationChannels, ymd, type NotificationLevel } from '@gd/core';
 import { prisma } from '../db/tenantExtension.js';
 import { sendEmail } from '../lib/mailer.js';
+import { sendSms } from '../lib/sms.js';
 import { sendPushToEmployee } from './push.js';
 
 export interface NotifyInput {
@@ -72,6 +73,13 @@ export async function createNotification(input: NotifyInput) {
           ? `/tasks?capa=${input.groupId}`
           : '/';
       void sendPushToEmployee(input.recipientId, { title: input.title, body: input.body, url });
+    }
+    if (channels.includes('sms')) {
+      const emp = await prisma.employee.findUnique({
+        where: { id: input.recipientId },
+        select: { phone: true },
+      });
+      if (emp?.phone) void sendSms(emp.phone, `${input.title}: ${input.body}`);
     }
   }
 
