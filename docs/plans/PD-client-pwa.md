@@ -25,7 +25,13 @@
 - `apps/api`: `requireClient` middleware (верификува client JWT realm); `signClientToken`/`verifyClientToken` (нов realm, кратки TTL).
 - Тестови: core schemas; token hashing.
 
-## Фаза D2 — client approval API (PR 2)
+## Фаза D2 — client approval API (PR 2) — ✅ ИМПЛЕМЕНТИРАНО (2026-10-01)
+
+**Одлуки на сопственикот (2026-10-01):**
+
+- **Actor модел:** клиентската одлука го движи ПОСТОЕЧКИОТ преод преку state machine, извршен „во име на" носечката улога (видео→`rez`, графика→`krea`). Вистинскиот одобрувач се запишува преку `Approval.source=clientPwa` + `enteredById=clientContactId` (`enteredByRole=null`). **Матрицата е непроменета · `workflow-change: НЕ`.** Имплементација: `TransitionProvenance` (core, внатрешен тип — НЕ во wire schema, па employee внес не може да го стави), прочитано во `E_APPROVAL`.
+- **Опсег:** САМО креативи на `kajKlient` (task). CRM понуда/договор одобрување **одложено** (backlog §4) — CRM моторот е owner-gated на sales и нема clientPwa/Approval пат.
+- **Вклопен bugfix:** матрицата имаше `E_APPROVAL(client,return)` → невалидна `ApprovalOutcome` вредност `'return'` (валидна е `'returned'`). Патеката беше нетестирана (само forward kajKlient→zaObjavuvanje се тестираше). Поправено во двата реда (видео+графика) бидејќи client `requestChanges` ја активира.
 
 - `POST /client/auth/magic-link { email }` → генерички 200; ако `ClientContact.isApprover` постои → еднократен токен + email со линк `${WEB_ORIGIN}/client?token=…`.
 - `POST /client/auth/consume { token }` → валидира → издава client сесија (cookie/JWT realm=client).

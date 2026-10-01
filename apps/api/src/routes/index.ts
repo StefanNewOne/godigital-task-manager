@@ -32,10 +32,12 @@ import { monthlyPlanRouter } from './monthlyPlan.js';
 import { pushRouter } from './push.js';
 import { cronRouter } from './cron.js';
 import { crmRouter } from './crm.js';
+import { clientRouter } from './client.js';
 
 export const apiRouter: ExpressRouter = Router();
 
 apiRouter.use('/auth', authRouter);
+apiRouter.use('/client', clientRouter);
 
 apiRouter.get('/me', requireAuth, async (req, res) => {
   const employee = await prisma.employee.findUnique({

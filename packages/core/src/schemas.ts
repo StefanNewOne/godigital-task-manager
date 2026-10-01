@@ -212,6 +212,18 @@ export const transitionPayloadSchema = z
   .partial();
 export type TransitionPayload = z.infer<typeof transitionPayloadSchema>;
 
+/**
+ * Внатрешна провиниенција на преод — се поставува САМО серверски (клиентски PWA, Фаза D).
+ * НАМЕРНО не е дел од `transitionPayloadSchema`, за да НЕ може employee wire внес да ја стави
+ * (Zod ги брише непознатите клучеви на employee рутата). Ефектот E_APPROVAL ја чита за да
+ * го означи вистинскиот одобрувач (`source=clientPwa`, `enteredById=clientContactId`).
+ */
+export interface TransitionProvenance {
+  source?: 'employee' | 'clientPwa';
+  approvalEnteredById?: string; // clientContactId кога source='clientPwa'
+}
+export type InternalTransitionPayload = TransitionPayload & TransitionProvenance;
+
 export const taskTransitionSchema = z.object({
   to: z.enum(TASK_STATUSES),
   payload: transitionPayloadSchema.optional(),

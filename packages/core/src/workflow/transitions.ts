@@ -98,7 +98,7 @@ export const TASK_TRANSITIONS: readonly TransitionRule[] = [
     actor: 'rez',
     guards: ['G_COMMENT'],
     effects: [
-      'E_APPROVAL(client,return)',
+      'E_APPROVAL(client,returned)',
       'E_VERSION_BUMP',
       'E_REVISION(client)',
       'E_ASSIGN(mon)',
@@ -169,7 +169,7 @@ export const TASK_TRANSITIONS: readonly TransitionRule[] = [
     actor: 'krea',
     guards: ['G_COMMENT'],
     effects: [
-      'E_APPROVAL(client,return)',
+      'E_APPROVAL(client,returned)',
       'E_VERSION_BUMP',
       'E_REVISION(client)',
       'E_ASSIGN(diz)',

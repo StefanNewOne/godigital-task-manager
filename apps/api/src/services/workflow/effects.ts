@@ -1,5 +1,18 @@
-import type { ApprovalOutcome, ApprovalType, Client, Prisma, RevisionSource, Task } from '@gd/db';
-import { TASK_STATUS_META, type Role, type TaskStatus, type TransitionPayload } from '@gd/core';
+import type {
+  ApprovalOutcome,
+  ApprovalSource,
+  ApprovalType,
+  Client,
+  Prisma,
+  RevisionSource,
+  Task,
+} from '@gd/db';
+import {
+  TASK_STATUS_META,
+  type InternalTransitionPayload,
+  type Role,
+  type TaskStatus,
+} from '@gd/core';
 import type { TxClient } from '../../db/tenantExtension.js';
 import type { NotifyInput } from '../notifications.js';
 import { parseToken } from './parse.js';
@@ -8,7 +21,7 @@ export interface EffectCtx {
   tx: TxClient;
   task: Task & { client: Client };
   to: TaskStatus;
-  payload: TransitionPayload;
+  payload: InternalTransitionPayload;
   actorId: string;
   actorRole: Role;
 }
@@ -89,16 +102,22 @@ export async function runTaskEffects(tokens: string[], ctx: EffectCtx): Promise<
       case 'E_APPROVAL': {
         const type = (args[0] as ApprovalType) ?? 'internal';
         const outcome = (args[1] as ApprovalOutcome) ?? ctx.payload.outcome ?? 'approved';
+        // Провиниенција (Фаза D): кога клиентот одобрува преку PWA, вистинскиот одобрувач е
+        // client-contact-от, не извршувачот на преодот (носечката улога). Серверот го поставува
+        // `source`/`approvalEnteredById`; employee wire внес не може (не е во wire schema).
+        const source = (ctx.payload.source ?? 'employee') as ApprovalSource;
+        const byClient = source === 'clientPwa';
         await ctx.tx.approval.create({
           data: {
             objectType: 'task',
             objectId: ctx.task.id,
             type,
             outcome,
-            enteredById: ctx.actorId,
-            enteredByRole: ctx.actorRole,
+            enteredById: byClient ? (ctx.payload.approvalEnteredById ?? null) : ctx.actorId,
+            enteredByRole: byClient ? null : ctx.actorRole,
             channel: ctx.payload.channel,
             comment: ctx.payload.comment,
+            source,
           },
         });
         break;

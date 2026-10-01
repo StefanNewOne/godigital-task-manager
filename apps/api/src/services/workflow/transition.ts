@@ -3,9 +3,9 @@ import {
   TASK_STATUS_META,
   clientActiveForDate,
   findTaskTransition,
+  type InternalTransitionPayload,
   type Role,
   type TaskStatus,
-  type TransitionPayload,
 } from '@gd/core';
 import type { TaskStatus as DbTaskStatus } from '@gd/db';
 import { prisma } from '../../db/tenantExtension.js';
@@ -28,7 +28,7 @@ const FROZEN_EXEMPT: ReadonlySet<string> = new Set(['otkazano', 'pauza']);
 export async function transitionTask(
   taskId: string,
   to: TaskStatus,
-  payload: TransitionPayload,
+  payload: InternalTransitionPayload,
   actor: { id: string; role: Role },
 ) {
   const task = await prisma.task.findUnique({
