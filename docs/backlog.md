@@ -113,6 +113,11 @@
 
 **Статус на B2/B3/B4 (2026-09-24):** сите изградени зад адаптери со dev-stub (одлука: гради сè сега, вклучи со credentials).
 
+**Статус на Фаза C / D (2026-10-01):**
+
+- **Фаза C (PWA за вработени) ✅ КОМПЛЕТНА** (потврдено со инвентар + build): VitePWA manifest (mk, standalone, икони) + service worker, offline банер + offline-read кеш (NetworkFirst за `/api` GET), update prompt „нова верзија", offline mutation queue (`lib/offlineQueue` + `api.ts` enqueue/flush), Web Push (Settings toggle → `enablePush` → `/push/subscribe` → `sendPushToEmployee`, VAPID). Build емитира `manifest.webmanifest` + `sw.js` + `push-sw.js` + workbox. Опционо рафинирање (не-блокира): Background Sync за resumable file-upload; mobile responsive аудит. Runtime PWA (install/offline/push) најдобро се тестира рачно на уред.
+- **Фаза D (PWA за клиенти) ⬜ НЕ Е ЗАПОЧНАТА** — постои само `ApprovalSource.clientPwa` enum placeholder. Треба: magic-link auth за клиент, client-facing екрани за одобрување (понуда/креатива), `visibility=clientVisible` scoping, одделен клиентски PWA влез.
+
 - **B2 (Meta + Аналитика) ✅:** `metrics.pull` (MetaClient stub/Graph), `/analytics`, жив Аналитика екран, Кампањи (H9), извештај+CSV (H10). План: `docs/plans/B2-meta-metrics-analytics.md`.
 - **B3 (Сторидж) ✅:** retention cleanup + продолжи +30 + локална архива (H7), прегледи (PreviewGenerator stub/ffmpeg), квота аларм. План: `docs/plans/B3-storage-lifecycle.md`.
 - **B4 (Знаење + Claude) ✅:** embedding pipeline (Voyage stub/real), `knowledge.index` + backfill, `/knowledge/search` (hybrid + RRF + ACL, pgvector raw SQL со tenantId), `/knowledge/assistant/ask` (Claude помошник stub/real преку backend proxy, raw HTTP за да не воведе `@anthropic-ai/sdk` — §18), панел UI (✦ Прашај). Гатиран по клиент со `claudeAssistant` модул.
