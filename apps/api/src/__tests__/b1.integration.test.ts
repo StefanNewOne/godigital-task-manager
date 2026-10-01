@@ -87,8 +87,8 @@ describe('B1 аларми + известувања', () => {
       .set('x-cron-secret', env.CRON_SECRET)
       .send({});
     expect(r.status).toBe(200);
+    // H3 engine: исклучено правило не се извршува → нема создадени известувања.
     expect(r.body.data.created).toBe(0);
-    expect(r.body.data.skipped).toBe('disabled');
 
     // Врати го во вклучено (за другите тестови / состојба).
     await request(app).post(`/api/automation-rules/${coverage!.id}/toggle`).set(auth());
