@@ -9,7 +9,8 @@ WORKDIR /app
 FROM base AS build
 COPY . .
 RUN pnpm install --frozen-lockfile
-RUN pnpm --filter @gd/db exec prisma generate
+# @gd/db build = prisma generate + tsc → dist (TD-1).
+RUN pnpm --filter @gd/db build
 RUN pnpm --filter @gd/core build && pnpm --filter @gd/worker build
 
 FROM base AS runtime
