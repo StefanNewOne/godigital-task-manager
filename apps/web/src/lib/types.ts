@@ -142,8 +142,15 @@ export interface RuleRow {
   id: string;
   name: string;
   scope: string;
+  clientId?: string | null;
   enabled: boolean;
   isSystem: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  trigger?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  conditions?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  actions?: any;
 }
 
 export type SlotStatus = 'predlog' | 'free' | 'reserved' | 'used' | 'missed';
