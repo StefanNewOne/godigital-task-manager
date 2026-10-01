@@ -19,9 +19,6 @@
     "lint": "eslint src",
     "build": "prisma generate"
   },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
-  },
   "dependencies": {
     "@gd/core": "workspace:*",
     "@prisma/client": "^6.1.0"
