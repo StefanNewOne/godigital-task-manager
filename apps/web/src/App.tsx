@@ -24,6 +24,7 @@ import { AdminCalendars } from './screens/admin/Calendars.js';
 import { AdminClients } from './screens/admin/Clients.js';
 import { AdminEmployees } from './screens/admin/Employees.js';
 import { AdminPermissions } from './screens/admin/RolesPermissions.js';
+import { ClientApp } from './screens/client/ClientApp.js';
 
 /** Екран → рута (за пренасочување кон дозволен екран). */
 const SCREEN_PATH: Record<Screen, string> = {
@@ -62,6 +63,15 @@ function Guard({
 }
 
 export function App() {
+  // Клиентскиот PWA (Фаза D) е целосно одделен realm — се одбира пред employee `useMe`,
+  // за да не се повикува /me ниту employee auth за клиентски посетители.
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/client')) {
+    return <ClientApp />;
+  }
+  return <EmployeeApp />;
+}
+
+function EmployeeApp() {
   const { data: me, isLoading, isError } = useMe();
 
   if (isLoading) {

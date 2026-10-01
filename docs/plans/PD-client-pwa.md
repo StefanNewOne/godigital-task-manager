@@ -40,7 +40,9 @@
 - `POST /client/approvals/:kind/:id/decide { outcome, comment? }` → создава `Approval(source=clientPwa)` + вика соодветен **transition** (клиент прифати → напред; бара измени → назад v+1) преку постоечкиот state machine (НЕ дуплира логика). Guard: објектот мора да припаѓа на сесискиот `clientId`.
 - Тестови (integration): magic-link (no-enumeration, еднократен, истечен→400); client realm не може employee рути (403); approve/reject создава Approval(clientPwa) + точен преод; client-scope (туѓ клиент → 404/403).
 
-## Фаза D3 — client PWA (web) (PR 3)
+## Фаза D3 — client PWA (web) (PR 3) — ✅ ИМПЛЕМЕНТИРАНО (2026-10-01)
+
+**Реализација:** `App` се разделува на врвно ниво — патека под `/client` → `ClientApp` (целосно одделен realm, без employee `useMe`/nav). `ClientApp` има сопствен `BrowserRouter`: `/client` (landing + авто-consume од `?token`), `/client/approvals` (листа), `/client/approvals/:id` (детал + Одобри/Побарај измени). Hooks во `apps/web/src/api/client.ts` (magic-link request/consume, approvals list/detail/decide, logout). Сесијата е httpOnly cookie; `api.ts` го прескокнува employee refresh за `/client/*` (одделен realm). Мобилно-прв, токен-конзистентен (brand сина, Inter, кирилица); сите стрингови во `mk.json` под `client.*`. Реупотреба на `fmtDate` + `StatusBadge`. e2e: `e2e/client.spec.ts` (landing, генеричка потврда, неважечки токен — data-independent).
 
 - Рути (јавни, client realm): `/client` (magic-link landing + consume од `?token`), `/client/approvals` (листа), детал + Одобри/Врати со коментар. Одделен тенок layout (без employee nav), мобилно-прв; строго само `clientVisible` содржина. Сите стрингови во `mk.json` (§4). PWA manifest scope веќе покрива `/`.
 - Тестови: e2e (magic-link landing рендерира; листа/детал/одобри — data-independent каде може).

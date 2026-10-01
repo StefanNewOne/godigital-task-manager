@@ -73,7 +73,14 @@ async function request<T>(
     throw netErr;
   }
   // Истечен access токен → тивко освежи еднаш и повтори (без јамка на самите auth рути).
-  if (res.status === 401 && retry && path !== '/auth/refresh' && path !== '/auth/login') {
+  // Клиентскиот realm (/client/*) има сопствена сесија — employee refresh не му помага, па се прескокнува.
+  if (
+    res.status === 401 &&
+    retry &&
+    path !== '/auth/refresh' &&
+    path !== '/auth/login' &&
+    !path.startsWith('/client/')
+  ) {
     if (await tryRefresh()) return request<T>(method, path, body, false, key);
   }
   const json = (await res.json().catch(() => null)) as { data?: T } & Partial<ApiError>;
