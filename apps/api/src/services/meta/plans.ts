@@ -3,6 +3,7 @@ import {
   findPlanTransition,
   isPlanVerifiable,
   opMeta,
+  type EventType,
   type OpCode,
   type PlanStatus,
 } from '@gd/core';
@@ -189,7 +190,7 @@ export async function createPlan(input: CreatePlanInput) {
 async function transitionPlan(
   id: string,
   to: PlanStatus,
-  opts: { note?: string; eventType: string; narrative: (label: string) => string },
+  opts: { note?: string; eventType: EventType; narrative: (label: string) => string },
 ) {
   const a = actor();
   return prisma.$transaction(async (tx) => {

@@ -12,6 +12,7 @@ export * from './deadlines.js';
 export * from './schemas.js';
 export * from './workflow/transitions.js';
 export * from './workflow/specials.js';
+export * from './events/narratives.js';
 export * from './slots/algorithm.js';
 export * from './publications.js';
 export * from './notifications.js';
