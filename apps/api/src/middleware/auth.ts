@@ -2,13 +2,19 @@ import type { NextFunction, Request, Response } from 'express';
 import { PERMISSIONS, type Role, type Screen } from '@gd/core';
 import { requestContext } from '../db/context.js';
 import { AppError } from '../lib/errors.js';
-import { verifyAccessToken } from '../lib/auth.js';
+import { verifyAccessToken, verifyClientToken } from '../lib/auth.js';
 
 function extractToken(req: Request): string | null {
   const header = req.headers.authorization;
   if (header?.startsWith('Bearer ')) return header.slice(7);
   const cookieToken = (req.cookies as Record<string, string> | undefined)?.access_token;
   return cookieToken ?? null;
+}
+
+function extractClientToken(req: Request): string | null {
+  const header = req.headers.authorization;
+  if (header?.startsWith('Bearer ')) return header.slice(7);
+  return (req.cookies as Record<string, string> | undefined)?.client_token ?? null;
 }
 
 /**
@@ -25,6 +31,11 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction): v
   try {
     payload = verifyAccessToken(token);
   } catch {
+    next(new AppError('UNAUTHENTICATED', 'Сесијата е истечена или неважечка.', 401));
+    return;
+  }
+  // Клиентски токени (realm=client) никогаш не смеат на employee рути (И4, §9 defense in depth).
+  if ((payload as { realm?: string }).realm) {
     next(new AppError('UNAUTHENTICATED', 'Сесијата е истечена или неважечка.', 401));
     return;
   }
@@ -66,4 +77,26 @@ export function requireScreen(screen: Screen) {
     }
     next();
   };
+}
+
+/**
+ * Клиентски PWA realm (Фаза D) — ОДДЕЛЕН од employee realm. Верификува тесен client JWT
+ * (`realm:'client'`), поставува `req.clientAuth` и го пушта контекстот со `actorId=clientContactId`
+ * (И1 tenant scope важи; client scope се проверува по-ресурс во контролерите).
+ */
+export function requireClient(req: Request, _res: Response, next: NextFunction): void {
+  const token = extractClientToken(req);
+  if (!token) {
+    next(new AppError('UNAUTHENTICATED', 'Не сте најавени.', 401));
+    return;
+  }
+  let payload;
+  try {
+    payload = verifyClientToken(token);
+  } catch {
+    next(new AppError('UNAUTHENTICATED', 'Сесијата е истечена или неважечка.', 401));
+    return;
+  }
+  req.clientAuth = payload;
+  requestContext.run({ tenantId: payload.tenantId, actorId: payload.sub }, () => next());
 }

@@ -8,6 +8,8 @@ import {
   loginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  magicLinkRequestSchema,
+  clientApprovalSchema,
 } from './schemas.js';
 
 describe('schemas', () => {
@@ -109,5 +111,20 @@ describe('schemas', () => {
     );
     expect(resetPasswordSchema.safeParse({ token: '', password: '12345678' }).success).toBe(false);
     expect(resetPasswordSchema.safeParse({ token: 'abc', password: 'short' }).success).toBe(false);
+  });
+
+  it('magicLinkRequestSchema бара валиден е-мејл (Фаза D)', () => {
+    expect(magicLinkRequestSchema.safeParse({ email: 'k@client.mk' }).success).toBe(true);
+    expect(magicLinkRequestSchema.safeParse({ email: 'nevaliden' }).success).toBe(false);
+  });
+
+  it('clientApprovalSchema: approve без коментар OK; requestChanges бара коментар', () => {
+    expect(clientApprovalSchema.safeParse({ outcome: 'approve' }).success).toBe(true);
+    expect(clientApprovalSchema.safeParse({ outcome: 'requestChanges' }).success).toBe(false);
+    expect(
+      clientApprovalSchema.safeParse({ outcome: 'requestChanges', comment: 'смени наслов' })
+        .success,
+    ).toBe(true);
+    expect(clientApprovalSchema.safeParse({ outcome: 'nema' }).success).toBe(false);
   });
 });
