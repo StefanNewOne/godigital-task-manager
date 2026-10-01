@@ -114,15 +114,17 @@
 
 **Статус на B2/B3/B4 (2026-09-24):** сите изградени зад адаптери со dev-stub (одлука: гради сè сега, вклучи со credentials).
 
-**Статус на Фаза C / D (2026-10-01):**
+**Статус на Фаза C / D (ажур. 2026-10-02):**
 
 - **Фаза C (PWA за вработени) ✅ КОМПЛЕТНА** (потврдено со инвентар + build): VitePWA manifest (mk, standalone, икони) + service worker, offline банер + offline-read кеш (NetworkFirst за `/api` GET), update prompt „нова верзија", offline mutation queue (`lib/offlineQueue` + `api.ts` enqueue/flush), Web Push (Settings toggle → `enablePush` → `/push/subscribe` → `sendPushToEmployee`, VAPID). Build емитира `manifest.webmanifest` + `sw.js` + `push-sw.js` + workbox. Опционо рафинирање (не-блокира): Background Sync за resumable file-upload; mobile responsive аудит. Runtime PWA (install/offline/push) најдобро се тестира рачно на уред.
-- **Фаза D (PWA за клиенти) ⬜ НЕ Е ЗАПОЧНАТА** — постои само `ApprovalSource.clientPwa` enum placeholder. Треба: magic-link auth за клиент, client-facing екрани за одобрување (понуда/креатива), `visibility=clientVisible` scoping, одделен клиентски PWA влез.
+- **Фаза D (PWA за клиенти) ✅ КОМПЛЕТНА (2026-10-02, PR #54/#55/#56)** — план `docs/plans/PD-client-pwa.md`. **D1** (#54): одделен client auth realm (`ClientJwtPayload`, `requireClient`, realm-rejection во `requireAuth`), `ClientMagicToken` модел. **D2** (#55): magic-link (hashed еднократен токен, no-enumeration) + client approvals API (`/client/*`); `E_APPROVAL` стампа `source=clientPwa` + `enteredById=clientContactId`; одлука на сопственикот = server „on behalf of" носечката улога (rez/krea), матрицата непроменета; вклопен bugfix `E_APPROVAL(client,return)`→`returned`; 13 integration тестови. **D3** (#56): тенок мобилно-прв client PWA (`/client` landing+consume, листа, детал Одобри/Врати), одделен realm во `App` (без employee `useMe`), стрингови `client.*` во mk.json, 3 e2e. **Опсег:** само креативи на `kajKlient`; **CRM понуда/договор клиентско одобрување одложено** (§4 — CRM моторот е owner-gated на sales, нема clientPwa/Approval пат).
 
 - **B2 (Meta + Аналитика) ✅:** `metrics.pull` (MetaClient stub/Graph), `/analytics`, жив Аналитика екран, Кампањи (H9), извештај+CSV (H10). План: `docs/plans/B2-meta-metrics-analytics.md`.
 - **B3 (Сторидж) ✅:** retention cleanup + продолжи +30 + локална архива (H7), прегледи (PreviewGenerator stub/ffmpeg), квота аларм. План: `docs/plans/B3-storage-lifecycle.md`.
 - **B4 (Знаење + Claude) ✅:** embedding pipeline (Voyage stub/real), `knowledge.index` + backfill, `/knowledge/search` (hybrid + RRF + ACL, pgvector raw SQL со tenantId), `/knowledge/assistant/ask` (Claude помошник stub/real преку backend proxy, raw HTTP за да не воведе `@anthropic-ai/sdk` — §18), панел UI (✦ Прашај). Гатиран по клиент со `claudeAssistant` модул.
 - **Останати credentials/одлуки за прод:** Meta (`META_SYSTEM_TOKEN`), ffmpeg бинар (`FFMPEG_PATH`), Voyage (`VOYAGE_API_KEY` + O-D10 тест на 20 реални коментари), Claude (`ANTHROPIC_API_KEY`), SMS провајдер (O-B1). До тогаш stub адаптерите го носат целиот тек.
+
+**Локална тест-околина — две замки (не се регресии, CI е чист):** (1) ако `.env.local` има `META_SYSTEM_TOKEN`, `metrics`/`analytics`/`reports` integration тестовите паѓаат — `getMetaClient()` оди на вистински Graph (→ 400); пушти ги со празен `META_SYSTEM_TOKEN` (како CI) за stub. (2) Заостанати непрочитани `kritichen` известувања прикажуваат блокирачки модал „Критичен аларм" што ги кине e2e навигациските клик-ови; `UPDATE "Notification" SET "readAt"=now() WHERE level='kritichen' AND "readAt" IS NULL;` пред e2e. Полн локален статус (02.10.2026): core 170/170 (100%), web 55/55, api 257/257, e2e 21/21.
 
 ---
 
