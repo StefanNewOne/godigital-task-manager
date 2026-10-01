@@ -1,0 +1,241 @@
+{
+  "task": [
+    {
+      "from": "mrtov",
+      "to": "cekaSnimanje",
+      "contentType": "video",
+      "actor": "system",
+      "guards": ["G_CAPA_IN_SNIMANJE", "G_SCENARIO_BOUND"],
+      "effects": ["E_BIND_SCENARIOS"],
+      "requiresInput": false
+    },
+    {
+      "from": "cekaSnimanje",
+      "to": "chekaRezija",
+      "contentType": "video",
+      "actor": "system",
+      "guards": ["G_CAPA_CLOSED"],
+      "effects": ["E_ASSIGN(rez)"],
+      "requiresInput": false
+    },
+    {
+      "from": "chekaRezija",
+      "to": "montaza",
+      "contentType": "video",
+      "actor": "rez",
+      "guards": ["G_ASSIGNEE_REQUIRED(mon)", "G_NOT_SELF_APPROVAL"],
+      "effects": ["E_ASSIGN(mon)", "E_NOTIFY(nov_task,mon)"],
+      "requiresInput": true
+    },
+    {
+      "from": "montaza",
+      "to": "vnatresno",
+      "contentType": "video",
+      "actor": "mon",
+      "guards": ["G_FILE(final,1)"],
+      "effects": ["E_ASSIGN(rez)"],
+      "requiresInput": true
+    },
+    {
+      "from": "vnatresno",
+      "to": "montaza",
+      "contentType": "video",
+      "actor": "rez",
+      "guards": ["G_COMMENT"],
+      "effects": [
+        "E_VERSION_BUMP",
+        "E_REVISION(internal)",
+        "E_ASSIGN(mon)",
+        "E_NOTIFY(vraten,mon)"
+      ],
+      "requiresInput": true
+    },
+    {
+      "from": "vnatresno",
+      "to": "kajKlient",
+      "contentType": "video",
+      "actor": "rez",
+      "guards": [],
+      "effects": ["E_APPROVAL(internal,approved)"],
+      "requiresInput": false
+    },
+    {
+      "from": "kajKlient",
+      "to": "montaza",
+      "contentType": "video",
+      "actor": "rez",
+      "guards": ["G_COMMENT"],
+      "effects": [
+        "E_APPROVAL(client,returned)",
+        "E_VERSION_BUMP",
+        "E_REVISION(client)",
+        "E_ASSIGN(mon)",
+        "E_ALARM(11)?"
+      ],
+      "requiresInput": true
+    },
+    {
+      "from": "kajKlient",
+      "to": "zaObjavuvanje",
+      "contentType": "video",
+      "actor": "rez",
+      "guards": ["G_CLIENT_OUTCOME(approved|approvedWithChanges)", "G_COMMENT_IF_CHANGES"],
+      "effects": ["E_APPROVAL(client)", "E_ASSIGN(am)"],
+      "requiresInput": true
+    },
+    {
+      "from": "mrtov",
+      "to": "brifing",
+      "contentType": "graphic",
+      "actor": "krea",
+      "guards": [],
+      "effects": ["E_ASSIGN(krea)", "E_CLOSE_GROUP_IF_FIRST"],
+      "requiresInput": false
+    },
+    {
+      "from": "brifing",
+      "to": "dizajn",
+      "contentType": "graphic",
+      "actor": "krea",
+      "guards": ["G_TEXT(brief,50)", "G_ASSIGNEE_REQUIRED(diz)", "G_NOT_SELF_APPROVAL"],
+      "effects": ["E_ASSIGN(diz)", "E_NOTIFY(nov_task,diz)"],
+      "requiresInput": true
+    },
+    {
+      "from": "dizajn",
+      "to": "vnatresno",
+      "contentType": "graphic",
+      "actor": "diz",
+      "guards": ["G_FILE(graphic,1)"],
+      "effects": ["E_ASSIGN(krea)"],
+      "requiresInput": true
+    },
+    {
+      "from": "vnatresno",
+      "to": "dizajn",
+      "contentType": "graphic",
+      "actor": "krea",
+      "guards": ["G_COMMENT"],
+      "effects": [
+        "E_VERSION_BUMP",
+        "E_REVISION(internal)",
+        "E_ASSIGN(diz)",
+        "E_NOTIFY(vraten,diz)"
+      ],
+      "requiresInput": true
+    },
+    {
+      "from": "vnatresno",
+      "to": "kajKlient",
+      "contentType": "graphic",
+      "actor": "krea",
+      "guards": [],
+      "effects": ["E_APPROVAL(internal,approved)"],
+      "requiresInput": false
+    },
+    {
+      "from": "kajKlient",
+      "to": "dizajn",
+      "contentType": "graphic",
+      "actor": "krea",
+      "guards": ["G_COMMENT"],
+      "effects": [
+        "E_APPROVAL(client,returned)",
+        "E_VERSION_BUMP",
+        "E_REVISION(client)",
+        "E_ASSIGN(diz)",
+        "E_ALARM(11)?"
+      ],
+      "requiresInput": true
+    },
+    {
+      "from": "kajKlient",
+      "to": "zaObjavuvanje",
+      "contentType": "graphic",
+      "actor": "krea",
+      "guards": ["G_CLIENT_OUTCOME(approved|approvedWithChanges)", "G_COMMENT_IF_CHANGES"],
+      "effects": ["E_APPROVAL(client)", "E_ASSIGN(am)"],
+      "requiresInput": true
+    },
+    {
+      "from": "zaObjavuvanje",
+      "to": "objaveno",
+      "contentType": "both",
+      "actor": "am",
+      "guards": ["G_TEXT(copy,1)", "G_PUBLICATION"],
+      "effects": ["E_SCHEDULE_METRICS", "E_AUTO_NEXT(analitika)?"],
+      "requiresInput": true
+    },
+    {
+      "from": "analitika",
+      "to": "zavrseno",
+      "contentType": "both",
+      "actor": "ana",
+      "guards": ["G_DECISION"],
+      "effects": [],
+      "requiresInput": true
+    }
+  ],
+  "group": [
+    {
+      "from": "podgotovka",
+      "to": "scenarija",
+      "contentType": "video",
+      "actor": "rez",
+      "guards": ["G_CAPA_FIELDS"],
+      "effects": ["E_ASSIGN(scen)", "E_NOTIFY(nov_task,scen)"]
+    },
+    {
+      "from": "scenarija",
+      "to": "scenKajKlient",
+      "contentType": "video",
+      "actor": "scen",
+      "guards": ["G_FILE(scenarioDoc,1)", "G_SCENARIOS_SPLIT"],
+      "effects": ["E_ASSIGN(rez)", "E_NOTIFY"]
+    },
+    {
+      "from": "scenKajKlient",
+      "to": "scenarija",
+      "contentType": "video",
+      "actor": "rez",
+      "guards": ["G_COMMENT"],
+      "effects": ["E_VERSION_BUMP(document)", "E_REVISION(client)", "E_ASSIGN(scen)"]
+    },
+    {
+      "from": "scenKajKlient",
+      "to": "snimanje",
+      "contentType": "video",
+      "actor": "rez",
+      "guards": ["G_SCENARIO_OUTCOMES", "G_AT_LEAST_ONE_APPROVED"],
+      "effects": [
+        "E_APPROVAL(client,perScenario)",
+        "E_BIND_SCENARIOS",
+        "E_ACTIVATE_CHILDREN(cekaSnimanje)",
+        "E_CREATE_EXTRA_SLOTS?",
+        "E_ALARM(9)?",
+        "E_ASSIGN(kam)"
+      ]
+    },
+    {
+      "from": "snimanje",
+      "to": "zatvoren",
+      "contentType": "video",
+      "actor": "system",
+      "guards": ["G_FILE(raw,1)"],
+      "effects": [
+        "E_CLOSE_GROUP",
+        "E_ACTIVATE_CHILDREN(chekaRezija)",
+        "E_ASSIGN(rez)",
+        "E_STORAGE_TIMER"
+      ]
+    },
+    {
+      "from": "gPodgotovka",
+      "to": "zatvoren",
+      "contentType": "graphic",
+      "actor": "system",
+      "guards": ["G_FIRST_CHILD_IN_BRIFING"],
+      "effects": ["E_CLOSE_GROUP"]
+    }
+  ]
+}
