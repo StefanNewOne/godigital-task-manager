@@ -344,6 +344,8 @@ model ClientContact {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
+  magicTokens ClientMagicToken[]
+
   @@index([clientId])
 }
 
@@ -384,6 +386,21 @@ model PasswordResetToken {
   createdAt  DateTime  @default(now())
 
   @@index([employeeId])
+  @@index([tenantId])
+}
+
+// Фаза D (клиентски PWA): magic-link токен за ClientContact. Само hash (§12), еднократен, TTL.
+model ClientMagicToken {
+  id              String        @id @default(uuid(7)) @db.Uuid
+  tenantId        String        @default("godigital")
+  clientContactId String        @db.Uuid
+  contact         ClientContact @relation(fields: [clientContactId], references: [id])
+  tokenHash       String // sha-256 hex; никогаш plaintext
+  expiresAt       DateTime
+  usedAt          DateTime?
+  createdAt       DateTime      @default(now())
+
+  @@index([clientContactId])
   @@index([tenantId])
 }
 

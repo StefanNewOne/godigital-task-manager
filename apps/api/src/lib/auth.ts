@@ -9,6 +9,16 @@ export interface JwtPayload {
   role: Role;
 }
 
+/** Клиентски PWA сесија (Фаза D) — ОДДЕЛЕН realm; никогаш employee права. */
+export interface ClientJwtPayload {
+  sub: string; // clientContactId
+  tenantId: string;
+  clientId: string;
+  realm: 'client';
+}
+
+const CLIENT_SESSION_TTL = '2h'; // кратка клиентска сесија
+
 export function hashPassword(plain: string): Promise<string> {
   return bcrypt.hash(plain, 10);
 }
@@ -35,4 +45,16 @@ export function verifyAccessToken(token: string): JwtPayload {
 
 export function verifyRefreshToken(token: string): JwtPayload {
   return jwt.verify(token, env.JWT_REFRESH_SECRET) as JwtPayload;
+}
+
+export function signClientToken(payload: Omit<ClientJwtPayload, 'realm'>): string {
+  return jwt.sign({ ...payload, realm: 'client' }, env.JWT_ACCESS_SECRET, {
+    expiresIn: CLIENT_SESSION_TTL,
+  });
+}
+
+export function verifyClientToken(token: string): ClientJwtPayload {
+  const p = jwt.verify(token, env.JWT_ACCESS_SECRET) as ClientJwtPayload;
+  if (p.realm !== 'client') throw new Error('WRONG_REALM');
+  return p;
 }

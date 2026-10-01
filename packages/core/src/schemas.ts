@@ -32,6 +32,28 @@ export const resetPasswordSchema = z.object({
 });
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 
+// ── Клиентски PWA (Фаза D) — magic-link + одобрување ──
+export const magicLinkRequestSchema = z.object({
+  email: z.string().email('Неважечки е-мејл.'),
+});
+export type MagicLinkRequestInput = z.infer<typeof magicLinkRequestSchema>;
+
+export const magicLinkConsumeSchema = z.object({
+  token: z.string().min(1, 'Токенот е задолжителен.'),
+});
+export type MagicLinkConsumeInput = z.infer<typeof magicLinkConsumeSchema>;
+
+export const clientApprovalSchema = z
+  .object({
+    outcome: z.enum(['approve', 'requestChanges']),
+    comment: z.string().optional(),
+  })
+  .refine((v) => v.outcome !== 'requestChanges' || !!v.comment?.trim(), {
+    message: 'Коментар е задолжителен при барање измени.',
+    path: ['comment'],
+  });
+export type ClientApprovalInput = z.infer<typeof clientApprovalSchema>;
+
 // ── Employee ──
 export const employeeCreateSchema = z
   .object({
