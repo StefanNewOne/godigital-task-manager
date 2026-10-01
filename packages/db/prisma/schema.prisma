@@ -785,6 +785,7 @@ model AutomationRule {
   enabled     Boolean         @default(true)
   isSystem    Boolean         @default(false)
   createdById String?         @db.Uuid
+  archivedAt  DateTime? // soft-delete (И6); системските правила не се архивираат
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
   runs        AutomationRun[]
