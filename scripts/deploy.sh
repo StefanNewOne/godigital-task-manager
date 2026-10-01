@@ -34,8 +34,15 @@ $COMPOSE build
 echo "→ (4/6) Инфра (postgres/redis/minio)"
 $COMPOSE up -d postgres redis minio minio-init
 
-echo "→ (5/6) Prisma migrate deploy"
-$COMPOSE run --rm api pnpm --filter @gd/db exec prisma migrate deploy
+echo "→ (5/6) Prisma migrate deploy (TD-5: как owner, не gd_app)"
+# Миграциите мора да ги вози OWNER role-от (DDL + REVOKE), не апликацискиот gd_app.
+# Ако е поставен MIGRATE_DATABASE_URL, го користиме за овој чекор; инаку DATABASE_URL (dev/single-role).
+MIGRATE_URL="$(val MIGRATE_DATABASE_URL)"
+if [ -n "${MIGRATE_URL}" ]; then
+  $COMPOSE run --rm -e DATABASE_URL="${MIGRATE_URL}" api pnpm --filter @gd/db exec prisma migrate deploy
+else
+  $COMPOSE run --rm api pnpm --filter @gd/db exec prisma migrate deploy
+fi
 
 echo "→ (6/6) Подигни сè"
 $COMPOSE up -d
