@@ -1,22 +1,41 @@
 import type React from 'react';
+import { useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link } from 'react-router-dom';
 import { loginSchema, type LoginInput } from '@gd/core';
 import { t } from '@gd/ui';
 import { ApiRequestError } from '../lib/api.js';
-import { useLogin } from '../api/auth.js';
+import { useAuthConfig, useGoogleLogin, useLogin } from '../api/auth.js';
+import { renderGoogleButton } from '../lib/google.js';
 
 export function Login() {
   const login = useLogin();
+  const google = useGoogleLogin();
+  const { data: config } = useAuthConfig();
+  const googleBtnRef = useRef<HTMLDivElement>(null);
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) });
 
+  const googleClientId = config?.googleClientId ?? null;
+  const googleMutate = google.mutate;
+  useEffect(() => {
+    if (!googleClientId || !googleBtnRef.current) return;
+    void renderGoogleButton(googleBtnRef.current, googleClientId, (idToken) =>
+      googleMutate(idToken),
+    );
+  }, [googleClientId, googleMutate]);
+
   const onSubmit = (data: LoginInput) => login.mutate(data);
-  const serverError = login.error instanceof ApiRequestError ? login.error.message : null;
+  const serverError =
+    login.error instanceof ApiRequestError
+      ? login.error.message
+      : google.error instanceof ApiRequestError
+        ? google.error.message
+        : null;
 
   return (
     <div
@@ -79,6 +98,16 @@ export function Login() {
         <button type="submit" disabled={login.isPending} style={btnStyle}>
           {login.isPending ? t('login.signingIn') : t('login.signIn')}
         </button>
+        {googleClientId && (
+          <>
+            <div style={dividerStyle}>
+              <span style={dividerLineStyle} />
+              <span style={{ fontSize: 12, color: 'var(--gd-ink-muted)' }}>{t('login.or')}</span>
+              <span style={dividerLineStyle} />
+            </div>
+            <div ref={googleBtnRef} style={{ display: 'flex', justifyContent: 'center' }} />
+          </>
+        )}
         <Link
           to="/forgot-password"
           style={{
@@ -124,4 +153,16 @@ const btnStyle: React.CSSProperties = {
   fontSize: 14,
   fontWeight: 500,
   cursor: 'pointer',
+};
+
+const dividerStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+};
+
+const dividerLineStyle: React.CSSProperties = {
+  flex: 1,
+  height: 1,
+  background: 'var(--gd-border)',
 };

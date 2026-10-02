@@ -34,7 +34,9 @@ describe('Login', () => {
     fireEvent.submit(container.querySelector('form')!);
 
     expect(await screen.findByText('Неважечки е-мејл.')).toBeTruthy();
-    expect(fetchMock).not.toHaveBeenCalled();
+    // Нема login повик (config може да се повика на mount — не е login).
+    const loginCalls = fetchMock.mock.calls.filter((c) => String(c[0]).includes('/auth/login'));
+    expect(loginCalls).toHaveLength(0);
   });
 
   it('валидно поднесување → POST /api/auth/login со внесот', async () => {
@@ -50,8 +52,10 @@ describe('Login', () => {
     });
     fireEvent.submit(container.querySelector('form')!);
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-    const call = fetchMock.mock.calls[0]!;
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('/auth/login'))).toBe(true),
+    );
+    const call = fetchMock.mock.calls.find((c) => String(c[0]).includes('/auth/login'))!;
     const [url, opts] = call as [string, RequestInit];
     expect(url).toBe('/api/auth/login');
     expect(opts.method).toBe('POST');

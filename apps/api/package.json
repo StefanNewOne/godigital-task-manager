@@ -21,6 +21,7 @@
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "express": "^5.0.1",
+    "google-auth-library": "^11.1.0",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^10.0.10",
     "pino": "^9.5.0",
