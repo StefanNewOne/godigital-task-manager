@@ -126,6 +126,14 @@
 
 **Локална тест-околина — две замки (не се регресии, CI е чист):** (1) ако `.env.local` има `META_SYSTEM_TOKEN`, `metrics`/`analytics`/`reports` integration тестовите паѓаат — `getMetaClient()` оди на вистински Graph (→ 400); пушти ги со празен `META_SYSTEM_TOKEN` (како CI) за stub. (2) Заостанати непрочитани `kritichen` известувања прикажуваат блокирачки модал „Критичен аларм" што ги кине e2e навигациските клик-ови; `UPDATE "Notification" SET "readAt"=now() WHERE level='kritichen' AND "readAt" IS NULL;` пред e2e. Полн локален статус (02.10.2026): core 170/170 (100%), web 55/55, api 257/257, e2e 21/21.
 
+**Конформност-ревизија (02.10.2026) — резултати:** И1–И9, дозволи §4, покриеност §4.9, рокови §4.10, наративи §4.12, state machine §4.3 — потврдени (enforced + tested). Зацврстено: G1 `transitions.fixture.json` + табеларен тест (#58), G2 token-completeness guardrail (#58), G3 централен `EventType` каталог + празен-наратив гард (#58).
+
+**§18 e2e-покриеност (G4):** PRD §18 бара „еден e2e по чекбокс". Проценка по критериум:
+
+- **Најден реален пропуст → поправен:** `POST /tasks/:id/date-change` немаше НИКАКОВ тест (ни integration) → додаден `date-change.integration.test.ts` (дозволи, причина-И5, минато, слот-резолуција, DateChange + EventLog).
+- **Покриено (integration/unit, цитирано):** bulk активација `activate-all` (group.integration:290), @mention коментар (tasks.integration:87), сторидж +30 `storage/extend` (storage.integration:71), Meta аларми `evaluateAlerts` (meta-sync.integration:88), Board DnD draggability (core `isBoardDraggable`, transitions.test).
+- **Останува integration-only (свесно, не flaky e2e):** преглед на креатива (чист UI; одобрување/верзии покриени во transition.integration), Board реален DnD, наследување заеднички материјал во деца (делумно — `sharedMaterial` file-kind тестиран; експлицитна child-inheritance тврдка = низок-приоритет follow-up). Причина: seed НЕ создава таскови/капи/фајлови и нема директен task-create API, па длабок UI e2e бара task-seeding harness (Playwright globalSetup + Prisma) — голема инфра за маргинална вредност над постоечката integration покриеност; вистинската UI валидација е Gate-A пилотот. Harness-от може да се изгради подоцна ако затреба.
+
 ---
 
 ## 6. Hotfix / Improvement бројач
