@@ -17,9 +17,11 @@ export const queryClient = new QueryClient({
   },
 });
 
+const CACHE_KEY = 'gd-query-cache';
+
 /** Async persister врз IndexedDB (idb-keyval). Само успешни queries се чуваат. */
 export const idbPersister = createAsyncStoragePersister({
-  key: 'gd-query-cache',
+  key: CACHE_KEY,
   throttleTime: 1000,
   storage: {
     getItem: (k) => get(k),
@@ -27,3 +29,8 @@ export const idbPersister = createAsyncStoragePersister({
     removeItem: (k) => del(k),
   },
 });
+
+/** Исчисти го персистираниот кеш (при одјава) — инаку reload го враќа стариот `me` (QA #2). */
+export async function clearPersistedCache(): Promise<void> {
+  await del(CACHE_KEY).catch(() => undefined);
+}

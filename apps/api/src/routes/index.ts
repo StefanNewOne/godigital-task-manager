@@ -4,7 +4,8 @@ import { notificationPrefsSchema } from '@gd/core';
 import { prisma } from '../db/tenantExtension.js';
 import { AppError } from '../lib/errors.js';
 import { parse } from '../lib/validate.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireScreen } from '../middleware/auth.js';
+import { getCoverage } from '../services/overview.js';
 import { authRouter, employeeSafeSelect } from './auth.js';
 import { clientsRouter } from './clients.js';
 import { clientContactsRouter, contactsRouter } from './clientContacts.js';
@@ -56,6 +57,11 @@ apiRouter.patch('/me/notification-prefs', requireAuth, async (req, res) => {
     data: { notificationPrefs: { reminders: input.reminders } },
   });
   res.json({ data: { reminders: input.reminders } });
+});
+
+// Покриеност по клиент — за Клиенти екранот (сите улоги со екран „clients", не само Директор).
+apiRouter.get('/coverage', requireAuth, requireScreen('clients'), async (_req, res) => {
+  res.json({ data: await getCoverage() });
 });
 
 apiRouter.use('/clients', clientsRouter);

@@ -5,7 +5,7 @@ import { Button, t } from '@gd/ui';
 import { daysLabel } from '../lib/format.js';
 import { useMe } from '../api/auth.js';
 import { useClients } from '../api/admin.js';
-import { useOverview } from '../api/overview.js';
+import { useCoverage } from '../api/overview.js';
 import { useTasks } from '../api/tasks.js';
 import { PeriodSidebar } from '../components/PeriodSidebar.js';
 import { tableStyles as s } from '../components/table.js';
@@ -36,14 +36,14 @@ const INACTIVE = new Set(['mrtov', 'objaveno', 'zavrseno', 'otkazano', 'pauza'])
 /** Клиенти (Handoff §2.8): преглед по клиент со покриеност; ред отвора Список. */
 export function Clients() {
   const { data: clients, isLoading } = useClients();
-  const { data: overview } = useOverview();
+  const { data: coverage } = useCoverage();
   const { data: tasks } = useTasks({});
   const { data: me } = useMe();
   const navigate = useNavigate();
   const [planOpen, setPlanOpen] = useState(false);
   const planMonth = nextMonthKey();
 
-  const cov = (id: string) => overview?.coverage.find((c) => c.clientId === id);
+  const cov = (id: string) => coverage?.find((c) => c.clientId === id);
   const activeCount = useMemo(() => {
     const m = new Map<string, number>();
     for (const t of tasks ?? []) {

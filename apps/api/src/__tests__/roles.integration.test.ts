@@ -214,6 +214,20 @@ describe('мулти-ролна RBAC проверка (сите 9 улоги)', 
     }
   });
 
+  it('GET /api/coverage: само улоги со екран „clients" (не само Директор)', async () => {
+    for (const a of ACCOUNTS) {
+      const s = sessions.get(a.role)!;
+      const r = await request(app).get('/api/coverage').set('Authorization', `Bearer ${s.token}`);
+      if (PERMISSIONS[a.role].nav.includes('clients')) {
+        expect(r.status, `${a.role} треба да гледа покриеност`).toBe(200);
+        expect(Array.isArray(r.body.data), `${a.role} покриеност = низа`).toBe(true);
+      } else {
+        expect(r.status, `${a.role} не смее да гледа покриеност`).toBe(403);
+        expect(r.body.code).toBe('FORBIDDEN_ROLE');
+      }
+    }
+  });
+
   it('GET /api/automation-rules + /api/automation-runs: само екран „admin" (само Директор)', async () => {
     for (const path of ['/api/automation-rules', '/api/automation-runs']) {
       for (const a of ACCOUNTS) {

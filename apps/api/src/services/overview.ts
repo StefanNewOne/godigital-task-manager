@@ -25,12 +25,9 @@ export interface StatusRow {
 
 const MS_PER_DAY = 86_400_000;
 
-/**
- * Директорски преглед (PRD §4.9, Handoff §7): покриеност по клиент + работа по статус.
- * `month` (YYYY-MM) го скопира само „работа по статус" на тој месец; покриеноста е
- * секогаш „од денес нанапред" по дефиниција, па не зависи од избраниот месец.
- */
-export async function getOverview(month?: string) {
+/** Покриеност по клиент (PRD §4.9). Издвоено за да го користат и Клиенти екранот (не само
+ * Директорскиот преглед) — достапно за сите улоги што го носат екранот „clients". */
+export async function getCoverage(): Promise<CoverageRow[]> {
   const clients = await prisma.client.findMany({ where: { status: 'aktiven', archivedAt: null } });
   const today = new Date();
 
@@ -68,6 +65,17 @@ export async function getOverview(month?: string) {
     });
   }
   coverage.sort((a, b) => a.days - b.days); // најкритичните најгоре
+  return coverage;
+}
+
+/**
+ * Директорски преглед (PRD §4.9, Handoff §7): покриеност по клиент + работа по статус.
+ * `month` (YYYY-MM) го скопира само „работа по статус" на тој месец; покриеноста е
+ * секогаш „од денес нанапред" по дефиниција, па не зависи од избраниот месец.
+ */
+export async function getOverview(month?: string) {
+  const today = new Date();
+  const coverage = await getCoverage();
 
   // Работа по статус: број + просечни денови во тековниот статус (скопирано по месец).
   const statusTasks = await prisma.task.findMany({

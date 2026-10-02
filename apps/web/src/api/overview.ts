@@ -29,3 +29,11 @@ export function useOverview(month?: string) {
       api.get<OverviewData>(month ? `/overview?month=${encodeURIComponent(month)}` : '/overview'),
   });
 }
+
+/** Покриеност по клиент — достапно за сите улоги со екран „clients" (не само Директор). */
+export function useCoverage() {
+  return useQuery({
+    queryKey: ['coverage'],
+    queryFn: () => api.get<CoverageRow[]>('/coverage'),
+  });
+}
