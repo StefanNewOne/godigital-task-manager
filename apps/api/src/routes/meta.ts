@@ -42,6 +42,7 @@ import {
   updateMetaClientProfile,
 } from '../services/meta/clientDetail.js';
 import { metaConnections } from '../services/meta/connections.js';
+import { connectAllClients } from '../services/meta/connectAll.js';
 import {
   syncAllInsightsToday,
   syncAllStructure,
@@ -259,6 +260,11 @@ metaRouter.get('/archive.csv', requireRole('dir'), async (req, res) => {
 // Поврзувања (§8, MF3) — токен-статус (без вредности, §12) + конекции по клиент. dir/ana.
 metaRouter.get('/connections', requireRole('dir', 'ana'), async (_req, res) => {
   res.json({ data: await metaConnections() });
+});
+
+// „Поврзи ги сите клиенти" — bulk: MetaConnection + backfill за сите со доделен Meta ID. dir.
+metaRouter.post('/connect-all', requireRole('dir'), async (_req, res) => {
+  res.json({ data: await connectAllClients() });
 });
 
 // Достапни страници + IG business сметки (за доделба по клиент во Админ).

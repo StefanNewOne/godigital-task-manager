@@ -541,6 +541,22 @@ export function useMetaConnections() {
   });
 }
 
+interface ConnectAllResult {
+  clients: number;
+  results: Array<{ clientId: string; name: string; connections: number; error: string | null }>;
+}
+
+/** „Поврзи ги сите клиенти" — bulk MetaConnection + backfill (dir). */
+export function useMetaConnectAll() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<ConnectAllResult>('/meta/connect-all'),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['meta'] });
+    },
+  });
+}
+
 /** „Освежи сега" — закажува sync во позадина + invalidate на сите meta прегледи. */
 export function useMetaRefresh() {
   const qc = useQueryClient();

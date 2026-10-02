@@ -25,6 +25,7 @@ import {
   useUpdateMetaProfile,
   useMetaClientOrganic,
   useMetaConnections,
+  useMetaConnectAll,
   useConversationsSummary,
   type Kpi,
   type MetaAlertRow,
@@ -2337,9 +2338,59 @@ function AssistantPanel({
 
 function ConnectionsView() {
   const { data } = useMetaConnections();
+  const { data: me } = useMe();
+  const connectAll = useMetaConnectAll();
+  const [connectMsg, setConnectMsg] = useState<string | null>(null);
   if (!data) return <Loading />;
   return (
     <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {me?.role === 'dir' && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            border: '1px solid var(--gd-border)',
+            borderRadius: 8,
+            padding: 14,
+          }}
+        >
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>
+              {t('meta.connections.connectAllTitle')}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--gd-ink-muted)', marginTop: 2 }}>
+              {connectMsg ?? t('meta.connections.connectAllNote')}
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled={connectAll.isPending}
+            onClick={() =>
+              connectAll.mutate(undefined, {
+                onSuccess: (r) =>
+                  setConnectMsg(t('meta.connections.connectAllDone', { count: r.clients })),
+                onError: () => setConnectMsg(t('meta.connections.connectAllError')),
+              })
+            }
+            style={{
+              height: 36,
+              padding: '0 16px',
+              background: 'var(--gd-primary)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 'var(--gd-radius-button)',
+              fontSize: 14,
+              fontWeight: 500,
+              cursor: 'pointer',
+            }}
+          >
+            {connectAll.isPending
+              ? t('meta.connections.connectAllPending')
+              : t('meta.connections.connectAll')}
+          </button>
+        </div>
+      )}
       {/* Токен-картички (без вредности, §12) */}
       <div>
         <div style={sectionTitle}>{t('meta.connections.tokensTitle')}</div>
