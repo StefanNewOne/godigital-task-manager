@@ -221,7 +221,14 @@ function PipelineBoard({
     }
     move.mutate(
       { to },
-      { onError: (e) => setToast(e instanceof ApiRequestError ? e.message : t('crm.error')) },
+      {
+        onError: (e) =>
+          setToast(
+            e instanceof ApiRequestError
+              ? e.message
+              : (e as { message?: string })?.message || t('crm.error'),
+          ),
+      },
     );
   };
 
