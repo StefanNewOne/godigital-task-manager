@@ -65,7 +65,9 @@ function Guard({
 export function App() {
   // Клиентскиот PWA (Фаза D) е целосно одделен realm — се одбира пред employee `useMe`,
   // за да не се повикува /me ниту employee auth за клиентски посетители.
-  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/client')) {
+  // ВАЖНО: точно `/client` или под `/client/` — да НЕ го фати employee `/clients` екранот.
+  const path = typeof window !== 'undefined' ? window.location.pathname : '';
+  if (path === '/client' || path.startsWith('/client/')) {
     return <ClientApp />;
   }
   return <EmployeeApp />;
