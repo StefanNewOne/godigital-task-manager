@@ -17,6 +17,10 @@ const schema = z.object({
   API_PORT: z.coerce.number().default(3001),
   WEB_ORIGIN: z.string().url().default('http://localhost:5173'),
   CRON_SECRET: z.string().min(8).default('dev-cron-secret-change-me'),
+  // Google најава (ADR-002) — јавен OAuth Web client id. Празно → Google копчето е скриено.
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  // Дозволен домен за Google најава (без само-регистрација; email мора да е активен Employee).
+  GOOGLE_ALLOWED_DOMAIN: z.string().default('godigital.mk'),
   // Object storage (Cloudflare R2 / S3-compatible; MinIO локално)
   R2_ENDPOINT: z.string().url().default('http://localhost:9100'),
   R2_REGION: z.string().default('auto'),

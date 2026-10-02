@@ -362,6 +362,7 @@ model Employee {
   active            Boolean   @default(true)
   capacityNote      String?
   notificationPrefs Json?
+  googleSub         String?   @unique // Google subject (ADR-002) — врзување при Google најава
   lastActiveAt      DateTime?
   createdById       String?   @db.Uuid
   archivedAt        DateTime?

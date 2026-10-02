@@ -20,6 +20,12 @@ export const loginSchema = z.object({
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
+// Google најава (ADR-002) — GIS id_token од прелистувачот.
+export const googleLoginSchema = z.object({
+  idToken: z.string().min(1, 'Недостасува Google токен.'),
+});
+export type GoogleLoginInput = z.infer<typeof googleLoginSchema>;
+
 // ── Заборавена лозинка (H4) ──
 export const forgotPasswordSchema = z.object({
   email: z.string().email('Неважечки е-мејл.'),

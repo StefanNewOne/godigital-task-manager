@@ -1,8 +1,15 @@
 import { Router } from 'express';
 import type { Router as ExpressRouter } from 'express';
-import { loginSchema, forgotPasswordSchema, resetPasswordSchema } from '@gd/core';
+import {
+  loginSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  googleLoginSchema,
+} from '@gd/core';
 import { prisma } from '../db/tenantExtension.js';
 import { requestPasswordReset, resetPassword } from '../services/auth/passwordReset.js';
+import { verifyGoogleIdToken } from '../lib/googleAuth.js';
+import { env } from '../env.js';
 import { AppError } from '../lib/errors.js';
 import { parse } from '../lib/validate.js';
 import {
@@ -44,6 +51,61 @@ authRouter.post('/login', async (req, res) => {
   await prisma.employee.update({
     where: { id: employee.id },
     data: { lastActiveAt: new Date() },
+  });
+
+  res
+    .cookie('access_token', access, accessCookie)
+    .cookie('refresh_token', refresh, { ...accessCookie, path: '/api/auth' })
+    .json({
+      data: {
+        accessToken: access,
+        employee: {
+          id: employee.id,
+          name: employee.name,
+          email: employee.email,
+          role: employee.role,
+          color: employee.color,
+        },
+      },
+    });
+});
+
+// Јавна конфигурација за login формата (Google копче feature-gate). Без секрети.
+authRouter.get('/config', (_req, res) => {
+  res.json({ data: { googleClientId: env.GOOGLE_CLIENT_ID ?? null } });
+});
+
+// Google најава (ADR-002): само @-домен + verified + постоечки активен Employee. Нема само-регистрација.
+authRouter.post('/google', async (req, res) => {
+  if (!env.GOOGLE_CLIENT_ID) {
+    throw new AppError('UNAUTHENTICATED', 'Google најавата не е конфигурирана.', 400);
+  }
+  const { idToken } = parse(googleLoginSchema, req.body);
+
+  let identity;
+  try {
+    identity = await verifyGoogleIdToken(idToken);
+  } catch {
+    throw new AppError('UNAUTHENTICATED', 'Google токенот е неважечки.', 401);
+  }
+
+  const domain = env.GOOGLE_ALLOWED_DOMAIN.toLowerCase();
+  const email = identity.email.toLowerCase();
+  if (!identity.emailVerified || !email.endsWith(`@${domain}`)) {
+    throw new AppError('FORBIDDEN_ROLE', `Дозволена е само најава со @${domain} сметка.`, 403);
+  }
+
+  const employee = await prisma.employee.findUnique({ where: { email } });
+  if (!employee || !employee.active) {
+    throw new AppError('FORBIDDEN_ROLE', 'Нема активен вработен со таа сметка.', 403);
+  }
+
+  const payload = { sub: employee.id, tenantId: employee.tenantId, role: employee.role };
+  const access = signAccessToken(payload);
+  const refresh = signRefreshToken(payload);
+  await prisma.employee.update({
+    where: { id: employee.id },
+    data: { lastActiveAt: new Date(), googleSub: identity.sub },
   });
 
   res

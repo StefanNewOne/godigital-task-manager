@@ -12,6 +12,8 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    // Google најава тестовите го мокираат верификаторот, но бараат GOOGLE_CLIENT_ID да е сетиран.
+    env: { GOOGLE_CLIENT_ID: 'test.apps.googleusercontent.com' },
     include: ['src/**/*.integration.test.ts'],
     testTimeout: 30000,
     // Серски: сите фајлови делат една DB → без file-parallelism за да нема race.

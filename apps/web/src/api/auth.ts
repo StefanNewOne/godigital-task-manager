@@ -38,6 +38,27 @@ export function useLogout() {
   });
 }
 
+// Google најава (ADR-002).
+export function useAuthConfig() {
+  return useQuery({
+    queryKey: ['auth-config'],
+    queryFn: () => api.get<{ googleClientId: string | null }>('/auth/config'),
+    staleTime: Infinity,
+    retry: false,
+  });
+}
+
+export function useGoogleLogin() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (idToken: string) =>
+      api.post<{ accessToken: string; employee: Me }>('/auth/google', { idToken }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['me'] });
+    },
+  });
+}
+
 // Заборавена лозинка (H4).
 export function useForgotPassword() {
   return useMutation({
