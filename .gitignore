@@ -35,3 +35,6 @@ pnpm-debug.log*
 .vscode/*
 !.vscode/extensions.json
 Thumbs.db
+
+# E2E harness seeded IDs (generated at test time)
+e2e/.seed-ids.json
