@@ -8,6 +8,7 @@ import {
   type LossReason,
 } from '@gd/core';
 import { t } from '@gd/ui';
+import { ApiRequestError } from '../../lib/api.js';
 import { uploadFile } from '../../api/files.js';
 import {
   useCrmAgents,
@@ -46,6 +47,7 @@ export function LeadPanel({
   const pendingKind = useRef<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadErr, setUploadErr] = useState<string | null>(null);
+  const [transErr, setTransErr] = useState<string | null>(null);
 
   if (!lead) return null;
   const meta = CRM_STATUS_META[lead.status];
@@ -86,7 +88,20 @@ export function LeadPanel({
   const go = (
     to: CrmStatus,
     payload?: { comment?: string; lossReason?: LossReason; lossNote?: string },
-  ) => transition.mutate({ to, payload });
+  ) => {
+    setTransErr(null);
+    transition.mutate(
+      { to, payload },
+      {
+        onError: (e) =>
+          setTransErr(
+            e instanceof ApiRequestError
+              ? e.message
+              : (e as { message?: string })?.message || t('crm.error'),
+          ),
+      },
+    );
+  };
 
   return (
     <div style={overlay} onClick={onClose}>
@@ -204,6 +219,11 @@ export function LeadPanel({
           {uploadErr && (
             <Banner color="#B91C1C" bg="#FEF2F2">
               {uploadErr}
+            </Banner>
+          )}
+          {transErr && (
+            <Banner color="#B91C1C" bg="#FEF2F2">
+              {transErr}
             </Banner>
           )}
 
